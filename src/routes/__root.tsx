@@ -7,6 +7,7 @@ import {
   Outlet,
 } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect } from "react";
+import { GeneratedPasswordDialog } from "@/components/admin/generated-password";
 import { ApiStatus } from "@/components/api-status";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import { ErrorState } from "@/components/ui/states";
@@ -44,6 +45,7 @@ function RootLayout() {
       <Outlet />
       <Toaster />
       <ConfirmDialog />
+      <GeneratedPasswordDialog />
       <Suspense>
         <RouterDevtools />
       </Suspense>

@@ -1,12 +1,17 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { render } from "@testing-library/react";
+import { hideGeneratedPassword } from "@/components/admin/generated-password";
+import { useToasts } from "@/components/ui/toast";
 import { routeTree } from "@/routeTree.gen";
 import type { User } from "@/stores/session";
 import { useSession } from "@/stores/session";
 
 /** Monta la app completa (router real) en la ruta indicada */
 export function renderApp(path: string) {
+  // Los diálogos y avisos son stores globales: empezar cada render sin restos de otro test
+  hideGeneratedPassword();
+  useToasts.setState({ toasts: [] });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const router = createRouter({
     routeTree,

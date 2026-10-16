@@ -2,7 +2,8 @@ import { Link, useMatches, useNavigate } from "@tanstack/react-router";
 import { KeyRound, LogOut, Menu } from "lucide-react";
 import { type ReactNode, useId } from "react";
 import { AppVersion } from "@/components/app-version";
-import { initials, NAV, userSubtitle } from "@/lib/roles";
+import { Avatar } from "@/components/ui/avatar";
+import { NAV, userSubtitle } from "@/lib/roles";
 import { type User, useSession } from "@/stores/session";
 
 declare module "@tanstack/react-router" {
@@ -11,16 +12,6 @@ declare module "@tanstack/react-router" {
     title?: string;
     description?: string;
   }
-}
-
-function Avatar({ name, className = "" }: { name: string; className?: string }) {
-  return (
-    <div className={`avatar avatar-placeholder ${className}`}>
-      <div className="w-9 rounded-full bg-primary text-primary-content">
-        <span className="font-bold text-xs">{initials(name)}</span>
-      </div>
-    </div>
-  );
 }
 
 function useSignOut() {
