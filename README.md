@@ -57,6 +57,19 @@ bun run rust:lint   # cargo clippy
 
 El CI (`.github/workflows/ci.yml`) ejecuta todo esto en cada pull request y push a `main`.
 
+## Producción (versión web con Docker)
+
+La imagen compila la app con Bun y sirve los estáticos con nginx (rutas de la SPA, `/healthz`, caché larga para `/assets`). La URL de la API se pasa **al arrancar el contenedor** con `API_URL`, así la misma imagen sirve para cualquier entorno:
+
+```sh
+API_URL=https://api.ejemplo.com/api/v1 docker compose up -d --build   # http://localhost:8080 (WEB_PORT para cambiarlo)
+# o sin compose:
+docker build -t notas-web .
+docker run -d -p 8080:80 -e API_URL=https://api.ejemplo.com/api/v1 notas-web
+```
+
+Sin `API_URL` el contenedor no arranca. El origen donde se publique la web (p. ej. `https://notas.ejemplo.com`) debe estar en `CORS_ORIGINS` de la API.
+
 ## Android
 
 Requisitos: Android Studio con SDK, Build-Tools, Command-line Tools y NDK; variables `JAVA_HOME` (sirve el JDK de Android Studio), `ANDROID_HOME` y `NDK_HOME`; targets de Rust:
