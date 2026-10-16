@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.release.outputs.id }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Comprobar que el tag coincide con la versión de la app
+        run: |
+          app_version=$(jq -r .version src-tauri/tauri.conf.json)
+          if [ "v$app_version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::El tag $GITHUB_REF_NAME no coincide con la versión de tauri.conf.json ($app_version)"
+            exit 1
+          fi
+
+      # Borrador hasta que terminen todos los builds
+      - name: Crear release en borrador
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --generate-notes --title "Notas $GITHUB_REF_NAME"
+          echo "id=$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name == \"$GITHUB_REF_NAME\") | .id")" >> "$GITHUB_OUTPUT"
+
+  windows:
+    needs: create-release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - run: bun install --frozen-lockfile
+
+      - name: Compilar y subir instaladores (NSIS y MSI)
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL_PROD }}
+        with:
+          tauriScript: bun run tauri
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+
+  # TODO: job de Android (APK firmado) cuando estén listas las tareas de entorno Android y keystore
+
+  publish:
+    needs: [create-release, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publicar release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false
