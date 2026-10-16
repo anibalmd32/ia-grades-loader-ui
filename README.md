@@ -30,6 +30,29 @@ bun run tauri dev         # app de escritorio (Windows)
 
 La versión web es suficiente para desarrollar las pantallas; solo hace falta Rust para `tauri dev` y Android.
 
+## Levantar la API con Docker
+
+No hace falta Python, basta Docker Desktop:
+
+1. Clona `ia-grades-loader-api` y copia `.env.example` a `.env`.
+2. En ese `.env` rellena `MYSQL_PASSWORD` y `MYSQL_ROOT_PASSWORD` (cualquier valor), `MYSQL_USER` (distinto de `root`), `JWT_SECRET_KEY` (32+ caracteres) y `APP_ENV=development`. `CORS_ORIGINS` debe incluir `http://localhost:1420`, `tauri://localhost` y `http://tauri.localhost`. `LLM_API_KEY` y `TELEGRAM_*` son opcionales.
+3. `docker compose up -d --build`: la API queda en `http://localhost:8000` (Swagger en `/docs`) y aplica las migraciones sola.
+4. El primer uso crea el super admin desde la pantalla de instalación de la app (o `POST /api/v1/setup`).
+
+Si la API no responde, la app muestra un aviso arriba con la URL que está usando.
+
+## Calidad
+
+```sh
+bun run check       # Biome: formatea y revisa
+bun run typecheck   # TypeScript
+bun run test        # Vitest + Testing Library + MSW (API simulada en src/test)
+bun run rust:fmt    # cargo fmt
+bun run rust:lint   # cargo clippy
+```
+
+El CI (`.github/workflows/ci.yml`) ejecuta todo esto en cada pull request y push a `main`.
+
 ## Android
 
 Requisitos: Android Studio con SDK, Build-Tools, Command-line Tools y NDK; variables `JAVA_HOME` (sirve el JDK de Android Studio), `ANDROID_HOME` y `NDK_HOME`; targets de Rust:
@@ -49,7 +72,7 @@ La firma del APK de release la hace el CI con el keystore guardado en los secret
 
 ## Formato
 
-Biome formatea y revisa el código (`bun run check`). Al hacer commit, lefthook ejecuta Biome sobre los archivos del commit; el hook se instala solo con `bun install`.
+Al hacer commit, lefthook ejecuta Biome sobre los archivos del commit; el hook se instala solo con `bun install`.
 
 ## Publicar una versión
 

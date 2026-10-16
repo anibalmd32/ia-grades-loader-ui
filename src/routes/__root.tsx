@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect } from "react";
+import { ApiStatus } from "@/components/api-status";
 import { usePreferences } from "@/stores/preferences";
 
 const RouterDevtools = import.meta.env.DEV
@@ -27,6 +28,7 @@ function RootLayout() {
 
   return (
     <>
+      <ApiStatus />
       <Outlet />
       <Suspense>
         <RouterDevtools />
