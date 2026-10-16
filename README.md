@@ -24,17 +24,21 @@ bun install
 bun run tauri dev
 ```
 
+## Formato
+
+Biome formatea y revisa el código (`bun run check`). Al hacer commit, lefthook ejecuta Biome sobre los archivos del commit; el hook se instala solo con `bun install`.
+
 ## Publicar una versión
 
-Desde `main` y sin cambios pendientes:
+Haz commit y push de todo lo que quieras publicar. Después, desde `main`:
 
 ```sh
-bun run release:patch   # 0.0.1 → 0.0.2 (correcciones)
-bun run release:minor   # 0.0.2 → 0.1.0 (funciones nuevas)
-bun run release:major   # 0.1.0 → 1.0.0 (cambios grandes)
+bun run release:patch   # v0.0.1 → v0.0.2 (correcciones)
+bun run release:minor   # v0.0.2 → v0.1.0 (funciones nuevas)
+bun run release:major   # v0.1.0 → v1.0.0 (cambios grandes)
 ```
 
-El script sube la versión en `package.json`, `tauri.conf.json` y `Cargo.toml`, crea el commit y el tag `vX.Y.Z` y los sube a GitHub. El workflow de release compila y publica los instaladores en GitHub Releases. No hay que editar la versión a mano.
+El script calcula la siguiente versión a partir del último tag, crea el tag `vX.Y.Z` sobre el último commit y lo sube. No hace commits. El workflow de release pone esa versión en la app, compila y publica los instaladores en GitHub Releases. En el repo la versión se queda en `0.0.0`.
 
 ## Estructura
 
