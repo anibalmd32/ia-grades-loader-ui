@@ -1,6 +1,6 @@
 [package]
 name = "ia-grades-loader-ui"
-version = "0.0.0"
+version = "0.0.1"
 description = "Notas: carga y consulta de notas universitarias"
 authors = ["BlueCode"]
 edition = "2024"
