@@ -24,6 +24,18 @@ bun install
 bun run tauri dev
 ```
 
+## Publicar una versión
+
+Desde `main` y sin cambios pendientes:
+
+```sh
+bun run release:patch   # 0.0.1 → 0.0.2 (correcciones)
+bun run release:minor   # 0.0.2 → 0.1.0 (funciones nuevas)
+bun run release:major   # 0.1.0 → 1.0.0 (cambios grandes)
+```
+
+El script sube la versión en `package.json`, `tauri.conf.json` y `Cargo.toml`, crea el commit y el tag `vX.Y.Z` y los sube a GitHub. El workflow de release compila y publica los instaladores en GitHub Releases. No hay que editar la versión a mano.
+
 ## Estructura
 
 - `src/`: app React (`routes/`, `stores/`, `lib/`)
