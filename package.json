@@ -19,7 +19,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml",
-    "rust:lint": "cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings"
+    "rust:lint": "cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f web"
   },
   "dependencies": {
     "@tanstack/react-form": "^1.33.5",

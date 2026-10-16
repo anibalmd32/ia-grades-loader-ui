@@ -62,8 +62,14 @@ El CI (`.github/workflows/ci.yml`) ejecuta todo esto en cada pull request y push
 La imagen compila la app con Bun y sirve los estáticos con nginx (rutas de la SPA, `/healthz`, caché larga para `/assets`). La URL de la API se pasa **al arrancar el contenedor** con `API_URL`, así la misma imagen sirve para cualquier entorno:
 
 ```sh
-API_URL=https://api.ejemplo.com/api/v1 docker compose up -d --build   # http://localhost:8080 (WEB_PORT para cambiarlo)
-# o sin compose:
+bun run docker:up      # construye la imagen y arranca el contenedor en http://localhost:8080
+bun run docker:logs    # ver los logs
+bun run docker:down    # parar y borrar el contenedor
+```
+
+`API_URL` se toma de la variable de entorno y, si no existe, de `VITE_API_URL` del `.env` (en local basta con el `.env` de desarrollo). `WEB_PORT` cambia el puerto. Sin compose:
+
+```sh
 docker build -t notas-web .
 docker run -d -p 8080:80 -e API_URL=https://api.ejemplo.com/api/v1 notas-web
 ```

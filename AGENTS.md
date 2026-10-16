@@ -71,6 +71,7 @@ La API tiene que estar levantada en `http://localhost:8000`; el README explica c
 | `bun run build` | Build de producción |
 | `bun run tauri dev` | App de escritorio (requiere Rust) |
 | `bun run rust:fmt` / `rust:lint` | cargo fmt / clippy |
+| `bun run docker:up` / `docker:down` / `docker:logs` | Versión web en Docker (http://localhost:8080) |
 | `bun run release:*` | **Solo el responsable del repo** |
 
 ## Planificación

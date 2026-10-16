@@ -1,10 +1,12 @@
-# Versión web de Notas. Uso: API_URL=https://api.ejemplo.com/api/v1 docker compose up -d --build
+# Versión web de Notas. Uso: bun run docker:up (ver README).
+# API_URL: la de la variable de entorno o, si no existe, VITE_API_URL del archivo .env
 services:
   web:
     build: .
     image: notas-web
+    container_name: notas-web
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-8080}:80"
     environment:
-      API_URL: ${API_URL:?Define API_URL, p. ej. http://localhost:8000/api/v1}
+      API_URL: ${API_URL:-${VITE_API_URL:?Define API_URL o VITE_API_URL en .env}}
