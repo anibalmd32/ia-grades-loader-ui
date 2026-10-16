@@ -5,3 +5,9 @@ pre-commit:
       glob: "*.{js,jsx,ts,tsx,json,jsonc,css}"
       run: bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
       stage_fixed: true
+
+# Ningún commit puede atribuir el trabajo a una IA (ver AGENTS.md)
+commit-msg:
+  commands:
+    sin-atribucion-ia:
+      run: bun scripts/check-commit-msg.ts {1}

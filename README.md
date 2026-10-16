@@ -17,6 +17,10 @@ App de escritorio (Windows) y móvil (Android) para cargar y consultar notas uni
 - Visual Studio Build Tools con "Desktop development with C++"
 - WebView2 (incluido en Windows 11)
 
+## Contribuir
+
+Todo cambio entra por pull request a `main` (protegida: CI en verde y aprobación). Las normas para personas y agentes de IA están en [AGENTS.md](AGENTS.md); entre ellas, ningún commit ni PR puede atribuir el trabajo a una IA.
+
 ## Desarrollo
 
 Necesitas la API (`ia-grades-loader-api`) corriendo en `http://localhost:8000`.
