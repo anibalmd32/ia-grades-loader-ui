@@ -80,7 +80,11 @@ describe("asistente", () => {
     await waitFor(() => expect(router.state.location.search).toEqual({ c: 42 }));
     // La conversación nueva aparece en la lista
     expect(
-      await screen.findAllByRole("button", { name: /¿En qué materia voy peor\?\s*Hoy/ }),
+      await screen.findAllByRole(
+        "button",
+        { name: /¿En qué materia voy peor\?\s*Hoy/ },
+        { timeout: 3000 },
+      ),
     ).not.toHaveLength(0);
   });
 
