@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { AppVersion } from "@/components/app-version";
 import { type Theme, usePreferences } from "@/stores/preferences";
 
 export const Route = createFileRoute("/")({
@@ -30,6 +31,9 @@ function Home() {
           </button>
         ))}
       </div>
+      <p className="text-sm opacity-60">
+        Notas <AppVersion />
+      </p>
     </main>
   );
 }
