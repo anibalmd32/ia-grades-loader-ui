@@ -8,11 +8,11 @@ App de escritorio (Windows) y móvil (Android) para cargar y consultar notas uni
 - TanStack Router (rutas por archivos en `src/routes`), TanStack Query y TanStack Form
 - Valibot, Zustand (persistido con `@tauri-apps/plugin-store`)
 - Tailwind CSS v4 + daisyUI 5
-- pnpm
+- Bun
 
 ## Requisitos (Windows)
 
-- Node LTS y pnpm
+- Bun
 - Rust (rustup, toolchain stable MSVC)
 - Visual Studio Build Tools con "Desktop development with C++"
 - WebView2 (incluido en Windows 11)
@@ -20,8 +20,8 @@ App de escritorio (Windows) y móvil (Android) para cargar y consultar notas uni
 ## Desarrollo
 
 ```sh
-pnpm install
-pnpm tauri dev
+bun install
+bun run tauri dev
 ```
 
 ## Estructura
