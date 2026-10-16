@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import process from "node:process";
 import { fileURLToPath, URL } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
@@ -16,6 +17,11 @@ export default defineConfig(() => ({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
+  },
+
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

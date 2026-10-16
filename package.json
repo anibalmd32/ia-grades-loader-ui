@@ -15,7 +15,11 @@
     "release:patch": "bun scripts/release.ts patch",
     "release:minor": "bun scripts/release.ts minor",
     "release:major": "bun scripts/release.ts major",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml",
+    "rust:lint": "cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings"
   },
   "dependencies": {
     "@tanstack/react-form": "^1.33.5",
@@ -36,15 +40,21 @@
     "@tanstack/react-router-devtools": "^1.167.2",
     "@tanstack/router-plugin": "^1.168.46",
     "@tauri-apps/cli": "^2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
     "@types/bun": "^1.4.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^6.0.2",
     "daisyui": "^5.7.50",
+    "jsdom": "^30.1.3",
     "lefthook": "2.2.2",
+    "msw": "^3.0.3",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vitest": "^5.0.5"
   }
 }
