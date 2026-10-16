@@ -58,6 +58,11 @@ export function toApiError(response: Response, body: unknown): ApiError {
     });
   }
 
+  // 503 con detalle = servicio no disponible y explicado (p. ej. la IA no está configurada)
+  if (response.status === 503 && typeof detail === "string") {
+    return new ApiError({ status: 503, message: detail, requestId });
+  }
+
   if (response.status >= 500) {
     return new ApiError({
       status: response.status,
