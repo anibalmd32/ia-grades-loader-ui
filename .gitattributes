@@ -4,3 +4,4 @@
 *.icns binary
 *.bat text eol=crlf
 *.jar binary
+*.sh text eol=lf
