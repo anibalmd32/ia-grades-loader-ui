@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
+import { RecentImports } from "@/components/teacher/recent-imports";
 import { UploadForm } from "@/components/teacher/upload-form";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 
@@ -21,7 +22,10 @@ function ImportsPage() {
     <>
       <PageHeader title={title} description={description} />
       <PageBody>
-        <UploadForm key={subject} defaultSubject={subject} />
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_26rem]">
+          <UploadForm key={subject} defaultSubject={subject} />
+          <RecentImports />
+        </div>
       </PageBody>
     </>
   );

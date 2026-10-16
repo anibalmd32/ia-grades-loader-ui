@@ -280,3 +280,54 @@ describe("seguimiento y revisión", () => {
     expect(useImportReviews.getState().reviews["job-1"]).toBe("discarded");
   });
 });
+
+describe("historial de importaciones", () => {
+  it("lista cada importación con su estado y abre la revisión", async () => {
+    const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+    useImportReviews.setState({ reviews: { "job-4": "confirmed" } });
+    server.use(
+      http.get(`${API_URL}/teacher/import-jobs`, () =>
+        HttpResponse.json([
+          { ...summary, id: "job-1", status: "processing", created_at: minutesAgo(1) },
+          { ...summary, id: "job-2", file_name: "fisica.xlsx", status: "done" },
+          {
+            ...summary,
+            id: "job-3",
+            file_name: "lista.xlsx",
+            status: "failed",
+            error: "Sin notas",
+          },
+          { ...summary, id: "job-4", file_name: "viejas.xlsx", status: "done" },
+          { ...summary, id: "job-5", file_name: "cola.xlsx", status: "pending" },
+        ]),
+      ),
+      http.get(`${API_URL}/teacher/import-jobs/job-2`, () =>
+        HttpResponse.json({ ...doneJob, id: "job-2" }),
+      ),
+    );
+    const user = userEvent.setup();
+    const { router } = renderApp("/teacher/imports");
+
+    const item = async (name: string) =>
+      (await screen.findByText(name)).closest("a") as HTMLElement;
+
+    expect(within(await item("notas_lapso2.xlsx")).getByText("Procesando")).toBeInTheDocument();
+    expect(
+      within(await item("notas_lapso2.xlsx")).getByText(/MAT-101 · hace 1 minuto/),
+    ).toBeInTheDocument();
+    expect(within(await item("fisica.xlsx")).getByText("Lista para revisar")).toBeInTheDocument();
+    expect(within(await item("lista.xlsx")).getByText("Falló")).toBeInTheDocument();
+    expect(within(await item("lista.xlsx")).getByText(/Sin notas/)).toBeInTheDocument();
+    expect(within(await item("viejas.xlsx")).getByText("Confirmada")).toBeInTheDocument();
+    expect(within(await item("cola.xlsx")).getByText("En cola")).toBeInTheDocument();
+
+    await user.click(await item("fisica.xlsx"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/teacher/imports/job-2"));
+    expect(await screen.findByText("Revisa la importación")).toBeInTheDocument();
+  });
+
+  it("avisa si aún no hay importaciones", async () => {
+    renderApp("/teacher/imports");
+    expect(await screen.findByText("Aún no has importado archivos")).toBeInTheDocument();
+  });
+});
