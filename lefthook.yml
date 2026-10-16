@@ -1,0 +1,7 @@
+# Hooks de git compartidos por el equipo. Se instalan solos con `bun install`.
+pre-commit:
+  commands:
+    biome:
+      glob: "*.{js,jsx,ts,tsx,json,jsonc,css}"
+      run: bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
