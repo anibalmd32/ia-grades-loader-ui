@@ -47,6 +47,7 @@ La API tiene que estar levantada en `http://localhost:8000`; el README explica c
 - **Datos del servidor**: TanStack Query, con `queryOptions` por recurso en `src/api/queries/`.
 - **Formularios**: TanStack Form con validación Valibot.
 - **Estado global**: Zustand en `src/stores/`. Si persiste, usa `appStorage`.
+- **Sesión**: `useSession` (`src/stores/session.ts`) guarda el token (persistido), el usuario (`GET /auth/me`) y `status` (`loading` | `authenticated` | `anonymous`). Usa `signIn(token)`, `signOut()` y `refreshUser()`. Un 401 caduca la sesión sola (`expired: true`) y vacía la caché. Las guardas de ruta esperan a `sessionReady`.
 - **UI**: Tailwind CSS v4 + **daisyUI 5**. **No uses shadcn/ui** ni otra librería de componentes. Diseño *mobile-first*: la misma app corre en Android.
 - **Diseño de referencia**: `docs/design/v1/` tiene las capturas de cada pantalla, en escritorio y móvil. Respétalo.
 - **Textos de la interfaz en español.**

@@ -3,6 +3,8 @@ import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { queryClient } from "@/lib/query-client";
+// Registra el token en el cliente de la API y restaura la sesión guardada
+import "@/stores/session";
 import { routeTree } from "./routeTree.gen";
 import "./styles.css";
 
