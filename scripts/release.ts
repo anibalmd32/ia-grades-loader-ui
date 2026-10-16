@@ -1,11 +1,10 @@
 // Uso: bun run release:patch | release:minor | release:major
-// Calcula la siguiente versión a partir de package.json, la escribe en
-// package.json, tauri.conf.json y Cargo.toml/Cargo.lock, crea el commit
-// "chore: versión x.y.z" y el tag vX.Y.Z, y los sube al remoto.
-// El push del tag dispara el workflow de release (.github/workflows/release.yml).
+// Publica lo que ya está commiteado y subido a origin/main: calcula la siguiente
+// versión a partir del último tag vX.Y.Z, crea el tag sobre ese commit y lo sube.
+// No modifica archivos ni hace commits: la versión sale del tag y el workflow de
+// release (.github/workflows/release.yml) la inyecta al compilar.
 import { $ } from "bun";
 
-const CRATE = "ia-grades-loader-ui";
 const BUMPS = ["patch", "minor", "major"] as const;
 type Bump = (typeof BUMPS)[number];
 
@@ -15,9 +14,7 @@ function fail(message: string): never {
 }
 
 function nextVersion(current: string, bump: Bump): string {
-  const match = current.match(/^(\d+)\.(\d+)\.(\d+)/);
-  if (!match) fail(`Versión actual no válida en package.json: ${current}`);
-  const [major, minor, patch] = match.slice(1).map(Number);
+  const [major, minor, patch] = current.split(".").map(Number);
   if (bump === "major") return `${major + 1}.0.0`;
   if (bump === "minor") return `${major}.${minor + 1}.0`;
   return `${major}.${minor}.${patch + 1}`;
@@ -30,37 +27,27 @@ const branch = (await $`git rev-parse --abbrev-ref HEAD`.text()).trim();
 if (branch !== "main") fail(`Hay que publicar desde main (rama actual: ${branch})`);
 if ((await $`git status --porcelain`.text()).trim()) fail("Hay cambios sin commitear");
 
-const pkgFile = Bun.file("package.json");
-const pkg = await pkgFile.json();
-const version = nextVersion(pkg.version, bump);
+const fetch = await $`git fetch origin main --tags --quiet`.nothrow().quiet();
+if (fetch.exitCode !== 0) fail("No se pudo leer origin/main: ¿has hecho push de main?");
+const head = (await $`git rev-parse HEAD`.text()).trim();
+const remote = (await $`git rev-parse origin/main`.text()).trim();
+if (head !== remote)
+  fail("main no está sincronizada con origin/main: haz push (o pull) antes de publicar");
+
+const tags = (await $`git tag --list ${"v*"} --sort=-v:refname`.text())
+  .split("\n")
+  .map((t) => t.trim())
+  .filter((t) => /^v\d+\.\d+\.\d+$/.test(t));
+const lastTag = tags[0];
+if (lastTag && (await $`git rev-list -n 1 ${lastTag}`.text()).trim() === head) {
+  fail(`El último commit ya está publicado como ${lastTag}`);
+}
+
+const version = nextVersion(lastTag?.slice(1) ?? "0.0.0", bump);
 const tag = `v${version}`;
-if ((await $`git tag --list ${tag}`.text()).trim()) fail(`El tag ${tag} ya existe`);
-console.log(`${pkg.version} → ${version}`);
-pkg.version = version;
-await Bun.write(pkgFile, `${JSON.stringify(pkg, null, 2)}\n`);
+console.log(`${lastTag ?? "(sin versiones)"} → ${tag}`);
 
-const confFile = Bun.file("src-tauri/tauri.conf.json");
-const conf = await confFile.json();
-conf.version = version;
-await Bun.write(confFile, `${JSON.stringify(conf, null, 2)}\n`);
-
-// Solo la versión de [package] (la primera línea `version = ...` del archivo)
-const cargoToml = await Bun.file("src-tauri/Cargo.toml").text();
-await Bun.write("src-tauri/Cargo.toml", cargoToml.replace(/^version = "[^"]*"/m, `version = "${version}"`));
-
-const cargoLock = await Bun.file("src-tauri/Cargo.lock").text();
-await Bun.write(
-  "src-tauri/Cargo.lock",
-  cargoLock.replace(
-    new RegExp(`(name = "${CRATE}"\\r?\\nversion = )".*"`),
-    `$1"${version}"`,
-  ),
-);
-
-await $`git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock`;
-await $`git commit -m ${`chore: versión ${version}`}`;
 await $`git tag -a ${tag} -m ${tag}`;
-await $`git push origin main`;
 await $`git push origin ${tag}`;
 
 console.log(`✔ Publicado ${tag}. Sigue el build en la pestaña Actions de GitHub.`);

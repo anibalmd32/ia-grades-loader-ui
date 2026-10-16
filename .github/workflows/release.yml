@@ -15,11 +15,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Comprobar que el tag coincide con la versión de la app
+      - name: Comprobar el formato del tag
         run: |
-          app_version=$(jq -r .version src-tauri/tauri.conf.json)
-          if [ "v$app_version" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::El tag $GITHUB_REF_NAME no coincide con la versión de tauri.conf.json ($app_version)"
+          if ! [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::El tag $GITHUB_REF_NAME no tiene el formato vX.Y.Z"
             exit 1
           fi
 
@@ -44,6 +43,11 @@ jobs:
           workspaces: "./src-tauri -> target"
 
       - run: bun install --frozen-lockfile
+
+      # La versión de la app sale del tag (en el repo se queda en 0.0.0)
+      - name: Poner la versión del tag
+        shell: bash
+        run: bun scripts/set-version.ts "${GITHUB_REF_NAME#v}"
 
       - name: Compilar y subir instaladores (NSIS y MSI)
         uses: tauri-apps/tauri-action@v1
