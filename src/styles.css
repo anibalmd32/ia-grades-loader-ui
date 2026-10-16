@@ -1,6 +1,81 @@
 @import "tailwindcss";
+@import "@fontsource-variable/montserrat";
 @plugin "daisyui" {
-  themes:
-    light --default,
-    dark --prefersdark;
+  themes: false;
+}
+
+/* Tema claro del diseño v1 (docs/design/v1) */
+@plugin "daisyui/theme" {
+  name: "notas";
+  default: true;
+  color-scheme: light;
+  --color-base-100: #ffffff;
+  --color-base-200: #f8f8f8;
+  --color-base-300: #e5e7eb;
+  --color-base-content: #252b45;
+  --color-primary: #22a6f0;
+  --color-primary-content: #ffffff;
+  --color-secondary: #252b45;
+  --color-secondary-content: #ffffff;
+  --color-accent: #22a6f0;
+  --color-accent-content: #ffffff;
+  --color-neutral: #252b45;
+  --color-neutral-content: #ffffff;
+  --color-info: #22a6f0;
+  --color-info-content: #ffffff;
+  --color-success: #22c55e;
+  --color-success-content: #ffffff;
+  --color-warning: #f97316;
+  --color-warning-content: #ffffff;
+  --color-error: #ef4444;
+  --color-error-content: #ffffff;
+  --radius-selector: 1rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* Tema oscuro (sigue al sistema) */
+@plugin "daisyui/theme" {
+  name: "notas-dark";
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: #1b2033;
+  --color-base-200: #141827;
+  --color-base-300: #2c3350;
+  --color-base-content: #e6e8f0;
+  --color-primary: #38b2f5;
+  --color-primary-content: #0b1220;
+  --color-secondary: #e6e8f0;
+  --color-secondary-content: #141827;
+  --color-accent: #38b2f5;
+  --color-accent-content: #0b1220;
+  --color-neutral: #0f1322;
+  --color-neutral-content: #e6e8f0;
+  --color-info: #38b2f5;
+  --color-info-content: #0b1220;
+  --color-success: #34d36f;
+  --color-success-content: #0b1220;
+  --color-warning: #fb8a3c;
+  --color-warning-content: #0b1220;
+  --color-error: #f26464;
+  --color-error-content: #0b1220;
+  --radius-selector: 1rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@theme {
+  --font-sans: "Montserrat Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-base-200 text-base-content antialiased;
+  }
 }
