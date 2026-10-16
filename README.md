@@ -19,10 +19,16 @@ App de escritorio (Windows) y móvil (Android) para cargar y consultar notas uni
 
 ## Desarrollo
 
+Necesitas la API (`ia-grades-loader-api`) corriendo en `http://localhost:8000`.
+
 ```sh
 bun install
-bun run tauri dev
+cp .env.example .env      # ajusta VITE_API_URL si hace falta
+bun run dev               # versión web en http://localhost:1420
+bun run tauri dev         # app de escritorio (Windows)
 ```
+
+La versión web es suficiente para desarrollar las pantallas; solo hace falta Rust para `tauri dev` y Android.
 
 ## Android
 

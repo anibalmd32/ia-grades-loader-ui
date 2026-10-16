@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { tauriStorage } from "@/lib/tauri-storage";
+import { appStorage } from "@/lib/app-storage";
 
 export type Theme = "system" | "light" | "dark";
 
@@ -17,7 +17,7 @@ export const usePreferences = create<PreferencesState>()(
     }),
     {
       name: "preferences",
-      storage: createJSONStorage(() => tauriStorage),
+      storage: createJSONStorage(() => appStorage),
     },
   ),
 );
