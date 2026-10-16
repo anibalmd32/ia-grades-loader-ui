@@ -1,5 +1,3 @@
-export {};
-
 // Uso (en CI): bun scripts/set-version.ts <x.y.z>
 // Escribe la versión del tag en package.json, tauri.conf.json y Cargo.toml antes de compilar.
 // En el repo la versión se queda fija en 0.0.1 (Android no admite 0.0.0):
