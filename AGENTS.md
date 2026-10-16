@@ -43,7 +43,8 @@ La API tiene que estar levantada en `http://localhost:8000`; el README explica c
 
 - **Tauri v2 + React 19 + TypeScript (strict) + Vite.** El código debe funcionar en el navegador y en Tauri. Cualquier API de Tauri (plugins, `getVersion`, etc.) va protegida con `isTauri()` de `@tauri-apps/api/core` y necesita una alternativa web. Ejemplo: `src/lib/app-storage.ts`.
 - **Rutas**: TanStack Router con rutas por archivos en `src/routes/`. `src/routeTree.gen.ts` se genera solo; no lo edites a mano.
-- **Datos del servidor**: TanStack Query, con `queryOptions` por recurso en `src/api/`. La URL base sale de `API_URL` (`src/lib/config.ts`), nunca de un valor fijo.
+- **Cliente de la API**: tipado desde el OpenAPI. `src/api/schema.d.ts` se genera con `bun run api:types` (con la API levantada); no lo edites a mano y regenéralo cuando cambie la API. Las llamadas se hacen así: `unwrap(api.GET("/api/v1/..."))` (`src/api/client.ts`), que devuelve los datos o lanza un `ApiError` con `status`, `message`, `requestId`, `fieldErrors` (422) y `retryAfter` (429). El token y la reacción ante un 401 se registran con `configureApiAuth`. No uses `fetch` directamente contra la API.
+- **Datos del servidor**: TanStack Query, con `queryOptions` por recurso en `src/api/queries/`.
 - **Formularios**: TanStack Form con validación Valibot.
 - **Estado global**: Zustand en `src/stores/`. Si persiste, usa `appStorage`.
 - **UI**: Tailwind CSS v4 + **daisyUI 5**. **No uses shadcn/ui** ni otra librería de componentes. Diseño *mobile-first*: la misma app corre en Android.
@@ -69,6 +70,7 @@ La API tiene que estar levantada en `http://localhost:8000`; el README explica c
 | `bun run typecheck` | TypeScript |
 | `bun run test` / `test:watch` | Vitest |
 | `bun run build` | Build de producción |
+| `bun run api:types` | Regenera los tipos de la API desde `http://localhost:8000/openapi.json` |
 | `bun run tauri dev` | App de escritorio (requiere Rust) |
 | `bun run rust:fmt` / `rust:lint` | cargo fmt / clippy |
 | `bun run docker:up` / `docker:down` / `docker:logs` | Versión web en Docker (http://localhost:8080) |

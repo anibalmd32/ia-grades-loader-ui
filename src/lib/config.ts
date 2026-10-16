@@ -8,3 +8,6 @@ declare global {
 // contenedor (public/config.js); si no, se usa VITE_API_URL del build (ver .env.example).
 export const API_URL: string =
   (typeof window !== "undefined" && window.__APP_CONFIG__?.API_URL) || import.meta.env.VITE_API_URL;
+
+// Las rutas del OpenAPI ya incluyen /api/v1, así que el cliente usa la URL sin ese sufijo
+export const API_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");

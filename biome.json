@@ -6,7 +6,14 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!!**/dist", "!!**/src/routeTree.gen.ts", "!!**/src-tauri/gen", "!!**/docs"]
+    "includes": [
+      "**",
+      "!!**/dist",
+      "!!**/src/routeTree.gen.ts",
+      "!!**/src/api/schema.d.ts",
+      "!!**/src-tauri/gen",
+      "!!**/docs"
+    ]
   },
   "formatter": {
     "enabled": true,

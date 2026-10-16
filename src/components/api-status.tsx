@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { healthQuery } from "@/api/health";
+import { healthQuery } from "@/api/queries/health";
 import { API_URL } from "@/lib/config";
 
 // Aviso global cuando la API no responde (GET /health)
