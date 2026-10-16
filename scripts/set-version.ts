@@ -2,7 +2,8 @@ export {};
 
 // Uso (en CI): bun scripts/set-version.ts <x.y.z>
 // Escribe la versión del tag en package.json, tauri.conf.json y Cargo.toml antes de compilar.
-// En el repo la versión se queda en 0.0.0: la fuente de verdad son los tags vX.Y.Z.
+// En el repo la versión se queda fija en 0.0.1 (Android no admite 0.0.0):
+// la fuente de verdad son los tags vX.Y.Z.
 const version = process.argv[2];
 if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
   console.error("✖ Uso: bun scripts/set-version.ts <x.y.z>");
