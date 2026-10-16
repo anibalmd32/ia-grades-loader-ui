@@ -10,33 +10,228 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as ChangePasswordRouteImport } from './routes/change-password'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as SetupRouteImport } from './routes/setup'
+import { Route as AppAdminRouteImport } from './routes/_app/admin'
+import { Route as AppStudentRouteImport } from './routes/_app/student'
+import { Route as AppTeacherRouteImport } from './routes/_app/teacher'
+import { Route as AppAdminAcademicRouteImport } from './routes/_app/admin/academic'
+import { Route as AppAdminCoordinatorsRouteImport } from './routes/_app/admin/coordinators'
+import { Route as AppAdminStudentsRouteImport } from './routes/_app/admin/students'
+import { Route as AppAdminTeachersRouteImport } from './routes/_app/admin/teachers'
+import { Route as AppStudentAssistantRouteImport } from './routes/_app/student/assistant'
+import { Route as AppStudentGradesRouteImport } from './routes/_app/student/grades'
+import { Route as AppStudentTelegramRouteImport } from './routes/_app/student/telegram'
+import { Route as AppTeacherImportsRouteImport } from './routes/_app/teacher/imports'
+import { Route as AppTeacherSubjectsRouteImport } from './routes/_app/teacher/subjects'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChangePasswordRoute = ChangePasswordRouteImport.update({
+  id: '/change-password',
+  path: '/change-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppStudentRoute = AppStudentRouteImport.update({
+  id: '/student',
+  path: '/student',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTeacherRoute = AppTeacherRouteImport.update({
+  id: '/teacher',
+  path: '/teacher',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminAcademicRoute = AppAdminAcademicRouteImport.update({
+  id: '/academic',
+  path: '/academic',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminCoordinatorsRoute = AppAdminCoordinatorsRouteImport.update({
+  id: '/coordinators',
+  path: '/coordinators',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminStudentsRoute = AppAdminStudentsRouteImport.update({
+  id: '/students',
+  path: '/students',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminTeachersRoute = AppAdminTeachersRouteImport.update({
+  id: '/teachers',
+  path: '/teachers',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppStudentAssistantRoute = AppStudentAssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
+  getParentRoute: () => AppStudentRoute,
+} as any)
+const AppStudentGradesRoute = AppStudentGradesRouteImport.update({
+  id: '/grades',
+  path: '/grades',
+  getParentRoute: () => AppStudentRoute,
+} as any)
+const AppStudentTelegramRoute = AppStudentTelegramRouteImport.update({
+  id: '/telegram',
+  path: '/telegram',
+  getParentRoute: () => AppStudentRoute,
+} as any)
+const AppTeacherImportsRoute = AppTeacherImportsRouteImport.update({
+  id: '/imports',
+  path: '/imports',
+  getParentRoute: () => AppTeacherRoute,
+} as any)
+const AppTeacherSubjectsRoute = AppTeacherSubjectsRouteImport.update({
+  id: '/subjects',
+  path: '/subjects',
+  getParentRoute: () => AppTeacherRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/change-password': typeof ChangePasswordRoute
+  '/login': typeof LoginRoute
+  '/setup': typeof SetupRoute
+  '/admin': typeof AppAdminRouteWithChildren
+  '/student': typeof AppStudentRouteWithChildren
+  '/teacher': typeof AppTeacherRouteWithChildren
+  '/admin/academic': typeof AppAdminAcademicRoute
+  '/admin/coordinators': typeof AppAdminCoordinatorsRoute
+  '/admin/students': typeof AppAdminStudentsRoute
+  '/admin/teachers': typeof AppAdminTeachersRoute
+  '/student/assistant': typeof AppStudentAssistantRoute
+  '/student/grades': typeof AppStudentGradesRoute
+  '/student/telegram': typeof AppStudentTelegramRoute
+  '/teacher/imports': typeof AppTeacherImportsRoute
+  '/teacher/subjects': typeof AppTeacherSubjectsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/change-password': typeof ChangePasswordRoute
+  '/login': typeof LoginRoute
+  '/setup': typeof SetupRoute
+  '/admin': typeof AppAdminRouteWithChildren
+  '/student': typeof AppStudentRouteWithChildren
+  '/teacher': typeof AppTeacherRouteWithChildren
+  '/admin/academic': typeof AppAdminAcademicRoute
+  '/admin/coordinators': typeof AppAdminCoordinatorsRoute
+  '/admin/students': typeof AppAdminStudentsRoute
+  '/admin/teachers': typeof AppAdminTeachersRoute
+  '/student/assistant': typeof AppStudentAssistantRoute
+  '/student/grades': typeof AppStudentGradesRoute
+  '/student/telegram': typeof AppStudentTelegramRoute
+  '/teacher/imports': typeof AppTeacherImportsRoute
+  '/teacher/subjects': typeof AppTeacherSubjectsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/change-password': typeof ChangePasswordRoute
+  '/login': typeof LoginRoute
+  '/setup': typeof SetupRoute
+  '/_app/admin': typeof AppAdminRouteWithChildren
+  '/_app/student': typeof AppStudentRouteWithChildren
+  '/_app/teacher': typeof AppTeacherRouteWithChildren
+  '/_app/admin/academic': typeof AppAdminAcademicRoute
+  '/_app/admin/coordinators': typeof AppAdminCoordinatorsRoute
+  '/_app/admin/students': typeof AppAdminStudentsRoute
+  '/_app/admin/teachers': typeof AppAdminTeachersRoute
+  '/_app/student/assistant': typeof AppStudentAssistantRoute
+  '/_app/student/grades': typeof AppStudentGradesRoute
+  '/_app/student/telegram': typeof AppStudentTelegramRoute
+  '/_app/teacher/imports': typeof AppTeacherImportsRoute
+  '/_app/teacher/subjects': typeof AppTeacherSubjectsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/change-password'
+    | '/login'
+    | '/setup'
+    | '/admin'
+    | '/student'
+    | '/teacher'
+    | '/admin/academic'
+    | '/admin/coordinators'
+    | '/admin/students'
+    | '/admin/teachers'
+    | '/student/assistant'
+    | '/student/grades'
+    | '/student/telegram'
+    | '/teacher/imports'
+    | '/teacher/subjects'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/change-password'
+    | '/login'
+    | '/setup'
+    | '/admin'
+    | '/student'
+    | '/teacher'
+    | '/admin/academic'
+    | '/admin/coordinators'
+    | '/admin/students'
+    | '/admin/teachers'
+    | '/student/assistant'
+    | '/student/grades'
+    | '/student/telegram'
+    | '/teacher/imports'
+    | '/teacher/subjects'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/change-password'
+    | '/login'
+    | '/setup'
+    | '/_app/admin'
+    | '/_app/student'
+    | '/_app/teacher'
+    | '/_app/admin/academic'
+    | '/_app/admin/coordinators'
+    | '/_app/admin/students'
+    | '/_app/admin/teachers'
+    | '/_app/student/assistant'
+    | '/_app/student/grades'
+    | '/_app/student/telegram'
+    | '/_app/teacher/imports'
+    | '/_app/teacher/subjects'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  ChangePasswordRoute: typeof ChangePasswordRoute
+  LoginRoute: typeof LoginRoute
+  SetupRoute: typeof SetupRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +243,189 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/change-password': {
+      id: '/change-password'
+      path: '/change-password'
+      fullPath: '/change-password'
+      preLoaderRoute: typeof ChangePasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/student': {
+      id: '/_app/student'
+      path: '/student'
+      fullPath: '/student'
+      preLoaderRoute: typeof AppStudentRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/teacher': {
+      id: '/_app/teacher'
+      path: '/teacher'
+      fullPath: '/teacher'
+      preLoaderRoute: typeof AppTeacherRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/academic': {
+      id: '/_app/admin/academic'
+      path: '/academic'
+      fullPath: '/admin/academic'
+      preLoaderRoute: typeof AppAdminAcademicRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/coordinators': {
+      id: '/_app/admin/coordinators'
+      path: '/coordinators'
+      fullPath: '/admin/coordinators'
+      preLoaderRoute: typeof AppAdminCoordinatorsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/students': {
+      id: '/_app/admin/students'
+      path: '/students'
+      fullPath: '/admin/students'
+      preLoaderRoute: typeof AppAdminStudentsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/teachers': {
+      id: '/_app/admin/teachers'
+      path: '/teachers'
+      fullPath: '/admin/teachers'
+      preLoaderRoute: typeof AppAdminTeachersRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/student/assistant': {
+      id: '/_app/student/assistant'
+      path: '/assistant'
+      fullPath: '/student/assistant'
+      preLoaderRoute: typeof AppStudentAssistantRouteImport
+      parentRoute: typeof AppStudentRoute
+    }
+    '/_app/student/grades': {
+      id: '/_app/student/grades'
+      path: '/grades'
+      fullPath: '/student/grades'
+      preLoaderRoute: typeof AppStudentGradesRouteImport
+      parentRoute: typeof AppStudentRoute
+    }
+    '/_app/student/telegram': {
+      id: '/_app/student/telegram'
+      path: '/telegram'
+      fullPath: '/student/telegram'
+      preLoaderRoute: typeof AppStudentTelegramRouteImport
+      parentRoute: typeof AppStudentRoute
+    }
+    '/_app/teacher/imports': {
+      id: '/_app/teacher/imports'
+      path: '/imports'
+      fullPath: '/teacher/imports'
+      preLoaderRoute: typeof AppTeacherImportsRouteImport
+      parentRoute: typeof AppTeacherRoute
+    }
+    '/_app/teacher/subjects': {
+      id: '/_app/teacher/subjects'
+      path: '/subjects'
+      fullPath: '/teacher/subjects'
+      preLoaderRoute: typeof AppTeacherSubjectsRouteImport
+      parentRoute: typeof AppTeacherRoute
+    }
   }
 }
 
+interface AppAdminRouteChildren {
+  AppAdminAcademicRoute: typeof AppAdminAcademicRoute
+  AppAdminCoordinatorsRoute: typeof AppAdminCoordinatorsRoute
+  AppAdminStudentsRoute: typeof AppAdminStudentsRoute
+  AppAdminTeachersRoute: typeof AppAdminTeachersRoute
+}
+
+const AppAdminRouteChildren: AppAdminRouteChildren = {
+  AppAdminAcademicRoute: AppAdminAcademicRoute,
+  AppAdminCoordinatorsRoute: AppAdminCoordinatorsRoute,
+  AppAdminStudentsRoute: AppAdminStudentsRoute,
+  AppAdminTeachersRoute: AppAdminTeachersRoute,
+}
+
+const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
+  AppAdminRouteChildren,
+)
+
+interface AppStudentRouteChildren {
+  AppStudentAssistantRoute: typeof AppStudentAssistantRoute
+  AppStudentGradesRoute: typeof AppStudentGradesRoute
+  AppStudentTelegramRoute: typeof AppStudentTelegramRoute
+}
+
+const AppStudentRouteChildren: AppStudentRouteChildren = {
+  AppStudentAssistantRoute: AppStudentAssistantRoute,
+  AppStudentGradesRoute: AppStudentGradesRoute,
+  AppStudentTelegramRoute: AppStudentTelegramRoute,
+}
+
+const AppStudentRouteWithChildren = AppStudentRoute._addFileChildren(
+  AppStudentRouteChildren,
+)
+
+interface AppTeacherRouteChildren {
+  AppTeacherImportsRoute: typeof AppTeacherImportsRoute
+  AppTeacherSubjectsRoute: typeof AppTeacherSubjectsRoute
+}
+
+const AppTeacherRouteChildren: AppTeacherRouteChildren = {
+  AppTeacherImportsRoute: AppTeacherImportsRoute,
+  AppTeacherSubjectsRoute: AppTeacherSubjectsRoute,
+}
+
+const AppTeacherRouteWithChildren = AppTeacherRoute._addFileChildren(
+  AppTeacherRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppAdminRoute: typeof AppAdminRouteWithChildren
+  AppStudentRoute: typeof AppStudentRouteWithChildren
+  AppTeacherRoute: typeof AppTeacherRouteWithChildren
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAdminRoute: AppAdminRouteWithChildren,
+  AppStudentRoute: AppStudentRouteWithChildren,
+  AppTeacherRoute: AppTeacherRouteWithChildren,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  ChangePasswordRoute: ChangePasswordRoute,
+  LoginRoute: LoginRoute,
+  SetupRoute: SetupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

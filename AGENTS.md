@@ -43,12 +43,16 @@ La API tiene que estar levantada en `http://localhost:8000`; el README explica c
 
 - **Tauri v2 + React 19 + TypeScript (strict) + Vite.** El código debe funcionar en el navegador y en Tauri. Cualquier API de Tauri (plugins, `getVersion`, etc.) va protegida con `isTauri()` de `@tauri-apps/api/core` y necesita una alternativa web. Ejemplo: `src/lib/app-storage.ts`.
 - **Rutas**: TanStack Router con rutas por archivos en `src/routes/`. `src/routeTree.gen.ts` se genera solo; no lo edites a mano.
+  - Las pantallas con sesión van bajo `src/routes/_app/` (layout + guarda `requireUser`). Cada sección tiene su guarda de rol con `requireRole` en `_app/admin.tsx`, `_app/teacher.tsx` y `_app/student.tsx`. El menú de cada rol está en `src/lib/roles.ts` (`NAV`).
+  - Cada pantalla declara `staticData: { title, description }` (título de la barra superior en móvil) y usa `PageHeader` + `PageBody`.
+  - No crees tests dentro de `src/routes/` (el plugin los tomaría como rutas); los tests de navegación van en `src/test/` con `renderApp(path)`.
 - **Cliente de la API**: tipado desde el OpenAPI. `src/api/schema.d.ts` se genera con `bun run api:types` (con la API levantada); no lo edites a mano y regenéralo cuando cambie la API. Las llamadas se hacen así: `unwrap(api.GET("/api/v1/..."))` (`src/api/client.ts`), que devuelve los datos o lanza un `ApiError` con `status`, `message`, `requestId`, `fieldErrors` (422) y `retryAfter` (429). El token y la reacción ante un 401 se registran con `configureApiAuth`. No uses `fetch` directamente contra la API.
 - **Datos del servidor**: TanStack Query, con `queryOptions` por recurso en `src/api/queries/`.
-- **Formularios**: TanStack Form con validación Valibot.
+- **Formularios**: `useAppForm` (`src/components/form/form.tsx`) con `validators: { onSubmit: EsquemaValibot }` y `form.AppField` → `field.TextField` / `field.SelectField`, más `form.SubmitButton`. Ante errores de la API usa `applyApiErrors(form, error)`: pone los 422 en cada campo y devuelve el mensaje general para `<FormError>`.
+- **Componentes compartidos** (`src/components/ui/`): `DataTable` (tabla en escritorio, tarjetas en móvil, paginación del servidor), `Pagination`, `SearchInput`, `PageHeader`/`PageBody`, `LoadingState`/`EmptyState`/`ErrorState`, `GradeBadge`/`formatGrade`, `toast.success`/`toast.error` y `await confirm({ title, danger })`. Iconos con `lucide-react`.
 - **Estado global**: Zustand en `src/stores/`. Si persiste, usa `appStorage`.
 - **Sesión**: `useSession` (`src/stores/session.ts`) guarda el token (persistido), el usuario (`GET /auth/me`) y `status` (`loading` | `authenticated` | `anonymous`). Usa `signIn(token)`, `signOut()` y `refreshUser()`. Un 401 caduca la sesión sola (`expired: true`) y vacía la caché. Las guardas de ruta esperan a `sessionReady`.
-- **UI**: Tailwind CSS v4 + **daisyUI 5**. **No uses shadcn/ui** ni otra librería de componentes. Diseño *mobile-first*: la misma app corre en Android.
+- **UI**: Tailwind CSS v4 + **daisyUI 5**, con los temas `notas` (claro) y `notas-dark` definidos en `src/styles.css` con los colores del diseño. Usa las clases semánticas (`btn-primary`, `bg-base-100`, `text-error`…), no colores fijos. Fuente: Montserrat. **No uses shadcn/ui** ni otra librería de componentes. Diseño *mobile-first*: la misma app corre en Android.
 - **Diseño de referencia**: `docs/design/v1/` tiene las capturas de cada pantalla, en escritorio y móvil. Respétalo.
 - **Textos de la interfaz en español.**
 - **Imports** con el alias `@/` (apunta a `src/`).
