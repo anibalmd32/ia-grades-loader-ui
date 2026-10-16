@@ -15,6 +15,7 @@ import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
+import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppStudentRouteImport } from './routes/_app/student'
 import { Route as AppTeacherRouteImport } from './routes/_app/teacher'
 import { Route as AppAdminCoordinatorsRouteImport } from './routes/_app/admin/coordinators'
@@ -66,6 +67,11 @@ const SetupRoute = SetupRouteImport.update({
 const AppAdminRoute = AppAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
 const AppStudentRoute = AppStudentRouteImport.update({
@@ -195,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/admin': typeof AppAdminRouteWithChildren
+  '/profile': typeof AppProfileRoute
   '/student': typeof AppStudentRouteWithChildren
   '/teacher': typeof AppTeacherRouteWithChildren
   '/admin/coordinators': typeof AppAdminCoordinatorsRouteWithChildren
@@ -225,6 +232,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/admin': typeof AppAdminRouteWithChildren
+  '/profile': typeof AppProfileRoute
   '/student': typeof AppStudentRouteWithChildren
   '/teacher': typeof AppTeacherRouteWithChildren
   '/student/assistant': typeof AppStudentAssistantRoute
@@ -256,6 +264,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
+  '/_app/profile': typeof AppProfileRoute
   '/_app/student': typeof AppStudentRouteWithChildren
   '/_app/teacher': typeof AppTeacherRouteWithChildren
   '/_app/admin/coordinators': typeof AppAdminCoordinatorsRouteWithChildren
@@ -288,6 +297,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/admin'
+    | '/profile'
     | '/student'
     | '/teacher'
     | '/admin/coordinators'
@@ -318,6 +328,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/admin'
+    | '/profile'
     | '/student'
     | '/teacher'
     | '/student/assistant'
@@ -348,6 +359,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/_app/admin'
+    | '/_app/profile'
     | '/_app/student'
     | '/_app/teacher'
     | '/_app/admin/coordinators'
@@ -423,6 +435,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/student': {
@@ -673,12 +692,14 @@ const AppTeacherRouteWithChildren = AppTeacherRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
+  AppProfileRoute: typeof AppProfileRoute
   AppStudentRoute: typeof AppStudentRouteWithChildren
   AppTeacherRoute: typeof AppTeacherRouteWithChildren
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
+  AppProfileRoute: AppProfileRoute,
   AppStudentRoute: AppStudentRouteWithChildren,
   AppTeacherRoute: AppTeacherRouteWithChildren,
 }

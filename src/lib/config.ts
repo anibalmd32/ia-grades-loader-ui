@@ -11,3 +11,6 @@ export const API_URL: string =
 
 // Las rutas del OpenAPI ya incluyen /api/v1, así que el cliente usa la URL sin ese sufijo
 export const API_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
+
+/** Página de descargas: instalador de Windows y APK de Android de la última versión */
+export const RELEASES_URL = "https://github.com/anibalmd32/ia-grades-loader-ui/releases/latest";

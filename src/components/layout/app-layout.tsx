@@ -1,5 +1,5 @@
 import { Link, useMatches, useNavigate } from "@tanstack/react-router";
-import { KeyRound, LogOut, Menu } from "lucide-react";
+import { KeyRound, LogOut, Menu, UserRound } from "lucide-react";
 import { type ReactNode, useId } from "react";
 import { AppVersion } from "@/components/app-version";
 import { Avatar } from "@/components/ui/avatar";
@@ -47,13 +47,19 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
         ))}
       </ul>
       <div className="mt-auto flex flex-col gap-1">
-        <div className="flex items-center gap-3 rounded-box bg-white/5 p-3">
+        <Link
+          to="/profile"
+          onClick={onNavigate}
+          aria-label="Mi cuenta"
+          className="flex items-center gap-3 rounded-box bg-white/5 p-3 hover:bg-white/10"
+          activeProps={{ className: "ring-2 ring-primary" }}
+        >
           <Avatar name={user.full_name} />
           <div className="min-w-0">
             <p className="truncate font-bold text-sm">{user.full_name}</p>
             <p className="truncate text-neutral-content/70 text-xs">{userSubtitle(user)}</p>
           </div>
-        </div>
+        </Link>
         <ul className="menu w-full p-0">
           <li>
             <Link to="/change-password" onClick={onNavigate}>
@@ -116,6 +122,14 @@ export function AppLayout({ user, children }: { user: User; children: ReactNode 
               <span className="dock-label">{item.label}</span>
             </Link>
           ))}
+          <Link
+            to="/profile"
+            className="text-base-content/60"
+            activeProps={{ className: "dock-active text-primary!" }}
+          >
+            <UserRound className="size-5" />
+            <span className="dock-label">Cuenta</span>
+          </Link>
         </nav>
       </div>
       <div className="drawer-side z-30">
