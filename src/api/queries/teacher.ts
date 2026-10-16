@@ -60,3 +60,49 @@ export function gradeOf(row: StudentGrades, term: Term): number | null {
 export function finalGrade(row: StudentGrades): number | null {
   return row.grades.every((g) => g.value != null) ? row.average : null;
 }
+
+/** En cola o leyéndose: hay que seguir consultando su estado */
+export const isActiveJob = (status: JobStatus) => status === "pending" || status === "processing";
+
+const POLL_MS = 2000;
+
+/** Importaciones recientes del profesor; se refresca sola mientras alguna esté en curso */
+export const importJobsQuery = queryOptions({
+  queryKey: teacherKeys.jobs,
+  queryFn: ({ signal }) =>
+    unwrap(api.GET("/api/v1/teacher/import-jobs", { params: { query: { limit: 20 } }, signal })),
+  refetchInterval: (query) =>
+    query.state.data?.some((job) => isActiveJob(job.status)) ? POLL_MS : false,
+});
+
+/** Estado y previsualización de una importación; sondea hasta que termina (done o failed) */
+export const importJobQuery = (jobId: string) =>
+  queryOptions({
+    queryKey: teacherKeys.job(jobId),
+    queryFn: ({ signal }) =>
+      unwrap(
+        api.GET("/api/v1/teacher/import-jobs/{job_id}", {
+          params: { path: { job_id: jobId } },
+          signal,
+        }),
+      ),
+    refetchInterval: (query) => {
+      if (query.state.error) return false;
+      const status = query.state.data?.status;
+      return status === undefined || isActiveJob(status) ? POLL_MS : false;
+    },
+  });
+
+/** Sube el Excel; la API responde al instante (202) con el trabajo en cola */
+export function uploadImport(subjectId: number, file: File, defaultTerm: Term | null) {
+  const form = new FormData();
+  form.append("file", file);
+  if (defaultTerm) form.append("default_term", String(defaultTerm));
+  return unwrap(
+    api.POST("/api/v1/teacher/subjects/{subject_id}/grades/import", {
+      params: { path: { subject_id: subjectId } },
+      // openapi-fetch envía el FormData tal cual (el navegador pone el boundary)
+      body: form as unknown as { file: string },
+    }),
+  );
+}

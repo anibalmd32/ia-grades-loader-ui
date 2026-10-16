@@ -140,6 +140,7 @@ export function GradeCell({
   invalid,
   onChange,
   className = "",
+  disabled = false,
 }: {
   value: string;
   label: string;
@@ -147,6 +148,7 @@ export function GradeCell({
   invalid: boolean;
   onChange: (value: string) => void;
   className?: string;
+  disabled?: boolean;
 }) {
   const state = invalid
     ? "input-error bg-error/10 text-error"
@@ -163,6 +165,7 @@ export function GradeCell({
       aria-invalid={invalid || undefined}
       className={`input input-sm w-full text-center tabular-nums ${state} ${className}`}
       value={value}
+      disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
     />
   );
