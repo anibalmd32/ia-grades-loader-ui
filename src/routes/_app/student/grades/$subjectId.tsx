@@ -54,9 +54,6 @@ function SubjectDetail({ item }: { item: StudentSubjectGrades }) {
   const { subject, projection } = item;
   const final = projection.final_grade;
   const pending = projection.pending_terms;
-  // Puntos acumulados frente a los necesarios (promedio 10 en los 3 lapsos)
-  const points = item.grades.reduce((sum, g) => sum + (g.value ?? 0), 0);
-  const needed = PASSING_GRADE * item.grades.length;
 
   return (
     <>
@@ -127,16 +124,6 @@ function SubjectDetail({ item }: { item: StudentSubjectGrades }) {
           ) : (
             <p className="text-lg">{standingSentence(projection)}</p>
           )}
-          <progress
-            className={`progress h-2 ${points >= needed ? "progress-success" : "progress-primary"}`}
-            value={Math.min(points, needed)}
-            max={needed}
-            aria-label="Puntos acumulados"
-          />
-          <p className="text-base-content/70 text-sm">
-            Llevas {formatGrade(points)} de los {formatGrade(needed)} puntos necesarios (promedio{" "}
-            {PASSING_GRADE} entre los {item.grades.length} lapsos).
-          </p>
         </div>
       </section>
 

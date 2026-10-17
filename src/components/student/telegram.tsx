@@ -31,9 +31,11 @@ function useCountdown(until: string | undefined): string | null {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-const STEPS = (bot: string) => [
+const STEPS = (bot: string | null | undefined) => [
   "Pulsa «Generar enlace».",
-  `Ábrelo en tu teléfono: se abrirá @${bot} en Telegram.`,
+  bot
+    ? `Ábrelo en tu teléfono: se abrirá @${bot} en Telegram.`
+    : "Ábrelo en tu teléfono: se abrirá el bot en Telegram.",
   "Pulsa «Iniciar» y listo. Pregunta como en el asistente.",
 ];
 
@@ -43,7 +45,7 @@ function LinkCard({ status }: { status: TelegramStatus }) {
   const [invite, setInvite] = useState<TelegramLinkInvite | null>(null);
   const left = useCountdown(invite?.expires_at);
   const expired = invite != null && left == null;
-  const bot = status.bot_username ?? "el bot";
+  const bot = status.bot_username;
 
   // Mientras el enlace está vigente se consulta si ya quedó vinculado (TelegramSection avisa)
   useQuery({
@@ -101,7 +103,7 @@ function LinkCard({ status }: { status: TelegramStatus }) {
                 <Copy className="size-4" />
                 Copiar
               </button>
-              <p className="text-warning text-xs">Caduca en {left} minutos.</p>
+              <p className="text-warning text-xs">Caduca en {left}.</p>
               <p className="flex items-center gap-2 text-base-content/70 text-xs">
                 <span className="loading loading-spinner loading-xs" />
                 Esperando a que pulses «Iniciar» en Telegram…

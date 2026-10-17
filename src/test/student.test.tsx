@@ -157,7 +157,8 @@ describe("detalle de materia", () => {
 
     expect(await screen.findByText("12.50 en el Lapso 3")).toBeInTheDocument();
     expect(screen.getByText("Falta el lapso 3")).toBeInTheDocument();
-    expect(screen.getByText(/Llevas 17.50 de los 30.00 puntos necesarios/)).toBeInTheDocument();
+    // Sin cálculos de notas en el front: no hay "puntos acumulados"
+    expect(screen.queryByText(/puntos necesarios/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Abrir asistente" })).toHaveAttribute(
       "href",
       `/student/assistant?${new URLSearchParams({ q: "¿Cuánto necesito para aprobar Física I?" })}`,

@@ -66,7 +66,7 @@ describe("telegram", () => {
     await user.click(screen.getByRole("button", { name: "Generar enlace" }));
 
     expect(await screen.findByText("t.me/VerMisNotasBot?start=abc123")).toBeInTheDocument();
-    expect(screen.getByText(/Caduca en (10:00|9:5\d) minutos\./)).toBeInTheDocument();
+    expect(screen.getByText(/^Caduca en (10:00|9:5\d)\.$/)).toBeInTheDocument();
     expect(screen.getByTitle("Código QR del enlace")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Abrir en Telegram" }));

@@ -85,7 +85,10 @@ function StudentGradesPage() {
               )}
 
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <Stat label="Promedio general" value={formatGrade(overview.data.average)} />
+                <Stat
+                  label="Promedio general (todos los semestres)"
+                  value={formatGrade(overview.data.average)}
+                />
                 <Stat label="Aprobadas" value={summary.approved} className="text-success" />
                 <Stat label="En curso" value={summary.inProgress} className="text-primary" />
                 <Stat label="En riesgo" value={summary.atRisk} className="text-error" />

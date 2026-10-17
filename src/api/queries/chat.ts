@@ -1,6 +1,6 @@
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { api, authorizedFetch, unwrap } from "../client";
-import { ApiError } from "../errors";
+import { ApiError, retryAfterFromMessage } from "../errors";
 import type { components } from "../schema";
 
 export type ConversationSummary = components["schemas"]["ConversationSummary"];
@@ -49,14 +49,14 @@ type StreamHandlers = {
 
 export type ChatRequest = { message: string; conversationId?: number; signal?: AbortSignal };
 
-// "…Espera 42 s e inténtalo de nuevo." → 42 (el límite llega como evento error en el stream)
-const RETRY_PATTERN = /Espera (\d+) s/;
-
-/** Error de un evento `error` del stream; el límite de preguntas se trata como un 429 */
-function streamError(detail: string): ApiError {
-  const retry = RETRY_PATTERN.exec(detail);
-  return retry
-    ? new ApiError({ status: 429, message: detail, retryAfter: Number(retry[1]) })
+/**
+ * Error de un evento `error` del stream. El límite de preguntas llega así (con HTTP 200) y
+ * se trata como un 429; los segundos vienen en `retry_after` o, si falta, en el mensaje.
+ */
+function streamError(detail: string, retryAfter?: unknown): ApiError {
+  const seconds = typeof retryAfter === "number" ? retryAfter : retryAfterFromMessage(detail);
+  return seconds != null
+    ? new ApiError({ status: 429, message: detail, retryAfter: seconds })
     : new ApiError({ status: 503, message: detail });
 }
 
@@ -107,7 +107,10 @@ export async function streamChat(
         onDelta(String(data.text ?? ""));
         return false;
       case "error":
-        throw streamError(String(data.detail ?? "El asistente no pudo responder."));
+        throw streamError(
+          String(data.detail ?? "El asistente no pudo responder."),
+          data.retry_after,
+        );
       case "done":
         return true;
       default:
@@ -130,22 +133,27 @@ export async function streamChat(
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
   // Detener: cortar también la lectura (no todos los entornos la cortan al abortar el fetch)
   signal?.addEventListener("abort", () => void reader.cancel().catch(() => {}), { once: true });
+  const stopped = () => new DOMException("Respuesta detenida", "AbortError");
   let buffer = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (signal?.aborted) throw new DOMException("Respuesta detenida", "AbortError");
-    if (value) buffer += value;
-    const blocks = buffer.split(/\r?\n\r?\n/);
-    buffer = done ? "" : (blocks.pop() ?? "");
-    for (const block of blocks) {
-      if (handle(block)) {
-        await reader.cancel().catch(() => {});
-        return finish();
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (signal?.aborted) throw stopped();
+      if (value) buffer += value;
+      const blocks = buffer.split(/\r?\n\r?\n/);
+      buffer = done ? "" : (blocks.pop() ?? "");
+      for (const block of blocks) {
+        // No seguir pintando bloques ya leídos si se detuvo la respuesta
+        if (signal?.aborted) throw stopped();
+        if (handle(block)) return finish();
       }
+      if (done) break;
     }
-    if (done) break;
+    throw new ApiError({ status: 0, message: "Se cortó la conexión con el asistente." });
+  } finally {
+    // Liberar la conexión siempre (al terminar, ante un evento error o al detener), sin esperar
+    void reader.cancel().catch(() => {});
   }
-  throw new ApiError({ status: 0, message: "Se cortó la conexión con el asistente." });
 }
 
 /** Igual que streamChat pero con la respuesta completa (POST /student/chat) */

@@ -32,7 +32,9 @@ export function useChat(conversationId: number | undefined, onConversation: (id:
 
   useEffect(() => {
     if (conversationId === loadedId.current) return;
+    // Cortar la respuesta en curso; al soltar la referencia, su catch no toca la nueva conversación
     controller.current?.abort();
+    controller.current = null;
     loadedId.current = conversationId;
     setError(null);
     setTurns([]);
@@ -87,6 +89,8 @@ export function useChat(conversationId: number | undefined, onConversation: (id:
       );
       updateLast((t) => ({ ...t, status: undefined }));
     } catch (e) {
+      // Se cambió de conversación mientras respondía: sus mensajes ya no están en pantalla
+      if (controller.current !== ctrl) return;
       if (isAbort(e)) {
         updateLast((t) => ({ ...t, status: "stopped" }));
       } else {
@@ -111,7 +115,10 @@ export function useChat(conversationId: number | undefined, onConversation: (id:
     error,
     streaming: turns.at(-1)?.status === "streaming",
     cooldownUntil,
-    clearCooldown: () => setCooldownUntil(null),
+    clearCooldown: () => {
+      setCooldownUntil(null);
+      setError(null);
+    },
     send,
     stop: () => controller.current?.abort(),
   };
