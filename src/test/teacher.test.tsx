@@ -166,6 +166,43 @@ describe("planilla de notas", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/teacher/subjects"));
   });
 
+  it("cambiar de lapso, buscar o filtrar no pide confirmación ni pierde los cambios", async () => {
+    const user = userEvent.setup();
+    const { router } = renderApp("/teacher/subjects/10");
+
+    await user.type(await cell("María Pérez · Lapso 3"), "14");
+    // Pestañas de lapso (móvil) y filtro: cambian solo los search params
+    await user.click(screen.getByRole("tab", { name: "Lapso 2" }));
+    await user.selectOptions(screen.getByLabelText("Filtrar estudiantes"), "all");
+
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ term: 2 }));
+    expect(screen.queryByText("¿Salir sin guardar?")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Guardar cambios (1)" }).length).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it("bloquea las celdas mientras se guarda para no perder lo que se escriba", async () => {
+    let release: () => void = () => {};
+    server.use(
+      http.put(`${API_URL}/teacher/subjects/10/grades`, async () => {
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        return HttpResponse.json(matGrades);
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp("/teacher/subjects/10");
+
+    await user.type(await cell("María Pérez · Lapso 3"), "14");
+    await user.click(screen.getAllByRole("button", { name: "Guardar cambios (1)" })[0]);
+
+    await waitFor(async () => expect(await cell("Carlos Gómez · Lapso 2")).toBeDisabled());
+    release();
+    await waitFor(async () => expect(await cell("Carlos Gómez · Lapso 2")).toBeEnabled());
+  });
+
   it("filtra a los reprobados", async () => {
     const user = userEvent.setup();
     renderApp("/teacher/subjects/10");

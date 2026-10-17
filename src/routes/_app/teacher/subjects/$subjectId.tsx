@@ -210,6 +210,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                           edited={drafts.isEdited(row, search.term)}
                           invalid={drafts.isInvalid(row, search.term)}
                           onChange={(value) => drafts.set(row, search.term, value)}
+                          disabled={save.isPending}
                         />
                       </li>
                     ))}
@@ -250,6 +251,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                                 edited={drafts.isEdited(row, term)}
                                 invalid={drafts.isInvalid(row, term)}
                                 onChange={(value) => drafts.set(row, term, value)}
+                                disabled={save.isPending}
                               />
                             </td>
                           ))}

@@ -279,6 +279,28 @@ describe("seguimiento y revisión", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/teacher/imports"));
     expect(useImportReviews.getState().reviews["job-1"]).toBe("discarded");
   });
+
+  it("avisa antes de volver a confirmar una importación ya confirmada", async () => {
+    let saved = false;
+    useImportReviews.setState({ reviews: { "job-1": "confirmed" } });
+    server.use(
+      http.get(`${API_URL}/teacher/import-jobs/job-1`, () => HttpResponse.json(doneJob)),
+      http.put(`${API_URL}/teacher/subjects/10/grades`, () => {
+        saved = true;
+        return HttpResponse.json({});
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp("/teacher/imports/job-1");
+
+    await user.click(
+      (await screen.findAllByRole("button", { name: /Confirmar y guardar/ }))[0] as HTMLElement,
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Esta importación ya se confirmó");
+    await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    expect(saved).toBe(false);
+  });
 });
 
 describe("historial de importaciones", () => {

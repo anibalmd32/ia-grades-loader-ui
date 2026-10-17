@@ -71,6 +71,7 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const markReviewed = useImportReviews((s) => s.markReviewed);
+  const previousReview = useImportReviews((s) => s.reviews[job.id]);
   const [decisions, setDecisions] = useState(() => preview.rows.map(initialDecision));
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | RowStatus>("all");
@@ -118,6 +119,24 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
     onError: (error) => toast.error(error.message),
   });
 
+  // Una importación ya revisada usa la vista previa de entonces: puede pisar notas más nuevas
+  const handleConfirm = async () => {
+    if (previousReview) {
+      const ok = await confirm({
+        title:
+          previousReview === "confirmed"
+            ? "Esta importación ya se confirmó"
+            : "Esta importación se descartó",
+        message:
+          "Las notas propuestas son las del momento en que se leyó el archivo. Si confirmas, sustituirán a las notas actuales de esos estudiantes, aunque las hayas cambiado después.",
+        confirmLabel: "Confirmar igualmente",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    confirmImport.mutate();
+  };
+
   const discard = async () => {
     const ok = await confirm({
       title: "¿Descartar la importación?",
@@ -152,7 +171,7 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
         type="button"
         className="btn btn-primary"
         disabled={entries.length === 0 || problems.length > 0 || confirmImport.isPending}
-        onClick={() => confirmImport.mutate()}
+        onClick={handleConfirm}
       >
         {confirmImport.isPending && <span className="loading loading-spinner loading-sm" />}
         Confirmar y guardar {entries.length} {entries.length === 1 ? "nota" : "notas"}

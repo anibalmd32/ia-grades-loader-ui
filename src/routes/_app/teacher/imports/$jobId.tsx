@@ -25,14 +25,25 @@ function ImportJobPage() {
       <PageHeader title="Importación" description={job.data?.file_name} />
       <PageBody>
         <BackLink to="/teacher/imports" label="Importaciones" />
-        {job.error ? (
+        {job.error && !job.data ? (
           <ErrorState error={job.error} onRetry={() => job.refetch()} />
         ) : !job.data ? (
           <LoadingState rows={2} />
-        ) : job.data.status === "failed" ? (
+        ) : job.data.status === "failed" || job.data.status === "done" ? (
+          // "done" sin resultado no debería pasar; se trata como fallo para no quedarse esperando
           <FailedJob job={job.data} />
         ) : (
-          <JobProgress job={job.data} />
+          <>
+            {job.error && (
+              <div role="alert" className="alert alert-warning alert-soft">
+                <CircleAlert className="size-5 shrink-0" />
+                <span>
+                  No se pudo actualizar el estado. Se volverá a intentar en unos segundos.
+                </span>
+              </div>
+            )}
+            <JobProgress job={job.data} />
+          </>
         )}
       </PageBody>
     </>

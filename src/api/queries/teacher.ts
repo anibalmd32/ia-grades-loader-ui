@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { api, unwrap } from "../client";
+import { isApiError } from "../errors";
 import type { components } from "../schema";
 
 export type TeacherSubject = components["schemas"]["TeacherSubject"];
@@ -87,9 +88,12 @@ export const importJobQuery = (jobId: string) =>
         }),
       ),
     refetchInterval: (query) => {
-      if (query.state.error) return false;
-      const status = query.state.data?.status;
-      return status === undefined || isActiveJob(status) ? POLL_MS : false;
+      const { error, data } = query.state;
+      // 4xx (no existe, sin permiso): no tiene sentido seguir preguntando
+      if (isApiError(error) && error.status >= 400 && error.status < 500) return false;
+      if (data && !isActiveJob(data.status)) return false;
+      // Un fallo puntual (red, 5xx) no detiene el seguimiento: se reintenta más despacio
+      return error ? POLL_MS * 3 : POLL_MS;
     },
   });
 

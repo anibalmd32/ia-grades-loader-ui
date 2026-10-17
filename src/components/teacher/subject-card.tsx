@@ -33,7 +33,7 @@ export function SubjectCard({ subject }: { subject: TeacherSubject }) {
                   <span
                     className={complete ? "font-semibold text-success" : "text-base-content/70"}
                   >
-                    {loaded ?? "…"}/{total} notas
+                    {loaded ?? (grades.error ? "—" : "…")}/{total} notas
                   </span>
                 </div>
                 <progress

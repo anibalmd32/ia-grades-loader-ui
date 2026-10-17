@@ -101,8 +101,9 @@ export function useUnsavedChangesGuard(pending: number) {
   }, [pending]);
 
   useBlocker({
-    shouldBlockFn: async () => {
-      if (pendingRef.current === 0) return false;
+    shouldBlockFn: async ({ current, next }) => {
+      // Cambiar de lapso, buscar, filtrar o paginar no sale de la planilla: no avisar
+      if (pendingRef.current === 0 || current.pathname === next.pathname) return false;
       const leave = await confirm({
         title: "¿Salir sin guardar?",
         message: `Tienes ${pendingRef.current} ${pendingRef.current === 1 ? "cambio" : "cambios"} sin guardar en la planilla. Si sales, se perderán.`,
@@ -184,22 +185,21 @@ export function FinalGrade({ row }: { row: StudentGrades }) {
   );
 }
 
-/** Tarjetas de resumen: aprobados, reprobados, en curso y promedio de la sección */
+/**
+ * Tarjetas de resumen: aprobados, reprobados y en curso (según la definitiva de la API).
+ * No hay promedio de la sección: la API no lo da y no se calculan notas en el front.
+ */
 export function GradebookStats({ students }: { students: StudentGrades[] }) {
   const count = (standing: Standing) => students.filter((s) => standingOf(s) === standing).length;
-  const averages = students.map((s) => s.average).filter((a): a is number => a != null);
-  const sectionAverage =
-    averages.length > 0 ? averages.reduce((sum, a) => sum + a, 0) / averages.length : null;
 
   const stats = [
     { label: "Aprobados", value: String(count("passed")), className: "text-success" },
     { label: "Reprobados", value: String(count("failed")), className: "text-error" },
     { label: "En curso", value: String(count("in_progress")), className: "text-primary" },
-    { label: "Promedio general", value: formatGrade(sectionAverage), className: "" },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-3 gap-3">
       {stats.map((stat) => (
         <div key={stat.label} className="card card-border bg-base-100">
           <div className="card-body gap-0 p-4">
