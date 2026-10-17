@@ -1,10 +1,11 @@
 import { Link, useMatches, useNavigate } from "@tanstack/react-router";
-import { KeyRound, LogOut, Menu } from "lucide-react";
+import { KeyRound, LogOut, Menu, UserRound } from "lucide-react";
 import { type ReactNode, useId } from "react";
 import { AppVersion } from "@/components/app-version";
 import { Avatar } from "@/components/ui/avatar";
-import { NAV, userSubtitle } from "@/lib/roles";
+import { userSubtitle } from "@/lib/roles";
 import { type User, useSession } from "@/stores/session";
+import { useNav } from "./use-nav";
 
 declare module "@tanstack/react-router" {
   interface StaticDataRouteOption {
@@ -25,6 +26,7 @@ function useSignOut() {
 
 function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) {
   const handleSignOut = useSignOut();
+  const nav = useNav(user);
   return (
     <nav className="flex min-h-full w-64 flex-col bg-neutral p-4 text-neutral-content">
       <div className="px-3 py-2">
@@ -32,7 +34,7 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
         <p className="text-neutral-content/70 text-xs">Cargador de notas</p>
       </div>
       <ul className="menu mt-6 w-full gap-1 p-0">
-        {NAV[user.role].map((item) => (
+        {nav.map((item) => (
           <li key={item.to}>
             <Link
               to={item.to}
@@ -45,13 +47,19 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
         ))}
       </ul>
       <div className="mt-auto flex flex-col gap-1">
-        <div className="flex items-center gap-3 rounded-box bg-white/5 p-3">
+        <Link
+          to="/profile"
+          onClick={onNavigate}
+          aria-label="Mi cuenta"
+          className="flex items-center gap-3 rounded-box bg-white/5 p-3 hover:bg-white/10"
+          activeProps={{ className: "ring-2 ring-primary" }}
+        >
           <Avatar name={user.full_name} />
           <div className="min-w-0">
             <p className="truncate font-bold text-sm">{user.full_name}</p>
             <p className="truncate text-neutral-content/70 text-xs">{userSubtitle(user)}</p>
           </div>
-        </div>
+        </Link>
         <ul className="menu w-full p-0">
           <li>
             <Link to="/change-password" onClick={onNavigate}>
@@ -77,6 +85,7 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
 /** Layout de la app con sesión: menú lateral en escritorio; barra superior, menú y pestañas en móvil */
 export function AppLayout({ user, children }: { user: User; children: ReactNode }) {
   const drawerId = useId();
+  const nav = useNav(user);
   const matches = useMatches();
   const { title, description } = matches.at(-1)?.staticData ?? {};
   const closeDrawer = () => {
@@ -102,7 +111,7 @@ export function AppLayout({ user, children }: { user: User; children: ReactNode 
         <main className="flex-1">{children}</main>
 
         <nav className="dock dock-sm z-20 border-base-300 border-t bg-base-100 lg:hidden">
-          {NAV[user.role].map((item) => (
+          {nav.map((item) => (
             <Link
               key={item.to}
               to={item.to}
@@ -113,6 +122,14 @@ export function AppLayout({ user, children }: { user: User; children: ReactNode 
               <span className="dock-label">{item.label}</span>
             </Link>
           ))}
+          <Link
+            to="/profile"
+            className="text-base-content/60"
+            activeProps={{ className: "dock-active text-primary!" }}
+          >
+            <UserRound className="size-5" />
+            <span className="dock-label">Cuenta</span>
+          </Link>
         </nav>
       </div>
       <div className="drawer-side z-30">

@@ -40,6 +40,26 @@ api.use({
   },
 });
 
+/**
+ * fetch con el token de la sesión, para lo que openapi-fetch no cubre (respuestas en streaming).
+ * Ante un 401 caduca la sesión y, si la respuesta no es 2xx, lanza un ApiError.
+ */
+export async function authorizedFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  const token = auth.getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  let response: Response;
+  try {
+    response = await globalThis.fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
+    throw networkError();
+  }
+  if (response.status === 401) auth.onUnauthorized();
+  if (!response.ok) throw toApiError(response, await response.json().catch(() => null));
+  return response;
+}
+
 type FetchResult<T> = { data?: T; error?: unknown; response: Response };
 
 /**

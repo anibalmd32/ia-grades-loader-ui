@@ -15,11 +15,11 @@ import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
+import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppStudentRouteImport } from './routes/_app/student'
 import { Route as AppTeacherRouteImport } from './routes/_app/teacher'
 import { Route as AppAdminCoordinatorsRouteImport } from './routes/_app/admin/coordinators'
 import { Route as AppStudentAssistantRouteImport } from './routes/_app/student/assistant'
-import { Route as AppStudentGradesRouteImport } from './routes/_app/student/grades'
 import { Route as AppStudentTelegramRouteImport } from './routes/_app/student/telegram'
 import { Route as AppAdminAcademicIndexRouteImport } from './routes/_app/admin/academic/index'
 import { Route as AppAdminAcademicNewRouteImport } from './routes/_app/admin/academic/new'
@@ -32,6 +32,8 @@ import { Route as AppAdminStudentsNewRouteImport } from './routes/_app/admin/stu
 import { Route as AppAdminTeachersIndexRouteImport } from './routes/_app/admin/teachers/index'
 import { Route as AppAdminTeachersUserIdRouteImport } from './routes/_app/admin/teachers/$userId'
 import { Route as AppAdminTeachersNewRouteImport } from './routes/_app/admin/teachers/new'
+import { Route as AppStudentGradesIndexRouteImport } from './routes/_app/student/grades/index'
+import { Route as AppStudentGradesSubjectIdRouteImport } from './routes/_app/student/grades/$subjectId'
 import { Route as AppTeacherImportsIndexRouteImport } from './routes/_app/teacher/imports/index'
 import { Route as AppTeacherImportsJobIdRouteImport } from './routes/_app/teacher/imports/$jobId'
 import { Route as AppTeacherSubjectsIndexRouteImport } from './routes/_app/teacher/subjects/index'
@@ -67,6 +69,11 @@ const AppAdminRoute = AppAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppStudentRoute = AppStudentRouteImport.update({
   id: '/student',
   path: '/student',
@@ -85,11 +92,6 @@ const AppAdminCoordinatorsRoute = AppAdminCoordinatorsRouteImport.update({
 const AppStudentAssistantRoute = AppStudentAssistantRouteImport.update({
   id: '/assistant',
   path: '/assistant',
-  getParentRoute: () => AppStudentRoute,
-} as any)
-const AppStudentGradesRoute = AppStudentGradesRouteImport.update({
-  id: '/grades',
-  path: '/grades',
   getParentRoute: () => AppStudentRoute,
 } as any)
 const AppStudentTelegramRoute = AppStudentTelegramRouteImport.update({
@@ -154,6 +156,17 @@ const AppAdminTeachersNewRoute = AppAdminTeachersNewRouteImport.update({
   path: '/teachers/new',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppStudentGradesIndexRoute = AppStudentGradesIndexRouteImport.update({
+  id: '/grades/',
+  path: '/grades/',
+  getParentRoute: () => AppStudentRoute,
+} as any)
+const AppStudentGradesSubjectIdRoute =
+  AppStudentGradesSubjectIdRouteImport.update({
+    id: '/grades/$subjectId',
+    path: '/grades/$subjectId',
+    getParentRoute: () => AppStudentRoute,
+  } as any)
 const AppTeacherImportsIndexRoute = AppTeacherImportsIndexRouteImport.update({
   id: '/imports/',
   path: '/imports/',
@@ -188,11 +201,11 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/admin': typeof AppAdminRouteWithChildren
+  '/profile': typeof AppProfileRoute
   '/student': typeof AppStudentRouteWithChildren
   '/teacher': typeof AppTeacherRouteWithChildren
   '/admin/coordinators': typeof AppAdminCoordinatorsRouteWithChildren
   '/student/assistant': typeof AppStudentAssistantRoute
-  '/student/grades': typeof AppStudentGradesRoute
   '/student/telegram': typeof AppStudentTelegramRoute
   '/admin/academic/new': typeof AppAdminAcademicNewRoute
   '/admin/coordinators/$userId': typeof AppAdminCoordinatorsUserIdRoute
@@ -201,12 +214,14 @@ export interface FileRoutesByFullPath {
   '/admin/students/new': typeof AppAdminStudentsNewRoute
   '/admin/teachers/$userId': typeof AppAdminTeachersUserIdRoute
   '/admin/teachers/new': typeof AppAdminTeachersNewRoute
+  '/student/grades/$subjectId': typeof AppStudentGradesSubjectIdRoute
   '/teacher/imports/$jobId': typeof AppTeacherImportsJobIdRoute
   '/teacher/subjects/$subjectId': typeof AppTeacherSubjectsSubjectIdRoute
   '/admin/academic/': typeof AppAdminAcademicIndexRoute
   '/admin/coordinators/': typeof AppAdminCoordinatorsIndexRoute
   '/admin/students/': typeof AppAdminStudentsIndexRoute
   '/admin/teachers/': typeof AppAdminTeachersIndexRoute
+  '/student/grades/': typeof AppStudentGradesIndexRoute
   '/teacher/imports/': typeof AppTeacherImportsIndexRoute
   '/teacher/subjects/': typeof AppTeacherSubjectsIndexRoute
   '/admin/academic/subjects/$subjectId': typeof AppAdminAcademicSubjectsSubjectIdRoute
@@ -217,10 +232,10 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/admin': typeof AppAdminRouteWithChildren
+  '/profile': typeof AppProfileRoute
   '/student': typeof AppStudentRouteWithChildren
   '/teacher': typeof AppTeacherRouteWithChildren
   '/student/assistant': typeof AppStudentAssistantRoute
-  '/student/grades': typeof AppStudentGradesRoute
   '/student/telegram': typeof AppStudentTelegramRoute
   '/admin/academic/new': typeof AppAdminAcademicNewRoute
   '/admin/coordinators/$userId': typeof AppAdminCoordinatorsUserIdRoute
@@ -229,12 +244,14 @@ export interface FileRoutesByTo {
   '/admin/students/new': typeof AppAdminStudentsNewRoute
   '/admin/teachers/$userId': typeof AppAdminTeachersUserIdRoute
   '/admin/teachers/new': typeof AppAdminTeachersNewRoute
+  '/student/grades/$subjectId': typeof AppStudentGradesSubjectIdRoute
   '/teacher/imports/$jobId': typeof AppTeacherImportsJobIdRoute
   '/teacher/subjects/$subjectId': typeof AppTeacherSubjectsSubjectIdRoute
   '/admin/academic': typeof AppAdminAcademicIndexRoute
   '/admin/coordinators': typeof AppAdminCoordinatorsIndexRoute
   '/admin/students': typeof AppAdminStudentsIndexRoute
   '/admin/teachers': typeof AppAdminTeachersIndexRoute
+  '/student/grades': typeof AppStudentGradesIndexRoute
   '/teacher/imports': typeof AppTeacherImportsIndexRoute
   '/teacher/subjects': typeof AppTeacherSubjectsIndexRoute
   '/admin/academic/subjects/$subjectId': typeof AppAdminAcademicSubjectsSubjectIdRoute
@@ -247,11 +264,11 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
+  '/_app/profile': typeof AppProfileRoute
   '/_app/student': typeof AppStudentRouteWithChildren
   '/_app/teacher': typeof AppTeacherRouteWithChildren
   '/_app/admin/coordinators': typeof AppAdminCoordinatorsRouteWithChildren
   '/_app/student/assistant': typeof AppStudentAssistantRoute
-  '/_app/student/grades': typeof AppStudentGradesRoute
   '/_app/student/telegram': typeof AppStudentTelegramRoute
   '/_app/admin/academic/new': typeof AppAdminAcademicNewRoute
   '/_app/admin/coordinators/$userId': typeof AppAdminCoordinatorsUserIdRoute
@@ -260,12 +277,14 @@ export interface FileRoutesById {
   '/_app/admin/students/new': typeof AppAdminStudentsNewRoute
   '/_app/admin/teachers/$userId': typeof AppAdminTeachersUserIdRoute
   '/_app/admin/teachers/new': typeof AppAdminTeachersNewRoute
+  '/_app/student/grades/$subjectId': typeof AppStudentGradesSubjectIdRoute
   '/_app/teacher/imports/$jobId': typeof AppTeacherImportsJobIdRoute
   '/_app/teacher/subjects/$subjectId': typeof AppTeacherSubjectsSubjectIdRoute
   '/_app/admin/academic/': typeof AppAdminAcademicIndexRoute
   '/_app/admin/coordinators/': typeof AppAdminCoordinatorsIndexRoute
   '/_app/admin/students/': typeof AppAdminStudentsIndexRoute
   '/_app/admin/teachers/': typeof AppAdminTeachersIndexRoute
+  '/_app/student/grades/': typeof AppStudentGradesIndexRoute
   '/_app/teacher/imports/': typeof AppTeacherImportsIndexRoute
   '/_app/teacher/subjects/': typeof AppTeacherSubjectsIndexRoute
   '/_app/admin/academic/subjects/$subjectId': typeof AppAdminAcademicSubjectsSubjectIdRoute
@@ -278,11 +297,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/admin'
+    | '/profile'
     | '/student'
     | '/teacher'
     | '/admin/coordinators'
     | '/student/assistant'
-    | '/student/grades'
     | '/student/telegram'
     | '/admin/academic/new'
     | '/admin/coordinators/$userId'
@@ -291,12 +310,14 @@ export interface FileRouteTypes {
     | '/admin/students/new'
     | '/admin/teachers/$userId'
     | '/admin/teachers/new'
+    | '/student/grades/$subjectId'
     | '/teacher/imports/$jobId'
     | '/teacher/subjects/$subjectId'
     | '/admin/academic/'
     | '/admin/coordinators/'
     | '/admin/students/'
     | '/admin/teachers/'
+    | '/student/grades/'
     | '/teacher/imports/'
     | '/teacher/subjects/'
     | '/admin/academic/subjects/$subjectId'
@@ -307,10 +328,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/admin'
+    | '/profile'
     | '/student'
     | '/teacher'
     | '/student/assistant'
-    | '/student/grades'
     | '/student/telegram'
     | '/admin/academic/new'
     | '/admin/coordinators/$userId'
@@ -319,12 +340,14 @@ export interface FileRouteTypes {
     | '/admin/students/new'
     | '/admin/teachers/$userId'
     | '/admin/teachers/new'
+    | '/student/grades/$subjectId'
     | '/teacher/imports/$jobId'
     | '/teacher/subjects/$subjectId'
     | '/admin/academic'
     | '/admin/coordinators'
     | '/admin/students'
     | '/admin/teachers'
+    | '/student/grades'
     | '/teacher/imports'
     | '/teacher/subjects'
     | '/admin/academic/subjects/$subjectId'
@@ -336,11 +359,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/_app/admin'
+    | '/_app/profile'
     | '/_app/student'
     | '/_app/teacher'
     | '/_app/admin/coordinators'
     | '/_app/student/assistant'
-    | '/_app/student/grades'
     | '/_app/student/telegram'
     | '/_app/admin/academic/new'
     | '/_app/admin/coordinators/$userId'
@@ -349,12 +372,14 @@ export interface FileRouteTypes {
     | '/_app/admin/students/new'
     | '/_app/admin/teachers/$userId'
     | '/_app/admin/teachers/new'
+    | '/_app/student/grades/$subjectId'
     | '/_app/teacher/imports/$jobId'
     | '/_app/teacher/subjects/$subjectId'
     | '/_app/admin/academic/'
     | '/_app/admin/coordinators/'
     | '/_app/admin/students/'
     | '/_app/admin/teachers/'
+    | '/_app/student/grades/'
     | '/_app/teacher/imports/'
     | '/_app/teacher/subjects/'
     | '/_app/admin/academic/subjects/$subjectId'
@@ -412,6 +437,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/student': {
       id: '/_app/student'
       path: '/student'
@@ -438,13 +470,6 @@ declare module '@tanstack/react-router' {
       path: '/assistant'
       fullPath: '/student/assistant'
       preLoaderRoute: typeof AppStudentAssistantRouteImport
-      parentRoute: typeof AppStudentRoute
-    }
-    '/_app/student/grades': {
-      id: '/_app/student/grades'
-      path: '/grades'
-      fullPath: '/student/grades'
-      preLoaderRoute: typeof AppStudentGradesRouteImport
       parentRoute: typeof AppStudentRoute
     }
     '/_app/student/telegram': {
@@ -530,6 +555,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/teachers/new'
       preLoaderRoute: typeof AppAdminTeachersNewRouteImport
       parentRoute: typeof AppAdminRoute
+    }
+    '/_app/student/grades/': {
+      id: '/_app/student/grades/'
+      path: '/grades'
+      fullPath: '/student/grades/'
+      preLoaderRoute: typeof AppStudentGradesIndexRouteImport
+      parentRoute: typeof AppStudentRoute
+    }
+    '/_app/student/grades/$subjectId': {
+      id: '/_app/student/grades/$subjectId'
+      path: '/grades/$subjectId'
+      fullPath: '/student/grades/$subjectId'
+      preLoaderRoute: typeof AppStudentGradesSubjectIdRouteImport
+      parentRoute: typeof AppStudentRoute
     }
     '/_app/teacher/imports/': {
       id: '/_app/teacher/imports/'
@@ -617,14 +656,16 @@ const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
 
 interface AppStudentRouteChildren {
   AppStudentAssistantRoute: typeof AppStudentAssistantRoute
-  AppStudentGradesRoute: typeof AppStudentGradesRoute
   AppStudentTelegramRoute: typeof AppStudentTelegramRoute
+  AppStudentGradesSubjectIdRoute: typeof AppStudentGradesSubjectIdRoute
+  AppStudentGradesIndexRoute: typeof AppStudentGradesIndexRoute
 }
 
 const AppStudentRouteChildren: AppStudentRouteChildren = {
   AppStudentAssistantRoute: AppStudentAssistantRoute,
-  AppStudentGradesRoute: AppStudentGradesRoute,
   AppStudentTelegramRoute: AppStudentTelegramRoute,
+  AppStudentGradesSubjectIdRoute: AppStudentGradesSubjectIdRoute,
+  AppStudentGradesIndexRoute: AppStudentGradesIndexRoute,
 }
 
 const AppStudentRouteWithChildren = AppStudentRoute._addFileChildren(
@@ -651,12 +692,14 @@ const AppTeacherRouteWithChildren = AppTeacherRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
+  AppProfileRoute: typeof AppProfileRoute
   AppStudentRoute: typeof AppStudentRouteWithChildren
   AppTeacherRoute: typeof AppTeacherRouteWithChildren
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
+  AppProfileRoute: AppProfileRoute,
   AppStudentRoute: AppStudentRouteWithChildren,
   AppTeacherRoute: AppTeacherRouteWithChildren,
 }
