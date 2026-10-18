@@ -17,6 +17,10 @@ export function UploadForm({ defaultSubject }: { defaultSubject?: number }) {
   const settings = useAcademicSettings();
   const inputId = useId();
   const [subjectId, setSubjectId] = useState(defaultSubject ? String(defaultSubject) : "");
+  // Las materias de periodos cerrados no admiten notas nuevas: no se pueden elegir
+  const selected = subjects.data?.find((s) => String(s.id) === subjectId);
+  const closedSubject = selected?.semester.is_closed ? selected : undefined;
+  const anyClosed = subjects.data?.some((s) => s.semester.is_closed) ?? false;
   const [term, setTerm] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -71,11 +75,27 @@ export function UploadForm({ defaultSubject }: { defaultSubject?: number }) {
             >
               <option value="">Selecciona una materia…</option>
               {subjects.data?.map((subject) => (
-                <option key={subject.id} value={subject.id}>
+                <option key={subject.id} value={subject.id} disabled={subject.semester.is_closed}>
                   {subject.code} · {subject.name}
+                  {subject.semester.is_closed
+                    ? ` (${settings.period_label.toLowerCase()} cerrado)`
+                    : ""}
                 </option>
               ))}
             </select>
+            {closedSubject ? (
+              <span className="text-error text-xs" role="alert">
+                {closedSubject.code} es de un {settings.period_label.toLowerCase()} cerrado: ya no
+                se le pueden importar notas.
+              </span>
+            ) : (
+              anyClosed && (
+                <span className="text-base-content/60 text-xs">
+                  Las materias de {settings.period_label_plural.toLowerCase()} cerrados no admiten
+                  importaciones.
+                </span>
+              )
+            )}
           </label>
           <label className="flex flex-col gap-1">
             <span className="font-semibold text-sm">{settings.term_label}</span>
@@ -146,7 +166,7 @@ export function UploadForm({ defaultSubject }: { defaultSubject?: number }) {
         <button
           type="submit"
           className="btn btn-primary"
-          disabled={!subjectId || !file || upload.isPending}
+          disabled={!subjectId || closedSubject != null || !file || upload.isPending}
         >
           {upload.isPending && <span className="loading loading-spinner loading-sm" />}
           Subir y procesar

@@ -81,6 +81,13 @@ describe("configuración académica (super admin)", () => {
       passing_grade: 10,
       grade_decimals: 2,
       round_final_grade: true,
+      document_label: "Cédula",
+      document_types: [
+        { code: "V", name: "Venezolano" },
+        { code: "E", name: "Extranjero" },
+      ],
+      assistant_enabled: true,
+      telegram_enabled: true,
     });
     // El menú y la marca usan la configuración nueva
     expect((await screen.findAllByText("Trimestres y materias")).length).toBeGreaterThan(0);

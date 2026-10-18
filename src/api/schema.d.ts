@@ -342,6 +342,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/students/import/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Plantilla de Excel para el alta masiva */
+        get: operations["import_template_api_v1_students_import_template_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/students/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Alta masiva de estudiantes desde Excel
+         * @description Columnas reconocidas por su encabezado (en la primera hoja): **Nombre**, **Apellido**
+         *     (o una sola columna *Nombre completo*), **Tipo** (V/E, opcional: por defecto V o el que
+         *     traiga la cédula), **Cédula** y **Materias** (códigos separados por comas, opcional).
+         *
+         *     Primero envía el archivo con `dry_run=true` para ver qué pasará con cada fila; luego,
+         *     con `dry_run=false`, se crean los estudiantes nuevos (con contraseña generada, que
+         *     **solo se muestra en esa respuesta**) y se matriculan en las materias. Los que ya
+         *     existen solo se matriculan; las filas con errores se omiten.
+         */
+        post: operations["import_students_api_v1_students_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/students": {
         parameters: {
             query?: never;
@@ -442,6 +486,44 @@ export interface paths {
         patch: operations["update_semester_api_v1_semesters__semester_id__patch"];
         trace?: never;
     };
+    "/api/v1/semesters/{semester_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cerrar semestre (bloquea sus notas)
+         * @description Con el periodo cerrado los profesores ya no pueden cargar ni corregir notas (tampoco
+         *     importarlas) y no se pueden cambiar sus matrículas ni sus materias.
+         */
+        post: operations["close_semester_api_v1_semesters__semester_id__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/semesters/{semester_id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reabrir semestre */
+        post: operations["reopen_semester_api_v1_semesters__semester_id__reopen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/subjects": {
         parameters: {
             query?: never;
@@ -477,6 +559,27 @@ export interface paths {
         head?: never;
         /** Modificar materia */
         patch: operations["update_subject_api_v1_subjects__subject_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/subjects/{subject_id}/grade-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Historial de cambios de notas de la materia
+         * @description Altas, correcciones y borrados de notas, del más reciente al más antiguo, con quién
+         *     los hizo y si fueron a mano o desde una importación de Excel.
+         */
+        get: operations["subject_grade_history_api_v1_subjects__subject_id__grade_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/teachers/{teacher_id}/subjects": {
@@ -614,12 +717,34 @@ export interface paths {
          * @description Envía solo las notas que cambian. `value: null` borra la nota de ese lapso.
          *
          *     Es todo o nada: si algún estudiante no está matriculado (404) o alguna nota o lapso no
-         *     cumple la configuración académica (422) no se guarda ninguna.
+         *     cumple la configuración académica (422) no se guarda ninguna. Si el periodo de la
+         *     materia está cerrado responde 409.
          *
          *     Si las notas salen de una importación, envía su `import_job_id` para marcarla como
          *     confirmada (debe ser de esta materia y estar en `done`; si no, 409).
          */
         put: operations["save_subject_grades_api_v1_teacher_subjects__subject_id__grades_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teacher/subjects/{subject_id}/grade-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Historial de cambios de notas
+         * @description Altas, correcciones y borrados de notas de la materia, del más reciente al más
+         *     antiguo, con quién los hizo y si fueron a mano o desde una importación de Excel.
+         */
+        get: operations["subject_grade_history_api_v1_teacher_subjects__subject_id__grade_history_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -918,6 +1043,28 @@ export interface components {
              */
             round_final_grade: boolean;
             /**
+             * Document Label
+             * @description Cómo se llama el documento con que entran los estudiantes
+             * @example Cédula
+             * @example DNI
+             */
+            document_label: string;
+            /**
+             * Document Types
+             * @description Tipos de documento admitidos (el login de estudiantes los ofrece en este orden)
+             */
+            document_types: components["schemas"]["DocumentType-Output"][];
+            /**
+             * Assistant Enabled
+             * @description Los estudiantes pueden preguntar a la IA por sus notas (app y MCP)
+             */
+            assistant_enabled: boolean;
+            /**
+             * Telegram Enabled
+             * @description Los estudiantes pueden usar el asistente por Telegram (requiere también assistant_enabled y el bot configurado en el servidor)
+             */
+            telegram_enabled: boolean;
+            /**
              * Period Label
              * @description Nombre del periodo en singular
              * @example Semestre
@@ -1007,6 +1154,28 @@ export interface components {
              * @description true: la definitiva se redondea al entero (9.5 → 10) antes de decidir si aprueba
              */
             round_final_grade: boolean;
+            /**
+             * Document Label
+             * @description Cómo se llama el documento con que entran los estudiantes
+             * @example Cédula
+             * @example DNI
+             */
+            document_label: string;
+            /**
+             * Document Types
+             * @description Tipos de documento admitidos (el login de estudiantes los ofrece en este orden)
+             */
+            document_types: components["schemas"]["DocumentType-Input"][];
+            /**
+             * Assistant Enabled
+             * @description Los estudiantes pueden preguntar a la IA por sus notas (app y MCP)
+             */
+            assistant_enabled: boolean;
+            /**
+             * Telegram Enabled
+             * @description Los estudiantes pueden usar el asistente por Telegram (requiere también assistant_enabled y el bot configurado en el servidor)
+             */
+            telegram_enabled: boolean;
         };
         /** Body_enqueue_grades_import_api_v1_teacher_subjects__subject_id__grades_import_post */
         Body_enqueue_grades_import_api_v1_teacher_subjects__subject_id__grades_import_post: {
@@ -1020,6 +1189,20 @@ export interface components {
              * @description Lapso a usar si la planilla no lo indica
              */
             default_term?: number | null;
+        };
+        /** Body_import_students_api_v1_students_import_post */
+        Body_import_students_api_v1_students_import_post: {
+            /**
+             * File
+             * @description Planilla .xlsx
+             */
+            file: string;
+            /**
+             * Dry Run
+             * @description true = solo validar (no crea nada); false = crear
+             * @default true
+             */
+            dry_run: boolean;
         };
         /** Body_login_oauth2_api_v1_auth_token_post */
         Body_login_oauth2_api_v1_auth_token_post: {
@@ -1052,6 +1235,11 @@ export interface components {
             /** New Password */
             new_password: string;
         };
+        /**
+         * ChangeSource
+         * @enum {string}
+         */
+        ChangeSource: "manual" | "import";
         /** ChatRequest */
         ChatRequest: {
             /**
@@ -1114,6 +1302,34 @@ export interface components {
              */
             updated_at: string;
         };
+        /** DocumentType */
+        "DocumentType-Input": {
+            /**
+             * Code
+             * @description Letra(s) que preceden al número: V, E, P...
+             * @example V
+             */
+            code: string;
+            /**
+             * Name
+             * @example Venezolano
+             */
+            name: string;
+        };
+        /** DocumentType */
+        "DocumentType-Output": {
+            /**
+             * Code
+             * @description Letra(s) que preceden al número: V, E, P...
+             * @example V
+             */
+            code: string;
+            /**
+             * Name
+             * @example Venezolano
+             */
+            name: string;
+        };
         /** EnrollStudentsRequest */
         EnrollStudentsRequest: {
             /**
@@ -1143,6 +1359,41 @@ export interface components {
              */
             already_enrolled: number;
         };
+        /**
+         * GradeChangeRead
+         * @description Un cambio en el historial de notas.
+         */
+        GradeChangeRead: {
+            /** Id */
+            id: number;
+            student: components["schemas"]["StudentSummary"];
+            /** Term */
+            term: number;
+            /**
+             * Old Value
+             * @description Nota anterior; null = no tenía nota
+             */
+            old_value: number | null;
+            /**
+             * New Value
+             * @description Nota nueva; null = se borró
+             */
+            new_value: number | null;
+            /**
+             * Changed By
+             * @description Quién hizo el cambio (null si ya no existe)
+             */
+            changed_by: string | null;
+            /** @description manual = en la planilla; import = desde un Excel */
+            source: components["schemas"]["ChangeSource"];
+            /** Import Job Id */
+            import_job_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** GradeEntry */
         GradeEntry: {
             /** Student Id */
@@ -1167,6 +1418,34 @@ export interface components {
              * @description Si las notas vienen de una importación de Excel, su id: la importación queda marcada como confirmada (`confirmed_at`)
              */
             import_job_id?: string | null;
+        };
+        /**
+         * GradingRulesRead
+         * @description Reglas de evaluación congeladas de un periodo cerrado.
+         */
+        GradingRulesRead: {
+            /** Terms Count */
+            terms_count: number;
+            /** Term Label */
+            term_label: string;
+            /** Term Label Plural */
+            term_label_plural: string;
+            /** Term Weights */
+            term_weights: number[] | null;
+            /** Term Percentages */
+            term_percentages: number[];
+            /** Min Grade */
+            min_grade: number;
+            /** Max Grade */
+            max_grade: number;
+            /** Passing Grade */
+            passing_grade: number;
+            /** Grade Decimals */
+            grade_decimals: number;
+            /** Round Final Grade */
+            round_final_grade: boolean;
+            /** Summary */
+            summary: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1340,15 +1619,21 @@ export interface components {
          * @enum {string}
          */
         MessageRole: "user" | "assistant";
-        /**
-         * Nationality
-         * @enum {string}
-         */
-        Nationality: "V" | "E";
         /** Page[ConversationSummary] */
         Page_ConversationSummary_: {
             /** Items */
             items: components["schemas"]["ConversationSummary"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[GradeChangeRead] */
+        Page_GradeChangeRead_: {
+            /** Items */
+            items: components["schemas"]["GradeChangeRead"][];
             /** Total */
             total: number;
             /** Limit */
@@ -1434,6 +1719,15 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+            /**
+             * Is Closed
+             * @description Cerrado: sus notas, matrículas y materias ya no se pueden modificar
+             */
+            is_closed: boolean;
+            /** Closed At */
+            closed_at?: string | null;
+            /** @description Reglas de evaluación congeladas al cerrar el periodo (se conservan si se reabre). null = el periodo usa la configuración académica vigente */
+            rules?: components["schemas"]["GradingRulesRead"] | null;
             /**
              * Subjects Count
              * @description Materias. Solo en el listado y el detalle; null dentro de otras respuestas.
@@ -1541,8 +1835,12 @@ export interface components {
              * @example Pérez Gómez
              */
             last_name: string;
-            /** @description V = venezolano, E = extranjero */
-            nationality: components["schemas"]["Nationality"];
+            /**
+             * Nationality
+             * @description Tipo de documento (p. ej. V = venezolano, E = extranjero); los válidos están en GET /settings/academic
+             * @example V
+             */
+            nationality: string;
             /**
              * Cedula
              * @description Número de cédula sin letras ni puntos
@@ -1574,13 +1872,70 @@ export interface components {
              */
             passed: boolean | null;
         };
+        /** StudentImportResult */
+        StudentImportResult: {
+            /** Dry Run */
+            dry_run: boolean;
+            /** Rows */
+            rows: components["schemas"]["StudentImportRow"][];
+            summary: components["schemas"]["StudentImportSummary"];
+        };
+        /** StudentImportRow */
+        StudentImportRow: {
+            /**
+             * Row
+             * @description Fila del Excel
+             */
+            row: number;
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string;
+            /** Nationality */
+            nationality: string | null;
+            /** Cedula */
+            cedula: number | null;
+            /**
+             * Subject Codes
+             * @description Materias en las que se matricula
+             */
+            subject_codes: string[];
+            /**
+             * Status
+             * @description new = se crea; existing = ya existe y solo se matricula; error = se omite
+             * @enum {string}
+             */
+            status: "new" | "existing" | "error";
+            /** Issues */
+            issues: string[];
+            /** @description Cuenta creada o existente (solo al confirmar) */
+            user: components["schemas"]["UserRead"] | null;
+            /**
+             * Generated Password
+             * @description Contraseña inicial de las cuentas nuevas. Solo se muestra al confirmar, esta única vez
+             */
+            generated_password: string | null;
+        };
+        /** StudentImportSummary */
+        StudentImportSummary: {
+            /** New */
+            new: number;
+            /** Existing */
+            existing: number;
+            /** Error */
+            error: number;
+        };
         /**
          * StudentLogin
          * @description Inicio de sesión de estudiantes.
          */
         StudentLogin: {
-            /** @description V = venezolano, E = extranjero */
-            nationality: components["schemas"]["Nationality"];
+            /**
+             * Nationality
+             * @description Tipo de documento (p. ej. V = venezolano, E = extranjero); los válidos están en GET /settings/academic
+             * @example V
+             */
+            nationality: string;
             /**
              * Cedula
              * @description Número de cédula sin letras ni puntos
@@ -1644,7 +1999,8 @@ export interface components {
             first_name?: string | null;
             /** Last Name */
             last_name?: string | null;
-            nationality?: components["schemas"]["Nationality"] | null;
+            /** Nationality */
+            nationality?: string | null;
             /** Cedula */
             cedula?: number | null;
             /** Is Active */
@@ -1777,7 +2133,7 @@ export interface components {
         TelegramStatus: {
             /**
              * Enabled
-             * @description El bot está configurado en el servidor
+             * @description El bot está configurado en el servidor y la institución lo tiene activado
              */
             enabled: boolean;
             /**
@@ -1847,7 +2203,11 @@ export interface components {
             full_name: string;
             /** Email */
             email: string | null;
-            nationality: components["schemas"]["Nationality"] | null;
+            /**
+             * Nationality
+             * @description Tipo de documento (V, E...)
+             */
+            nationality: string | null;
             /** Cedula */
             cedula: number | null;
             /**
@@ -2520,6 +2880,59 @@ export interface operations {
             };
         };
     };
+    import_template_api_v1_students_import_template_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archivo .xlsx */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": unknown;
+                };
+            };
+        };
+    };
+    import_students_api_v1_students_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_students_api_v1_students_import_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentImportResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_users_api_v1_students_get: {
         parameters: {
             query?: {
@@ -2833,6 +3246,68 @@ export interface operations {
             };
         };
     };
+    close_semester_api_v1_semesters__semester_id__close_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                semester_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SemesterRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reopen_semester_api_v1_semesters__semester_id__reopen_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                semester_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SemesterRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_subjects_api_v1_subjects_get: {
         parameters: {
             query?: {
@@ -2983,6 +3458,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubjectRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    subject_grade_history_api_v1_subjects__subject_id__grade_history_get: {
+        parameters: {
+            query?: {
+                /** @description Solo los de este estudiante */
+                student_id?: number | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                subject_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_GradeChangeRead_"];
                 };
             };
             /** @description Validation Error */
@@ -3328,6 +3839,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubjectGrades"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    subject_grade_history_api_v1_teacher_subjects__subject_id__grade_history_get: {
+        parameters: {
+            query?: {
+                /** @description Solo los de este estudiante */
+                student_id?: number | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                subject_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_GradeChangeRead_"];
                 };
             };
             /** @description Validation Error */

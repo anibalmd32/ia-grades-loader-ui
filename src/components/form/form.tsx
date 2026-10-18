@@ -77,7 +77,7 @@ export function SelectField({
 }: {
   label: string;
   hint?: string;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; disabled?: boolean }[];
 } & Omit<ComponentProps<"select">, "value" | "onChange" | "onBlur" | "name">) {
   const field = useFieldContext<string>();
   return (
@@ -92,7 +92,7 @@ export function SelectField({
         onChange={(event) => field.handleChange(event.target.value)}
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option key={option.value} value={option.value} disabled={option.disabled}>
             {option.label}
           </option>
         ))}

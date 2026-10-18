@@ -34,14 +34,20 @@ const SubjectSchema = v.object({
   teacher_id: v.string(),
 });
 
-/** Opciones del selector de periodo (semestre, trimestre…) */
+/** Opciones del selector de periodo (semestre, trimestre…); los cerrados no admiten materias */
 function useSemesterOptions() {
   const semesters = useQuery(semestersQuery);
   const settings = useAcademicSettings();
-  return [
+  const options = [
     { value: "", label: `Selecciona un ${settings.period_label.toLowerCase()}…` },
-    ...(semesters.data ?? []).map((s) => ({ value: String(s.id), label: s.name })),
+    ...(semesters.data ?? []).map((s) => ({
+      value: String(s.id),
+      label: s.is_closed ? `${s.name} (cerrado)` : s.name,
+      disabled: s.is_closed,
+    })),
   ];
+  const isClosed = (id: string) => semesters.data?.some((s) => String(s.id) === id && s.is_closed);
+  return { options, isClosed };
 }
 
 /** Añade la materia al profesor sin quitarle las que ya tiene */
@@ -61,7 +67,7 @@ export function SubjectCreateForm({ defaultSemesterId }: { defaultSemesterId?: n
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const settings = useAcademicSettings();
-  const semesterOptions = useSemesterOptions();
+  const semesters = useSemesterOptions();
   const teachers = useQuery(activeTeachersQuery);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -75,6 +81,12 @@ export function SubjectCreateForm({ defaultSemesterId }: { defaultSemesterId?: n
     validators: { onSubmit: SubjectSchema },
     onSubmit: async ({ value }) => {
       setFormError(null);
+      if (semesters.isClosed(value.semester_id)) {
+        setFormError(
+          `El ${settings.period_label.toLowerCase()} está cerrado: no se le pueden añadir materias.`,
+        );
+        return;
+      }
       let subject: SubjectRead;
       try {
         subject = await unwrap(
@@ -117,7 +129,13 @@ export function SubjectCreateForm({ defaultSemesterId }: { defaultSemesterId?: n
       <div className="card-body gap-2">
         <FormError message={formError} />
         <form.AppField name="semester_id">
-          {(field) => <field.SelectField label={settings.period_label} options={semesterOptions} />}
+          {(field) => (
+            <field.SelectField
+              label={settings.period_label}
+              options={semesters.options}
+              hint={`Los ${settings.period_label_plural.toLowerCase()} cerrados no admiten materias nuevas.`}
+            />
+          )}
         </form.AppField>
         <div className="grid gap-x-3 sm:grid-cols-[10rem_1fr]">
           <form.AppField name="code">
@@ -169,7 +187,8 @@ export function EditSubjectModal({
 }) {
   const settings = useAcademicSettings();
   const queryClient = useQueryClient();
-  const semesterOptions = useSemesterOptions();
+  const semesters = useSemesterOptions();
+  const closed = subject.semester.is_closed;
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useAppForm({
@@ -214,7 +233,18 @@ export function EditSubjectModal({
       >
         <FormError message={formError} />
         <form.AppField name="semester_id">
-          {(field) => <field.SelectField label={settings.period_label} options={semesterOptions} />}
+          {(field) => (
+            <field.SelectField
+              label={settings.period_label}
+              options={semesters.options}
+              disabled={closed}
+              hint={
+                closed
+                  ? `El ${settings.period_label.toLowerCase()} está cerrado: la materia no se puede mover.`
+                  : `No se puede mover a un ${settings.period_label.toLowerCase()} cerrado.`
+              }
+            />
+          )}
         </form.AppField>
         <form.AppField name="code">{(field) => <field.TextField label="Código" />}</form.AppField>
         <form.AppField name="name">{(field) => <field.TextField label="Nombre" />}</form.AppField>

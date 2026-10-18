@@ -8,8 +8,8 @@ import { makeUser, renderApp, signedInAs } from "./app";
 import { makeSettings, personName, settingsHandler } from "./handlers";
 import { server } from "./server";
 
-const s2026 = { id: 1, name: "2026-I" };
-const s2025 = { id: 2, name: "2025-II" };
+const s2026 = { id: 1, name: "2026-I", is_closed: false };
+const s2025 = { id: 2, name: "2025-II", is_closed: false };
 const mat: TeacherSubject = {
   id: 10,
   code: "MAT-101",

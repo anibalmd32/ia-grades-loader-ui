@@ -5,6 +5,7 @@ import { type AcademicSettings, useAcademicSettings } from "@/api/queries/settin
 import { studentOverviewQuery } from "@/api/queries/student";
 import { summaryOf } from "@/components/student/projection";
 import { SubjectGradesCard } from "@/components/student/subject-grades-card";
+import { ClosedBadge } from "@/components/ui/closed-period";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
@@ -67,21 +68,33 @@ function StudentGradesPage() {
             />
           ) : (
             <>
-              {semesters.length > 1 && (
-                <select
-                  className="select w-full sm:max-w-56"
-                  aria-label={settings.period_label}
-                  value={semester?.id}
-                  onChange={(event) =>
-                    navigate({ search: { semester: Number(event.target.value) }, replace: true })
-                  }
-                >
-                  {semesters.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {settings.period_label} {s.name}
-                    </option>
-                  ))}
-                </select>
+              {(semesters.length > 1 || semester?.is_closed) && (
+                <div className="flex items-center gap-2">
+                  {semesters.length > 1 ? (
+                    <select
+                      className="select w-full sm:max-w-56"
+                      aria-label={settings.period_label}
+                      value={semester?.id}
+                      onChange={(event) =>
+                        navigate({
+                          search: { semester: Number(event.target.value) },
+                          replace: true,
+                        })
+                      }
+                    >
+                      {semesters.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {settings.period_label} {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="font-semibold">
+                      {settings.period_label} {semester?.name}
+                    </span>
+                  )}
+                  {semester?.is_closed && <ClosedBadge />}
+                </div>
               )}
 
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

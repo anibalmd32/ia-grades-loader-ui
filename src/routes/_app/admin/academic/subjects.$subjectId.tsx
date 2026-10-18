@@ -11,6 +11,7 @@ import {
   SubjectTeachers,
 } from "@/components/admin/subject-detail";
 import { EditSubjectModal } from "@/components/admin/subject-form";
+import { ClosedPeriodNotice } from "@/components/ui/closed-period";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { ErrorState, LoadingState } from "@/components/ui/states";
 
@@ -49,7 +50,11 @@ function SubjectPage() {
     <>
       <PageHeader
         title={subject ? `${subject.code} · ${subject.name}` : "Materia"}
-        description={subject ? `${settings.period_label} ${subject.semester.name}` : undefined}
+        description={
+          subject
+            ? `${settings.period_label} ${subject.semester.name}${subject.semester.is_closed ? " (cerrado)" : ""}`
+            : undefined
+        }
         actions={actions}
       />
       <PageBody>
@@ -67,6 +72,12 @@ function SubjectPage() {
             <h2 className="font-bold text-xl lg:hidden">
               {subject.code} · {subject.name}
             </h2>
+            {subject.semester.is_closed && (
+              <ClosedPeriodNotice
+                semester={subject.semester}
+                message={`no se pueden matricular ni retirar estudiantes de esta materia ni moverla a otro ${settings.period_label.toLowerCase()}. Sus notas solo se pueden consultar.`}
+              />
+            )}
             <SubjectTeachers subject={subject} />
             <SubjectStudents subject={subject} />
             {editing && <EditSubjectModal subject={subject} onClose={() => setEditing(false)} />}

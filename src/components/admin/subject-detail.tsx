@@ -14,6 +14,7 @@ import {
   type UserRead,
   usersQuery,
 } from "@/api/queries/admin";
+import { useAcademicSettings } from "@/api/queries/settings";
 import { confirm } from "@/components/ui/confirm";
 import { DataTable } from "@/components/ui/data-table";
 import { Modal } from "@/components/ui/modal";
@@ -136,6 +137,9 @@ export function SubjectTeachers({ subject }: { subject: SubjectRead }) {
 /** Estudiantes matriculados en la materia: buscar, quitar y matricular varios */
 export function SubjectStudents({ subject }: { subject: SubjectRead }) {
   const queryClient = useQueryClient();
+  const settings = useAcademicSettings();
+  const closed = subject.semester.is_closed;
+  const closedHint = `El ${settings.period_label.toLowerCase()} está cerrado`;
   const students = useQuery(subjectStudentsQuery(subject.id));
   const [filter, setFilter] = useState("");
   const [enrolling, setEnrolling] = useState(false);
@@ -179,7 +183,13 @@ export function SubjectStudents({ subject }: { subject: SubjectRead }) {
       title="Estudiantes matriculados"
       description={students.data ? `${students.data.length} estudiantes` : undefined}
       actions={
-        <button type="button" className="btn btn-primary" onClick={() => setEnrolling(true)}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={closed}
+          title={closed ? closedHint : undefined}
+          onClick={() => setEnrolling(true)}
+        >
           <Plus className="size-4" />
           Matricular estudiantes
         </button>
@@ -204,6 +214,8 @@ export function SubjectStudents({ subject }: { subject: SubjectRead }) {
               <button
                 type="button"
                 className="btn btn-ghost btn-sm text-error"
+                disabled={closed}
+                title={closed ? closedHint : undefined}
                 onClick={() => handleWithdraw(s)}
               >
                 Quitar de la materia
@@ -220,6 +232,8 @@ export function SubjectStudents({ subject }: { subject: SubjectRead }) {
             <button
               type="button"
               className="btn btn-ghost btn-sm text-error"
+              disabled={closed}
+              title={closed ? closedHint : undefined}
               onClick={() => handleWithdraw(s)}
             >
               Quitar

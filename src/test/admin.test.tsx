@@ -9,8 +9,8 @@ import { server } from "./server";
 
 const page = <T,>(items: T[]) => ({ items, total: items.length, limit: 20, offset: 0 });
 
-const s2026: SemesterRead = { id: 1, name: "2026-I" };
-const s2025: SemesterRead = { id: 2, name: "2025-II" };
+const s2026: SemesterRead = { id: 1, name: "2026-I", is_closed: false };
+const s2025: SemesterRead = { id: 2, name: "2025-II", is_closed: false };
 const mat: SubjectRead = { id: 10, code: "MAT-101", name: "Matemática I", semester: s2026 };
 const fis: SubjectRead = { id: 11, code: "FIS-101", name: "Física I", semester: s2026 };
 

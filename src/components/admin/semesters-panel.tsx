@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Trash2 } from "lucide-react";
+import { Lock, LockOpen, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 import { api, unwrap } from "@/api/client";
@@ -7,6 +7,7 @@ import { adminKeys, type SemesterRead, semestersQuery } from "@/api/queries/admi
 import { useAcademicSettings } from "@/api/queries/settings";
 import { applyApiErrors } from "@/components/form/api-errors";
 import { FormError, useAppForm } from "@/components/form/form";
+import { ClosedBadge } from "@/components/ui/closed-period";
 import { confirm } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/modal";
 import { ErrorState, LoadingState } from "@/components/ui/states";
@@ -21,7 +22,7 @@ const NameSchema = v.object({
   ),
 });
 
-/** Lista de periodos (semestres, trimestres…): selección, renombrar, eliminar y alta */
+/** Lista de periodos (semestres, trimestres…): selección, cerrar o reabrir, renombrar, eliminar y alta */
 export function SemestersPanel({
   selectedId,
   onSelect,
@@ -80,6 +81,41 @@ export function SemestersPanel({
     if (ok) remove.mutate(semester);
   };
 
+  const toggleClosed = useMutation({
+    mutationFn: (semester: SemesterRead) => {
+      const params = { params: { path: { semester_id: semester.id } } };
+      return unwrap(
+        semester.is_closed
+          ? api.POST("/api/v1/semesters/{semester_id}/reopen", params)
+          : api.POST("/api/v1/semesters/{semester_id}/close", params),
+      );
+    },
+    onSuccess: async (saved) => {
+      // El estado del periodo viaja dentro de cada materia: refrescar todo lo que las muestra
+      await queryClient.invalidateQueries();
+      toast.success(
+        `${settings.period_label} ${saved.name} ${saved.is_closed ? "cerrado" : "reabierto"}.`,
+      );
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const handleToggleClosed = async (semester: SemesterRead) => {
+    const ok = semester.is_closed
+      ? await confirm({
+          title: `¿Reabrir el ${period} ${semester.name}?`,
+          message:
+            "Los profesores podrán volver a cargar y corregir sus notas, y se podrán cambiar sus matrículas y materias.",
+          confirmLabel: "Reabrir",
+        })
+      : await confirm({
+          title: `¿Cerrar el ${period} ${semester.name}?`,
+          message: `Se bloquearán sus notas (los profesores ya no podrán cargarlas, corregirlas ni importarlas), sus matrículas y sus materias, y sus reglas de evaluación quedarán congeladas: aunque cambie la configuración académica, el ${period} conservará las de ahora. Podrás reabrirlo si hace falta.`,
+          confirmLabel: "Cerrar",
+        });
+    if (ok) toggleClosed.mutate(semester);
+  };
+
   return (
     <section className="card card-border bg-base-100">
       <div className="card-body gap-3">
@@ -105,7 +141,10 @@ export function SemestersPanel({
                     className={`flex flex-1 items-center justify-between gap-2 px-3 py-2 text-left font-bold ${active ? "text-primary" : ""}`}
                     onClick={() => onSelect(semester.id)}
                   >
-                    {semester.name}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate">{semester.name}</span>
+                      {semester.is_closed && <ClosedBadge />}
+                    </span>
                     {semester.subjects_count != null && (
                       <span className="font-normal text-base-content/60 text-xs">
                         {semester.subjects_count === 1
@@ -117,7 +156,22 @@ export function SemestersPanel({
                   <button
                     type="button"
                     className="btn btn-ghost btn-xs btn-square"
-                    aria-label={`Renombrar ${semester.name}`}
+                    aria-label={`${semester.is_closed ? "Reabrir" : "Cerrar"} ${semester.name}`}
+                    title={semester.is_closed ? "Reabrir" : "Cerrar"}
+                    disabled={toggleClosed.isPending}
+                    onClick={() => handleToggleClosed(semester)}
+                  >
+                    {semester.is_closed ? (
+                      <LockOpen className="size-3.5" />
+                    ) : (
+                      <Lock className="size-3.5" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-xs btn-square"
+                    aria-label={`Renombrar
+ ${semester.name}`}
                     onClick={() => setRenaming(semester)}
                   >
                     <Pencil className="size-3.5" />

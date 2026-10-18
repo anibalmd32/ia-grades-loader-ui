@@ -204,8 +204,21 @@ export function toFormValues(settings: AcademicSettings): SettingsFormValues {
   };
 }
 
-export function toUpdateBody(values: SettingsFormValues): AcademicSettingsUpdate {
+/** Lo que este formulario aún no edita se envía tal cual estaba (la API exige la configuración completa) */
+type KeptSettings = Pick<
+  AcademicSettings,
+  "document_label" | "document_types" | "assistant_enabled" | "telegram_enabled"
+>;
+
+export function toUpdateBody(
+  values: SettingsFormValues,
+  kept: KeptSettings,
+): AcademicSettingsUpdate {
   return {
+    document_label: kept.document_label,
+    document_types: kept.document_types,
+    assistant_enabled: kept.assistant_enabled,
+    telegram_enabled: kept.telegram_enabled,
     institution_name: values.institution_name.trim(),
     period_type: values.period_type,
     terms_count: Number(values.terms_count),
@@ -246,7 +259,7 @@ export function AcademicSettingsForm({ settings }: { settings: AcademicSettings 
     onSubmit: async ({ value }) => {
       setFormError(null);
       try {
-        const saved = await updateAcademicSettings(toUpdateBody(value));
+        const saved = await updateAcademicSettings(toUpdateBody(value, settings));
         await applyAcademicSettings(queryClient, saved);
         form.reset(toFormValues(saved));
         toast.success("Configuración guardada.");

@@ -137,12 +137,17 @@ export function StudentCreateForm() {
               <div key={semester.id} className="flex flex-col gap-2">
                 <p className="text-base-content/60 text-xs">
                   {settings.period_label} {semester.name}
+                  {semester.is_closed && " · cerrado: no admite matrículas"}
                 </p>
                 {list.map((subject) => (
-                  <label key={subject.id} className="flex cursor-pointer items-center gap-3">
+                  <label
+                    key={subject.id}
+                    className={`flex items-center gap-3 ${semester.is_closed ? "opacity-60" : "cursor-pointer"}`}
+                  >
                     <input
                       type="checkbox"
                       className="checkbox checkbox-primary checkbox-sm"
+                      disabled={semester.is_closed}
                       checked={subjectIds.has(subject.id)}
                       onChange={() => toggle(subject.id)}
                     />

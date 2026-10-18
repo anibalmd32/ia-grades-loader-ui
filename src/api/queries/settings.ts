@@ -31,6 +31,13 @@ export const DEFAULT_ACADEMIC_SETTINGS: AcademicSettings = {
   term_label_plural: "Lapsos",
   term_percentages: [33.33, 33.33, 33.33],
   summary: "La definitiva es el promedio simple de los 3 lapsos y se aprueba con 10 o más",
+  document_label: "Cédula",
+  document_types: [
+    { code: "V", name: "Venezolano" },
+    { code: "E", name: "Extranjero" },
+  ],
+  assistant_enabled: true,
+  telegram_enabled: true,
 };
 
 /** Reglas académicas (periodos, lapsos y escala de notas). Es pública: no exige sesión */

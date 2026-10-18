@@ -70,6 +70,7 @@ La API tiene que estar levantada en `http://localhost:8000`; el README explica c
 - Por defecto (lo que había antes): Universidad, semestres, 3 lapsos que pesan igual, notas del 1 al 20 con hasta 2 decimales, se aprueba con 10, sin redondeo.
 - La nota definitiva, el aprobado (`final_grade`/`passed` en la planilla) y la proyección las calcula la API; no las recalcules en el front.
 - Las contraseñas generadas por la API se muestran una sola vez.
+- Los periodos se pueden **cerrar** y reabrir (coordinación, panel de periodos en *Semestres y materias*). Un periodo cerrado (`semester.is_closed`) es de solo lectura: la API responde 409 al guardar o importar notas de sus materias, matricular o retirar estudiantes y crear o mover materias. La UI lo marca con `ClosedBadge`/`ClosedPeriodNotice` (`src/components/ui/closed-period.tsx`), deja la planilla sin edición ni barra de guardado, no ofrece sus materias para importar y desactiva esas acciones de administración.
 
 ## Scripts
 

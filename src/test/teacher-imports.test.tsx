@@ -28,7 +28,7 @@ vi.mock("@/api/queries/teacher", async (importOriginal) => ({
   },
 }));
 
-const s2026 = { id: 1, name: "2026-I" };
+const s2026 = { id: 1, name: "2026-I", is_closed: false };
 const mat: TeacherSubject = {
   id: 10,
   code: "MAT-101",

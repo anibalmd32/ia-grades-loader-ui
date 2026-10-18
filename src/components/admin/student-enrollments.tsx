@@ -10,6 +10,7 @@ import {
   subjectLabel,
 } from "@/api/queries/admin";
 import { useAcademicSettings } from "@/api/queries/settings";
+import { ClosedBadge } from "@/components/ui/closed-period";
 import { confirm } from "@/components/ui/confirm";
 import { DataTable } from "@/components/ui/data-table";
 import { toast } from "@/components/ui/toast";
@@ -65,11 +66,17 @@ export function StudentEnrollments({ studentId, name }: { studentId: number; nam
 
   const enrolledIds = new Set(enrolled.data?.map((s) => s.id));
   const available = subjects.data?.items.filter((s) => !enrolledIds.has(s.id)) ?? [];
+  const closedHint = `El ${settings.period_label.toLowerCase()} está cerrado`;
+  const anyClosed = [...(enrolled.data ?? []), ...available].some((s) => s.semester.is_closed);
 
   return (
     <Section
       title="Materias matriculadas"
-      description={enrolled.data ? `${enrolled.data.length} materias` : undefined}
+      description={
+        enrolled.data
+          ? `${enrolled.data.length} materias${anyClosed ? `. Las de ${settings.period_label_plural.toLowerCase()} cerrados no se pueden matricular ni retirar.` : ""}`
+          : undefined
+      }
     >
       <form
         className="flex flex-col gap-2 sm:flex-row"
@@ -86,8 +93,9 @@ export function StudentEnrollments({ studentId, name }: { studentId: number; nam
         >
           <option value="">Selecciona una materia…</option>
           {available.map((subject) => (
-            <option key={subject.id} value={subject.id}>
+            <option key={subject.id} value={subject.id} disabled={subject.semester.is_closed}>
               {subjectLabel(subject)} · {subject.semester.name}
+              {subject.semester.is_closed ? " (cerrado)" : ""}
             </option>
           ))}
         </select>
@@ -105,13 +113,23 @@ export function StudentEnrollments({ studentId, name }: { studentId: number; nam
         columns={[
           { header: "Código", cell: (s) => s.code },
           { header: "Materia", cell: (s) => s.name },
-          { header: settings.period_label, cell: (s) => s.semester.name },
+          {
+            header: settings.period_label,
+            cell: (s) => (
+              <span className="flex items-center gap-2">
+                {s.semester.name}
+                {s.semester.is_closed && <ClosedBadge />}
+              </span>
+            ),
+          },
           {
             header: "Acciones",
             cell: (s) => (
               <button
                 type="button"
                 className="btn btn-ghost btn-sm text-error"
+                disabled={s.semester.is_closed}
+                title={s.semester.is_closed ? closedHint : undefined}
                 onClick={() => handleWithdraw(s)}
               >
                 Quitar
@@ -125,11 +143,14 @@ export function StudentEnrollments({ studentId, name }: { studentId: number; nam
               <p className="truncate font-bold">{subjectLabel(s)}</p>
               <p className="text-base-content/70 text-sm">
                 {settings.period_label} {s.semester.name}
+                {s.semester.is_closed && <ClosedBadge className="ml-2" />}
               </p>
             </div>
             <button
               type="button"
               className="btn btn-ghost btn-sm text-error"
+              disabled={s.semester.is_closed}
+              title={s.semester.is_closed ? closedHint : undefined}
               onClick={() => handleWithdraw(s)}
             >
               Quitar

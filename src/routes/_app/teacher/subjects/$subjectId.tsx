@@ -16,6 +16,7 @@ import {
   useSaveGrades,
   useUnsavedChangesGuard,
 } from "@/components/teacher/gradebook";
+import { ClosedPeriodNotice } from "@/components/ui/closed-period";
 import { Pagination } from "@/components/ui/data-table";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { SearchInput } from "@/components/ui/search-input";
@@ -94,6 +95,8 @@ function Gradebook({ data }: { data: SubjectGrades }) {
   const terms = termNumbers(settings);
   const currentTerm = isTerm(search.term, settings) ? search.term : 1;
   const { subject, students } = data;
+  // Periodo cerrado: la planilla es de solo lectura (la API rechazaría los cambios con un 409)
+  const closed = subject.semester.is_closed;
   const drafts = useGradeDrafts(data);
   const save = useSaveGrades(subject.id, drafts);
   useUnsavedChangesGuard(drafts.pending);
@@ -110,7 +113,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
   const rows = filtered.slice(offset, offset + PAGE_SIZE);
 
   const canSave = drafts.changes.length > 0 && drafts.invalid.length === 0 && !save.isPending;
-  const actions = (
+  const actions = closed ? undefined : (
     <>
       <Link
         to="/teacher/imports"
@@ -135,7 +138,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
     <>
       <PageHeader
         title={`${subject.code} · ${subject.name}`}
-        description={`${settings.period_label} ${subject.semester.name} · ${students.length} estudiantes`}
+        description={`${settings.period_label} ${subject.semester.name}${closed ? " (cerrado)" : ""} · ${students.length} estudiantes`}
         actions={actions}
       />
       <PageBody>
@@ -143,6 +146,12 @@ function Gradebook({ data }: { data: SubjectGrades }) {
         <h2 className="font-bold text-xl lg:hidden">
           {subject.code} · {subject.name}
         </h2>
+        {closed && (
+          <ClosedPeriodNotice
+            semester={subject.semester}
+            message="sus notas ya no se pueden cargar, corregir ni importar. Si hace falta un cambio, pide a coordinación que lo reabra."
+          />
+        )}
 
         {students.length === 0 ? (
           <EmptyState
@@ -229,7 +238,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                           edited={drafts.isEdited(row, currentTerm)}
                           invalid={drafts.isInvalid(row, currentTerm)}
                           onChange={(value) => drafts.set(row, currentTerm, value)}
-                          disabled={save.isPending}
+                          disabled={closed || save.isPending}
                         />
                       </li>
                     ))}
@@ -270,7 +279,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                                 edited={drafts.isEdited(row, term)}
                                 invalid={drafts.isInvalid(row, term)}
                                 onChange={(value) => drafts.set(row, term, value)}
-                                disabled={save.isPending}
+                                disabled={closed || save.isPending}
                               />
                             </td>
                           ))}
@@ -284,7 +293,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                 </div>
 
                 <p className="text-base-content/70 text-xs">
-                  {settings.summary}. Deja una celda vacía para borrar la nota.
+                  {settings.summary}.{!closed && " Deja una celda vacía para borrar la nota."}
                 </p>
 
                 {filtered.length > PAGE_SIZE && (

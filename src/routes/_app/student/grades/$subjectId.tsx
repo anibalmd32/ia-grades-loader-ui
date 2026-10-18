@@ -34,7 +34,7 @@ function SubjectPage() {
         description={
           item
             ? [
-                `${settings.period_label} ${item.subject.semester.name}`,
+                `${settings.period_label} ${item.subject.semester.name}${item.subject.semester.is_closed ? " (cerrado)" : ""}`,
                 ...item.teachers.map((t) => `Prof. ${t}`),
               ]
                 .filter(Boolean)

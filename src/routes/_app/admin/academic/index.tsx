@@ -5,6 +5,7 @@ import * as v from "valibot";
 import { semestersQuery, subjectsQuery } from "@/api/queries/admin";
 import { type AcademicSettings, useAcademicSettings } from "@/api/queries/settings";
 import { SemestersPanel } from "@/components/admin/semesters-panel";
+import { ClosedBadge, ClosedPeriodNotice } from "@/components/ui/closed-period";
 import { DataTable } from "@/components/ui/data-table";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { SearchInput } from "@/components/ui/search-input";
@@ -41,7 +42,7 @@ function AcademicPage() {
   const newSubject = (
     <Link
       to="/admin/academic/new"
-      search={semester ? { semester: semester.id } : {}}
+      search={semester && !semester.is_closed ? { semester: semester.id } : {}}
       className="btn btn-primary"
     >
       <Plus className="size-4" />
@@ -66,7 +67,10 @@ function AcademicPage() {
             <div className="card-body gap-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="card-title">Materias{semester ? ` · ${semester.name}` : ""}</h2>
+                  <h2 className="card-title">
+                    Materias{semester ? ` · ${semester.name}` : ""}
+                    {semester?.is_closed && <ClosedBadge />}
+                  </h2>
                   {subjects.data && (
                     <p className="text-base-content/70 text-sm">{subjects.data.total} materias</p>
                   )}
@@ -77,6 +81,12 @@ function AcademicPage() {
                   onChange={(q) => navigate({ search: (prev) => ({ ...prev, q, offset: 0 }) })}
                 />
               </div>
+              {semester?.is_closed && (
+                <ClosedPeriodNotice
+                  semester={semester}
+                  message="sus notas, matrículas y materias solo se pueden consultar. Reábrelo para hacer cambios."
+                />
+              )}
               {!semester && semesters.data ? (
                 <EmptyState
                   title={`Aún no hay ${settings.period_label_plural.toLowerCase()}`}
