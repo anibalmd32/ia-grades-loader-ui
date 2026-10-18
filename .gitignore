@@ -37,3 +37,6 @@ src-tauri/target
 
 # Ajustes personales de Claude Code
 .claude/settings.local.json
+
+# Informe de cobertura de tests
+coverage

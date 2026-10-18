@@ -47,6 +47,7 @@ La API tiene que estar levantada en `http://localhost:8000`; el README explica c
   - Cada pantalla declara `staticData: { title, description }` (título de la barra superior en móvil) y usa `PageHeader` + `PageBody`.
   - No crees tests dentro de `src/routes/` (el plugin los tomaría como rutas); los tests de navegación van en `src/test/` con `renderApp(path)`.
 - **Cliente de la API**: tipado desde el OpenAPI. `src/api/schema.d.ts` se genera con `bun run api:types` (con la API levantada); no lo edites a mano y regenéralo cuando cambie la API. Las llamadas se hacen así: `unwrap(api.GET("/api/v1/..."))` (`src/api/client.ts`), que devuelve los datos o lanza un `ApiError` con `status`, `message`, `requestId`, `fieldErrors` (422) y `retryAfter` (429). El token y la reacción ante un 401 se registran con `configureApiAuth`. No uses `fetch` directamente contra la API: para lo que openapi-fetch no cubre (respuestas en streaming, como el chat SSE de `src/api/queries/chat.ts`) usa `authorizedFetch`, que pone el token y lanza el mismo `ApiError`.
+- **Apps nativas**: el botón atrás de Android lo gestiona `src/lib/android-back.ts` (cierra diálogo o menú, vuelve atrás o sale). Los diálogos deben tener un `.modal-backdrop` para cerrarse con atrás. Respeta las zonas seguras con `env(safe-area-inset-*)` en barras fijas. El logo fuente es `src-tauri/app-icon.svg` (`bun run tauri icon src-tauri/app-icon.svg` regenera los iconos).
 - **Enlaces externos** (t.me, releases…): `openExternal(url)` de `src/lib/open-url.ts` (plugin-opener en Tauri, pestaña nueva en la web).
 - **Datos del servidor**: TanStack Query, con `queryOptions` por recurso en `src/api/queries/`.
 - **Formularios**: `useAppForm` (`src/components/form/form.tsx`) con `validators: { onSubmit: EsquemaValibot }` y `form.AppField` → `field.TextField` / `field.SelectField`, más `form.SubmitButton`. Ante errores de la API usa `applyApiErrors(form, error)`: pone los 422 en cada campo y devuelve el mensaje general para `<FormError>`.
@@ -76,6 +77,7 @@ La API tiene que estar levantada en `http://localhost:8000`; el README explica c
 | `bun run check` | Biome: formatea y revisa |
 | `bun run typecheck` | TypeScript |
 | `bun run test` / `test:watch` | Vitest |
+| `bun run test:coverage` | Vitest con cobertura (mínimo 70 %, lo exige el CI) |
 | `bun run build` | Build de producción |
 | `bun run api:types` | Regenera los tipos de la API desde `http://localhost:8000/openapi.json` |
 | `bun run tauri dev` | App de escritorio (requiere Rust) |

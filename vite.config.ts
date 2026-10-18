@@ -22,6 +22,14 @@ export default defineConfig(() => ({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
+    // bun run test:coverage: informe en coverage/ y mínimo del 70 % (falla si baja)
+    coverage: {
+      provider: "v8" as const,
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/*.test.{ts,tsx}", "src/test/**", "src/routeTree.gen.ts", "src/**/*.d.ts"],
+      reporter: ["text-summary", "html"],
+      thresholds: { lines: 70, statements: 70, functions: 70, branches: 60 },
+    },
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
