@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { academicSettingsQuery } from "@/api/queries/settings";
 import { telegramStatusQuery } from "@/api/queries/student";
 import { TelegramSection } from "@/components/student/telegram";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
@@ -13,7 +14,11 @@ export const Route = createFileRoute("/_app/student/telegram")({
 });
 
 function TelegramPage() {
-  const status = useQuery(telegramStatusQuery);
+  const settings = useQuery(academicSettingsQuery);
+  // Telegram necesita el asistente y su propio interruptor (lo decide la institución)
+  const disabled =
+    settings.data != null && (!settings.data.assistant_enabled || !settings.data.telegram_enabled);
+  const status = useQuery({ ...telegramStatusQuery, enabled: !disabled });
   const bot = status.data?.bot_username;
 
   return (
@@ -25,7 +30,17 @@ function TelegramPage() {
         }
       />
       <PageBody>
-        {status.error ? (
+        {disabled ? (
+          <EmptyState
+            title="La institución desactivó el asistente por Telegram"
+            description="Por ahora no puedes consultar tus notas desde Telegram. Puedes verlas en Mis notas."
+            action={
+              <Link to="/student/grades" className="btn btn-primary">
+                Ver mis notas
+              </Link>
+            }
+          />
+        ) : status.error ? (
           <ErrorState error={status.error} onRetry={() => status.refetch()} />
         ) : !status.data ? (
           <LoadingState rows={3} />

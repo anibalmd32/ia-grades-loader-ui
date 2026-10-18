@@ -146,6 +146,8 @@ export const AcademicSettingsSchema = v.pipe(
       v.minLength(1, "Debe haber al menos un tipo de documento."),
       v.maxLength(MAX_DOCUMENT_TYPES, `Máximo ${MAX_DOCUMENT_TYPES} tipos.`),
     ),
+    assistant_enabled: v.boolean(),
+    telegram_enabled: v.boolean(),
   }),
   v.forward(
     v.partialCheck(
@@ -223,6 +225,8 @@ export type SettingsFormValues = {
   round_final_grade: boolean;
   document_label: string;
   document_types: { code: string; name: string }[];
+  assistant_enabled: boolean;
+  telegram_enabled: boolean;
 };
 
 export function toFormValues(settings: AcademicSettings): SettingsFormValues {
@@ -242,19 +246,13 @@ export function toFormValues(settings: AcademicSettings): SettingsFormValues {
     round_final_grade: settings.round_final_grade,
     document_label: settings.document_label,
     document_types: settings.document_types.map((t) => ({ code: t.code, name: t.name })),
+    assistant_enabled: settings.assistant_enabled,
+    telegram_enabled: settings.telegram_enabled,
   };
 }
 
-/** Lo que este formulario aún no edita se envía tal cual estaba (la API exige la configuración completa) */
-type KeptSettings = Pick<AcademicSettings, "assistant_enabled" | "telegram_enabled">;
-
-export function toUpdateBody(
-  values: SettingsFormValues,
-  kept: KeptSettings,
-): AcademicSettingsUpdate {
+export function toUpdateBody(values: SettingsFormValues): AcademicSettingsUpdate {
   return {
-    assistant_enabled: kept.assistant_enabled,
-    telegram_enabled: kept.telegram_enabled,
     institution_name: values.institution_name.trim(),
     period_type: values.period_type,
     terms_count: Number(values.terms_count),
@@ -270,6 +268,8 @@ export function toUpdateBody(
       code: t.code.trim().toUpperCase(),
       name: t.name.trim(),
     })),
+    assistant_enabled: values.assistant_enabled,
+    telegram_enabled: values.telegram_enabled,
   };
 }
 
@@ -300,7 +300,7 @@ export function AcademicSettingsForm({ settings }: { settings: AcademicSettings 
     onSubmit: async ({ value }) => {
       setFormError(null);
       try {
-        const saved = await updateAcademicSettings(toUpdateBody(value, settings));
+        const saved = await updateAcademicSettings(toUpdateBody(value));
         await applyAcademicSettings(queryClient, saved);
         form.reset(toFormValues(saved));
         toast.success("Configuración guardada.");
@@ -613,6 +613,53 @@ export function AcademicSettingsForm({ settings }: { settings: AcademicSettings 
                 </fieldset>
               );
             }}
+          </form.Field>
+        </div>
+      </section>
+
+      <section className="card card-border bg-base-100">
+        <div className="card-body gap-3">
+          <h2 className="card-title">Funciones de IA para estudiantes</h2>
+          <form.Field name="assistant_enabled">
+            {(field) => (
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="toggle toggle-primary mt-0.5"
+                  checked={field.state.value}
+                  onChange={(event) => field.handleChange(event.target.checked)}
+                />
+                <span>
+                  <span className="font-semibold">Asistente de notas (IA)</span>
+                  <span className="block text-base-content/70 text-sm">
+                    Los estudiantes pueden preguntar por sus notas en lenguaje natural.
+                  </span>
+                </span>
+              </label>
+            )}
+          </form.Field>
+          <form.Field name="telegram_enabled">
+            {(field) => (
+              <label
+                className={`flex items-start gap-3 ${values.assistant_enabled ? "cursor-pointer" : "opacity-60"}`}
+              >
+                <input
+                  type="checkbox"
+                  className="toggle toggle-primary mt-0.5"
+                  checked={field.state.value}
+                  disabled={!values.assistant_enabled}
+                  onChange={(event) => field.handleChange(event.target.checked)}
+                />
+                <span>
+                  <span className="font-semibold">Asistente por Telegram</span>
+                  <span className="block text-base-content/70 text-sm">
+                    {values.assistant_enabled
+                      ? "Los estudiantes pueden consultar sus notas desde Telegram (si el bot está configurado en el servidor)."
+                      : "Requiere el asistente de notas: mientras esté desactivado, Telegram tampoco está disponible."}
+                  </span>
+                </span>
+              </label>
+            )}
           </form.Field>
         </div>
       </section>

@@ -127,23 +127,26 @@ function SubjectDetail({ item }: { item: StudentSubjectGrades }) {
         </div>
       </section>
 
-      <section className="card bg-primary/10">
-        <div className="card-body flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex-1">
-            <h2 className="font-bold text-lg">¿Dudas sobre esta materia?</h2>
-            <p className="text-base-content/70 text-sm">
-              Pregúntale al asistente, por ejemplo: «¿cuánto necesito para aprobar {subject.name}?»
-            </p>
+      {settings.assistant_enabled && (
+        <section className="card bg-primary/10">
+          <div className="card-body flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex-1">
+              <h2 className="font-bold text-lg">¿Dudas sobre esta materia?</h2>
+              <p className="text-base-content/70 text-sm">
+                Pregúntale al asistente, por ejemplo: «¿cuánto necesito para aprobar {subject.name}
+                ?»
+              </p>
+            </div>
+            <Link
+              to="/student/assistant"
+              search={{ q: `¿Cuánto necesito para aprobar ${subject.name}?` }}
+              className="btn btn-primary"
+            >
+              Abrir asistente
+            </Link>
           </div>
-          <Link
-            to="/student/assistant"
-            search={{ q: `¿Cuánto necesito para aprobar ${subject.name}?` }}
-            className="btn btn-primary"
-          >
-            Abrir asistente
-          </Link>
-        </div>
-      </section>
+        </section>
+      )}
     </>
   );
 }

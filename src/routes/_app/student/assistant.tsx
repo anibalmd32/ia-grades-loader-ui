@@ -1,11 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { MessagesSquare, Plus } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
+import { academicSettingsQuery } from "@/api/queries/settings";
 import { ChatPanel, ConversationList } from "@/components/student/chat";
 import { useChat } from "@/components/student/use-chat";
 import { Modal } from "@/components/ui/modal";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
+import { EmptyState, LoadingState } from "@/components/ui/states";
 
 const title = "Asistente IA";
 const description = "Pregunta por tus notas en lenguaje natural. Solo ve tus notas.";
@@ -21,7 +24,41 @@ export const Route = createFileRoute("/_app/student/assistant")({
   component: AssistantPage,
 });
 
+/** El asistente solo se monta si la institución lo tiene activado (si no, la API responde 403) */
 function AssistantPage() {
+  const settings = useQuery(academicSettingsQuery);
+  if (settings.data?.assistant_enabled === false) {
+    return (
+      <>
+        <PageHeader title={title} description={description} />
+        <PageBody>
+          <EmptyState
+            title="La institución desactivó el asistente de notas"
+            description="Por ahora no puedes preguntar a la IA por tus notas. Puedes consultarlas en Mis notas."
+            action={
+              <Link to="/student/grades" className="btn btn-primary">
+                Ver mis notas
+              </Link>
+            }
+          />
+        </PageBody>
+      </>
+    );
+  }
+  if (!settings.data && settings.isPending) {
+    return (
+      <>
+        <PageHeader title={title} description={description} />
+        <PageBody>
+          <LoadingState rows={3} />
+        </PageBody>
+      </>
+    );
+  }
+  return <Assistant />;
+}
+
+function Assistant() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const [listOpen, setListOpen] = useState(false);

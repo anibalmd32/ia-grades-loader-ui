@@ -57,7 +57,7 @@ function StudentGradesPage() {
             ? `${settings.period_label} ${semester.name} · ${visible.length} ${visible.length === 1 ? "materia" : "materias"}`
             : description(settings)
         }
-        actions={subjects.length > 0 ? ask : undefined}
+        actions={subjects.length > 0 && settings.assistant_enabled ? ask : undefined}
       />
       <PullToRefresh onRefresh={() => overview.refetch()}>
         <PageBody>
