@@ -56,7 +56,7 @@ La API tiene que estar levantada en `http://localhost:8000`; el README explica c
 - **Estado global**: Zustand en `src/stores/`. Si persiste, usa `appStorage`.
 - **Sesión**: `useSession` (`src/stores/session.ts`) guarda el token (persistido), el usuario (`GET /auth/me`) y `status` (`loading` | `authenticated` | `anonymous`). Usa `signIn(token)`, `signOut()` y `refreshUser()`. Un 401 caduca la sesión sola (`expired: true`) y vacía la caché. Las guardas de ruta esperan a `sessionReady`.
 - **UI**: Tailwind CSS v4 + **daisyUI 5**, con los temas `notas` (claro) y `notas-dark` definidos en `src/styles.css` con los colores del diseño. Usa las clases semánticas (`btn-primary`, `bg-base-100`, `text-error`…), no colores fijos. Fuente: Montserrat. **No uses shadcn/ui** ni otra librería de componentes. Diseño *mobile-first*: la misma app corre en Android.
-- **Diseño de referencia**: `docs/design/v1/` tiene las capturas de cada pantalla, en escritorio y móvil. Respétalo.
+- **Diseño de referencia**: `docs/design/v1/` tiene las capturas de cada pantalla, en escritorio y móvil. Respétalo. Excepción decidida por el responsable: las pantallas de acceso (instalación, login y cambio de contraseña) muestran solo la tarjeta del formulario, sin el panel de marca de la izquierda.
 - **Textos de la interfaz en español.**
 - **Imports** con el alias `@/` (apunta a `src/`).
 - **Formato**: Biome (2 espacios, comillas dobles, ancho 100). El hook `pre-commit` lo aplica solo; usa `bun run check` para formatear y revisar.
