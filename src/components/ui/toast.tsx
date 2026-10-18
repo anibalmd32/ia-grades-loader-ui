@@ -39,7 +39,7 @@ const STYLE: Record<ToastKind, { className: string; Icon: typeof Info }> = {
 export function Toaster() {
   const { toasts, dismiss } = useToasts();
   return (
-    <div className="toast toast-top toast-center z-50 w-full max-w-md sm:toast-end">
+    <div className="toast toast-top toast-center z-50 w-full max-w-md pt-[env(safe-area-inset-top)] sm:toast-end">
       {toasts.map(({ id, kind, message }) => {
         const { className, Icon } = STYLE[kind];
         return (

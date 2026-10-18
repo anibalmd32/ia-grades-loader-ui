@@ -12,7 +12,7 @@ export function AuthLayout({
 }) {
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
-      <aside className="bg-neutral px-6 py-8 text-neutral-content lg:flex lg:w-[43%] lg:flex-col lg:justify-center lg:px-16">
+      <aside className="bg-neutral px-6 pt-[max(2rem,env(safe-area-inset-top))] pb-8 text-neutral-content lg:flex lg:w-[43%] lg:flex-col lg:justify-center lg:px-16">
         <p className="font-bold text-primary text-sm lg:text-base">IA Grades Loader</p>
         <h2 className="mt-2 max-w-md font-bold text-2xl leading-tight lg:mt-4 lg:text-5xl">
           Las notas de tu universidad, en un solo lugar.

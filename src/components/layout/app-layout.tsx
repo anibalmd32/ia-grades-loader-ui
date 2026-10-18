@@ -28,7 +28,7 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
   const handleSignOut = useSignOut();
   const nav = useNav(user);
   return (
-    <nav className="flex min-h-full w-64 flex-col bg-neutral p-4 text-neutral-content">
+    <nav className="flex min-h-full w-64 flex-col bg-neutral p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-neutral-content">
       <div className="px-3 py-2">
         <p className="font-bold text-xl">IA Grades Loader</p>
         <p className="text-neutral-content/70 text-xs">Cargador de notas</p>
@@ -96,8 +96,9 @@ export function AppLayout({ user, children }: { user: User; children: ReactNode 
   return (
     <div className="drawer lg:drawer-open">
       <input id={drawerId} type="checkbox" className="drawer-toggle" aria-label="Abrir menú" />
-      <div className="drawer-content flex min-h-dvh flex-col pb-16 lg:pb-0">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-base-300 border-b bg-base-100 px-4 py-3 lg:hidden">
+      <div className="drawer-content flex min-h-dvh flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
+        {/* pt con safe-area: bajo la barra de estado/notch en Android */}
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-base-300 border-b bg-base-100 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 lg:hidden">
           <label htmlFor={drawerId} className="btn btn-ghost btn-square btn-sm" aria-label="Menú">
             <Menu className="size-6" />
           </label>
