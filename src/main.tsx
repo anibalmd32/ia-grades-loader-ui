@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { MissingApiConfig } from "@/components/missing-api-config";
 import { registerAndroidBackButton } from "@/lib/android-back";
 import { API_CONFIGURED } from "@/lib/config";
+import { disableContextMenu } from "@/lib/context-menu";
 import { queryClient } from "@/lib/query-client";
 // Registra el token en el cliente de la API y restaura la sesión guardada
 import "@/stores/session";
@@ -27,6 +28,7 @@ declare module "@tanstack/react-router" {
 }
 
 registerAndroidBackButton();
+disableContextMenu();
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
