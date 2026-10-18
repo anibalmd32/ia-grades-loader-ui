@@ -5,6 +5,7 @@ import * as v from "valibot";
 import { api, unwrap } from "@/api/client";
 import { isApiError } from "@/api/errors";
 import { setupStatusQuery } from "@/api/queries/setup";
+import { DownloadApp } from "@/components/download-app";
 import { applyApiErrors } from "@/components/form/api-errors";
 import { FormError, useAppForm } from "@/components/form/form";
 import { AuthLayout } from "@/components/layout/auth-layout";
@@ -235,6 +236,7 @@ function LoginPage() {
         ))}
       </div>
       {current.value === "staff" ? <StaffForm /> : <StudentForm />}
+      <DownloadApp />
     </AuthLayout>
   );
 }

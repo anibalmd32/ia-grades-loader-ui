@@ -4,17 +4,17 @@ App de escritorio (Windows) y móvil (Android) para cargar y consultar notas uni
 
 ## Descargar e instalar (usuarios)
 
-Las versiones se publican en [GitHub Releases](https://github.com/anibalmd32/ia-grades-loader-ui/releases/latest). Cada versión trae el instalador de Windows (`Notas_x.y.z_x64-setup.exe`) y la app de Android (`Notas-vx.y.z.apk`).
+Las versiones se publican en [GitHub Releases](https://github.com/anibalmd32/ia-grades-loader-ui/releases/latest). Cada versión trae el instalador de Windows (`Notas-windows-x64-setup.exe`) y la app de Android (`Notas-android.apk`). En la versión web, el login muestra el botón de descarga del sistema del visitante (enlace directo a `releases/latest/download/…`, siempre la última versión; en macOS e iOS avisa de que aún no hay app).
 
 **Windows**
 
-1. Descarga `Notas_…_x64-setup.exe` y ábrelo.
+1. Descarga `Notas-windows-x64-setup.exe` y ábrelo.
 2. Windows puede mostrar "Windows protegió su PC" (SmartScreen), porque el instalador aún no está firmado con un certificado de editor. Pulsa **Más información → Ejecutar de todas formas**.
 3. Sigue el asistente; la app queda en el menú Inicio como **Notas**.
 
 **Android**
 
-1. Descarga `Notas-v….apk` desde el móvil.
+1. Descarga `Notas-android.apk` desde el móvil.
 2. Ábrelo. La primera vez Android pide permiso para **instalar apps de orígenes desconocidos** desde el navegador o el gestor de archivos: actívalo para esa app y vuelve atrás.
 3. Pulsa **Instalar**.
 

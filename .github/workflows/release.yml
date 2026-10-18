@@ -77,6 +77,8 @@ jobs:
         with:
           tauriScript: bun run tauri
           releaseId: ${{ needs.create-release.outputs.release_id }}
+          # Nombre fijo: la web enlaza a releases/latest/download/Notas-windows-x64-setup.exe
+          releaseAssetNamePattern: "Notas-windows-x64[setup][ext]"
 
   android:
     needs: create-release
@@ -134,7 +136,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
         run: |
-          apk="Notas-$GITHUB_REF_NAME.apk"
+          # Nombre fijo: la web enlaza a releases/latest/download/Notas-android.apk
+          apk="Notas-android.apk"
           cp src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk "$apk"
           url="https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$apk"
           gh api --method POST -H "Content-Type: application/vnd.android.package-archive" "$url" --input "$apk" --silent
