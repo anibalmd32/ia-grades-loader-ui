@@ -29,6 +29,7 @@ import { Route as AppAdminCoordinatorsUserIdRouteImport } from './routes/_app/ad
 import { Route as AppAdminCoordinatorsNewRouteImport } from './routes/_app/admin/coordinators/new'
 import { Route as AppAdminStudentsIndexRouteImport } from './routes/_app/admin/students/index'
 import { Route as AppAdminStudentsUserIdRouteImport } from './routes/_app/admin/students/$userId'
+import { Route as AppAdminStudentsImportRouteImport } from './routes/_app/admin/students/import'
 import { Route as AppAdminStudentsNewRouteImport } from './routes/_app/admin/students/new'
 import { Route as AppAdminTeachersIndexRouteImport } from './routes/_app/admin/teachers/index'
 import { Route as AppAdminTeachersUserIdRouteImport } from './routes/_app/admin/teachers/$userId'
@@ -142,6 +143,11 @@ const AppAdminStudentsUserIdRoute = AppAdminStudentsUserIdRouteImport.update({
   path: '/students/$userId',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminStudentsImportRoute = AppAdminStudentsImportRouteImport.update({
+  id: '/students/import',
+  path: '/students/import',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminStudentsNewRoute = AppAdminStudentsNewRouteImport.update({
   id: '/students/new',
   path: '/students/new',
@@ -218,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/admin/coordinators/$userId': typeof AppAdminCoordinatorsUserIdRoute
   '/admin/coordinators/new': typeof AppAdminCoordinatorsNewRoute
   '/admin/students/$userId': typeof AppAdminStudentsUserIdRoute
+  '/admin/students/import': typeof AppAdminStudentsImportRoute
   '/admin/students/new': typeof AppAdminStudentsNewRoute
   '/admin/teachers/$userId': typeof AppAdminTeachersUserIdRoute
   '/admin/teachers/new': typeof AppAdminTeachersNewRoute
@@ -249,6 +256,7 @@ export interface FileRoutesByTo {
   '/admin/coordinators/$userId': typeof AppAdminCoordinatorsUserIdRoute
   '/admin/coordinators/new': typeof AppAdminCoordinatorsNewRoute
   '/admin/students/$userId': typeof AppAdminStudentsUserIdRoute
+  '/admin/students/import': typeof AppAdminStudentsImportRoute
   '/admin/students/new': typeof AppAdminStudentsNewRoute
   '/admin/teachers/$userId': typeof AppAdminTeachersUserIdRoute
   '/admin/teachers/new': typeof AppAdminTeachersNewRoute
@@ -283,6 +291,7 @@ export interface FileRoutesById {
   '/_app/admin/coordinators/$userId': typeof AppAdminCoordinatorsUserIdRoute
   '/_app/admin/coordinators/new': typeof AppAdminCoordinatorsNewRoute
   '/_app/admin/students/$userId': typeof AppAdminStudentsUserIdRoute
+  '/_app/admin/students/import': typeof AppAdminStudentsImportRoute
   '/_app/admin/students/new': typeof AppAdminStudentsNewRoute
   '/_app/admin/teachers/$userId': typeof AppAdminTeachersUserIdRoute
   '/_app/admin/teachers/new': typeof AppAdminTeachersNewRoute
@@ -317,6 +326,7 @@ export interface FileRouteTypes {
     | '/admin/coordinators/$userId'
     | '/admin/coordinators/new'
     | '/admin/students/$userId'
+    | '/admin/students/import'
     | '/admin/students/new'
     | '/admin/teachers/$userId'
     | '/admin/teachers/new'
@@ -348,6 +358,7 @@ export interface FileRouteTypes {
     | '/admin/coordinators/$userId'
     | '/admin/coordinators/new'
     | '/admin/students/$userId'
+    | '/admin/students/import'
     | '/admin/students/new'
     | '/admin/teachers/$userId'
     | '/admin/teachers/new'
@@ -381,6 +392,7 @@ export interface FileRouteTypes {
     | '/_app/admin/coordinators/$userId'
     | '/_app/admin/coordinators/new'
     | '/_app/admin/students/$userId'
+    | '/_app/admin/students/import'
     | '/_app/admin/students/new'
     | '/_app/admin/teachers/$userId'
     | '/_app/admin/teachers/new'
@@ -547,6 +559,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminStudentsUserIdRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/admin/students/import': {
+      id: '/_app/admin/students/import'
+      path: '/students/import'
+      fullPath: '/admin/students/import'
+      preLoaderRoute: typeof AppAdminStudentsImportRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/_app/admin/students/new': {
       id: '/_app/admin/students/new'
       path: '/students/new'
@@ -647,6 +666,7 @@ interface AppAdminRouteChildren {
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminAcademicNewRoute: typeof AppAdminAcademicNewRoute
   AppAdminStudentsUserIdRoute: typeof AppAdminStudentsUserIdRoute
+  AppAdminStudentsImportRoute: typeof AppAdminStudentsImportRoute
   AppAdminStudentsNewRoute: typeof AppAdminStudentsNewRoute
   AppAdminTeachersUserIdRoute: typeof AppAdminTeachersUserIdRoute
   AppAdminTeachersNewRoute: typeof AppAdminTeachersNewRoute
@@ -661,6 +681,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminAcademicNewRoute: AppAdminAcademicNewRoute,
   AppAdminStudentsUserIdRoute: AppAdminStudentsUserIdRoute,
+  AppAdminStudentsImportRoute: AppAdminStudentsImportRoute,
   AppAdminStudentsNewRoute: AppAdminStudentsNewRoute,
   AppAdminTeachersUserIdRoute: AppAdminTeachersUserIdRoute,
   AppAdminTeachersNewRoute: AppAdminTeachersNewRoute,

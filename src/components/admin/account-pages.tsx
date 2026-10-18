@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { FileSpreadsheet } from "lucide-react";
 import type { ReactNode } from "react";
 import { type AccountKind, type UserRead, userQuery } from "@/api/queries/admin";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
@@ -23,7 +25,19 @@ export function AccountsListPage(props: {
       <PageHeader
         title={config.title}
         description={config.description}
-        actions={<NewAccountButton kind={props.kind} />}
+        actions={
+          props.kind === "students" ? (
+            <>
+              <Link to="/admin/students/import" className="btn btn-outline btn-primary">
+                <FileSpreadsheet className="size-4" />
+                Importar desde Excel
+              </Link>
+              <NewAccountButton kind="students" />
+            </>
+          ) : (
+            <NewAccountButton kind={props.kind} />
+          )
+        }
       />
       <PageBody>
         <AccountsList {...props} />

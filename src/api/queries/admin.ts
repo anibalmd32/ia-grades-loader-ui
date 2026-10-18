@@ -1,5 +1,5 @@
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
-import { api, unwrap } from "../client";
+import { api, authorizedFetch, unwrap } from "../client";
 import type { components } from "../schema";
 
 export type UserRead = components["schemas"]["UserRead"];
@@ -214,3 +214,29 @@ export function enrollStudentInSubjects(studentId: number, subjectIds: number[])
 /** Email del personal o cédula del estudiante */
 export const accountIdentity = (user: UserRead) =>
   user.email ?? (user.cedula_display ? `Cédula ${user.cedula_display}` : "");
+
+export type StudentImportResult = components["schemas"]["StudentImportResult"];
+export type StudentImportRow = components["schemas"]["StudentImportRow"];
+
+/** Plantilla .xlsx para el alta masiva de estudiantes */
+export async function downloadStudentTemplate(): Promise<Blob> {
+  const response = await authorizedFetch("/api/v1/students/import/template");
+  return response.blob();
+}
+
+/**
+ * Alta masiva desde Excel. Con `dryRun` solo valida y dice qué pasará con cada fila; sin él
+ * crea los estudiantes nuevos (la respuesta trae su contraseña, que solo se ve esta vez) y
+ * los matricula en las materias indicadas.
+ */
+export function importStudents(file: File, dryRun: boolean) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("dry_run", String(dryRun));
+  return unwrap(
+    api.POST("/api/v1/students/import", {
+      // openapi-fetch envía el FormData tal cual (el navegador pone el boundary)
+      body: form as unknown as { file: string; dry_run: boolean },
+    }),
+  );
+}
