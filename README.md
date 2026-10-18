@@ -2,6 +2,26 @@
 
 App de escritorio (Windows) y móvil (Android) para cargar y consultar notas universitarias. Consume la API de `ia-grades-loader-api`.
 
+## Descargar e instalar (usuarios)
+
+Las versiones se publican en [GitHub Releases](https://github.com/anibalmd32/ia-grades-loader-ui/releases/latest). Cada versión trae el instalador de Windows (`Notas_x.y.z_x64-setup.exe`) y la app de Android (`Notas-vx.y.z.apk`).
+
+**Windows**
+
+1. Descarga `Notas_…_x64-setup.exe` y ábrelo.
+2. Windows puede mostrar "Windows protegió su PC" (SmartScreen), porque el instalador aún no está firmado con un certificado de editor. Pulsa **Más información → Ejecutar de todas formas**.
+3. Sigue el asistente; la app queda en el menú Inicio como **Notas**.
+
+**Android**
+
+1. Descarga `Notas-v….apk` desde el móvil.
+2. Ábrelo. La primera vez Android pide permiso para **instalar apps de orígenes desconocidos** desde el navegador o el gestor de archivos: actívalo para esa app y vuelve atrás.
+3. Pulsa **Instalar**.
+
+**Actualizar**: descarga e instala la versión nueva encima de la anterior, en Windows y en Android. No hace falta desinstalar y no se pierde la sesión.
+
+**Primer uso**: la app se conecta sola a la API de producción. Si es la primera vez que se usa el sistema, verás el instalador para crear la cuenta de super admin; si no, el inicio de sesión. Las cuentas las crea la coordinación: no hay registro público.
+
 ## Stack
 
 - Tauri v2 (Rust) + React + TypeScript + Vite
@@ -51,6 +71,7 @@ Si la API no responde, la app muestra un aviso arriba con la URL que está usand
 bun run check       # Biome: formatea y revisa
 bun run typecheck   # TypeScript
 bun run test        # Vitest + Testing Library + MSW (API simulada en src/test)
+bun run test:coverage  # tests con cobertura (mínimo 70 %; informe en coverage/)
 bun run rust:fmt    # cargo fmt
 bun run rust:lint   # cargo clippy
 ```
@@ -107,7 +128,7 @@ bun run release:minor   # v0.0.2 → v0.1.0 (funciones nuevas)
 bun run release:major   # v0.1.0 → v1.0.0 (cambios grandes)
 ```
 
-El script calcula la siguiente versión a partir del último tag, crea el tag `vX.Y.Z` sobre el último commit y lo sube. No hace commits. El workflow de release pone esa versión en la app, compila y publica los instaladores en GitHub Releases. En el repo la versión se queda fija en `0.0.1` (Android no admite `0.0.0`).
+Las apps nativas llevan la URL de la API fija desde el secreto `VITE_API_URL_PROD` del repo (HTTPS y terminada en `/api/v1`); si falta o no es HTTPS, el release falla antes de compilar. El script calcula la siguiente versión a partir del último tag, crea el tag `vX.Y.Z` sobre el último commit y lo sube. No hace commits. El workflow de release pone esa versión en la app, compila y publica los instaladores en GitHub Releases. En el repo la versión se queda fija en `0.0.1` (Android no admite `0.0.0`).
 
 ## Estructura
 
