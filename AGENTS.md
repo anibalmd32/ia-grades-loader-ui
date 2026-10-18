@@ -71,6 +71,7 @@ La API tiene que estar levantada en `http://localhost:8000`; el README explica c
 - La nota definitiva, el aprobado (`final_grade`/`passed` en la planilla) y la proyección las calcula la API; no las recalcules en el front.
 - Las contraseñas generadas por la API se muestran una sola vez.
 - Los periodos se pueden **cerrar** y reabrir (coordinación, panel de periodos en *Semestres y materias*). Un periodo cerrado (`semester.is_closed`) es de solo lectura: la API responde 409 al guardar o importar notas de sus materias, matricular o retirar estudiantes y crear o mover materias. La UI lo marca con `ClosedBadge`/`ClosedPeriodNotice` (`src/components/ui/closed-period.tsx`), deja la planilla sin edición ni barra de guardado, no ofrece sus materias para importar y desactiva esas acciones de administración.
+- Al cerrar un periodo se **congelan sus reglas de evaluación** (`semester.rules`, que se conservan aunque se reabra; `null` = sigue la configuración vigente). Las notas de una materia se muestran y validan siempre con las reglas de **su** periodo: usa `useSubjectRules(subject.semester)` o `rulesFor(semester, settings)` (`src/api/queries/settings.ts`), no `useAcademicSettings()` directamente. Los nombres de periodo, la institución y el documento salen siempre de la configuración.
 
 ## Scripts
 

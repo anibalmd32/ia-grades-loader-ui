@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import * as v from "valibot";
-import { type AcademicSettings, useAcademicSettings } from "@/api/queries/settings";
+import { type AcademicSettings, rulesFor, useAcademicSettings } from "@/api/queries/settings";
 import { studentOverviewQuery } from "@/api/queries/student";
 import { summaryOf } from "@/components/student/projection";
 import { SubjectGradesCard } from "@/components/student/subject-grades-card";
@@ -37,6 +37,10 @@ function StudentGradesPage() {
   const current = semesterStats.find((s) => s.semester.id === semester?.id);
   const visible = subjects.filter((s) => s.subject.semester.id === semester?.id);
   const summary = summaryOf(visible);
+  // Reglas de cada periodo (las congeladas al cerrarlo o las vigentes): pueden ser distintas
+  const rules = rulesFor(semester, settings);
+  const notes = semesters.map((s) => ({ semester: s, text: ruleNote(rulesFor(s, settings)) }));
+  const sameRules = new Set(notes.map((n) => n.text)).size <= 1;
 
   const ask = (
     <Link to="/student/assistant" className="btn btn-outline btn-primary">
@@ -100,7 +104,7 @@ function StudentGradesPage() {
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <Stat
                   label={`Promedio del ${settings.period_label.toLowerCase()}`}
-                  value={formatGrade(current?.average, settings)}
+                  value={formatGrade(current?.average, rules)}
                 />
                 <Stat label="Aprobadas" value={summary.approved} className="text-success" />
                 <Stat label="En curso" value={summary.inProgress} className="text-primary" />
@@ -113,19 +117,37 @@ function StudentGradesPage() {
                 ))}
               </div>
 
-              <p className="text-base-content/70 text-xs">
-                {settings.summary}.
-                {settings.term_weights != null &&
-                  ` Pesos: ${settings.term_percentages
-                    .map((p, i) => `${termName(settings, i + 1)} ${scaleText(p)} %`)
-                    .join(" · ")}.`}
-              </p>
+              {sameRules ? (
+                <p className="text-base-content/70 text-xs">{ruleNote(rules)}</p>
+              ) : (
+                <ul className="flex flex-col gap-1 text-base-content/70 text-xs">
+                  {notes.map(({ semester: s, text }) => (
+                    <li key={s.id}>
+                      <span className="font-semibold">
+                        {settings.period_label} {s.name}:
+                      </span>{" "}
+                      {text}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </>
           )}
         </PageBody>
       </PullToRefresh>
     </>
   );
+}
+
+/** "La definitiva es… Pesos: Lapso 1 30 % · …" con las reglas de un periodo */
+function ruleNote(rules: AcademicSettings): string {
+  const weights =
+    rules.term_weights != null
+      ? ` Pesos: ${rules.term_percentages
+          .map((p, i) => `${termName(rules, i + 1)} ${scaleText(p)} %`)
+          .join(" · ")}.`
+      : "";
+  return `${rules.summary}.${weights}`;
 }
 
 function Stat({

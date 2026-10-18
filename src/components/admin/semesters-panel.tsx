@@ -105,7 +105,7 @@ export function SemestersPanel({
       ? await confirm({
           title: `¿Reabrir el ${period} ${semester.name}?`,
           message:
-            "Los profesores podrán volver a cargar y corregir sus notas, y se podrán cambiar sus matrículas y materias.",
+            "Los profesores podrán volver a cargar y corregir sus notas, y se podrán cambiar sus matrículas y materias. Conservará las reglas de evaluación congeladas al cerrarlo.",
           confirmLabel: "Reabrir",
         })
       : await confirm({
@@ -138,21 +138,32 @@ export function SemestersPanel({
                   <button
                     type="button"
                     aria-current={active ? "true" : undefined}
-                    className={`flex flex-1 items-center justify-between gap-2 px-3 py-2 text-left font-bold ${active ? "text-primary" : ""}`}
+                    className={`flex min-w-0 flex-1 flex-col gap-1 px-3 py-2 text-left ${active ? "text-primary" : ""}`}
                     onClick={() => onSelect(semester.id)}
                   >
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="truncate">{semester.name}</span>
-                      {semester.is_closed && <ClosedBadge />}
+                    <span className="flex items-center justify-between gap-2 font-bold">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate">{semester.name}</span>
+                        {semester.is_closed && <ClosedBadge />}
+                      </span>
+                      {semester.subjects_count != null && (
+                        <span className="shrink-0 font-normal text-base-content/60 text-xs">
+                          {semester.subjects_count === 1
+                            ? "1 materia"
+                            : `${semester.subjects_count} materias`}
+                        </span>
+                      )}
                     </span>
-                    {semester.subjects_count != null && (
-                      <span className="font-normal text-base-content/60 text-xs">
-                        {semester.subjects_count === 1
-                          ? "1 materia"
-                          : `${semester.subjects_count} materias`}
+                    {semester.rules && (
+                      <span className="text-base-content/70 text-xs">
+                        {semester.is_closed
+                          ? "Reglas congeladas"
+                          : "Conserva las reglas de su cierre"}
+                        : {semester.rules.summary}.
                       </span>
                     )}
                   </button>
+
                   <button
                     type="button"
                     className="btn btn-ghost btn-xs btn-square"

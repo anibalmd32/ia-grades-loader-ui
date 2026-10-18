@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { type AcademicSettings, useAcademicSettings } from "@/api/queries/settings";
+import { type AcademicSettings, useSubjectRules } from "@/api/queries/settings";
 import type { StudentSubjectGrades } from "@/api/queries/student";
 import { formatGrade, isPassing, termName } from "@/lib/grades";
 import { StandingBadge, standingSentence } from "./projection";
@@ -11,8 +11,15 @@ export function gradeColor(value: number | null | undefined, settings: AcademicS
 }
 
 /** Recuadro de una nota: "Lapso 1 · 15.75" */
-export function GradeBox({ label, value }: { label: string; value: number | null }) {
-  const settings = useAcademicSettings();
+export function GradeBox({
+  label,
+  value,
+  settings,
+}: {
+  label: string;
+  value: number | null;
+  settings: AcademicSettings;
+}) {
   return (
     <div className="flex flex-col items-center gap-0.5 rounded-field bg-base-200 px-2 py-2">
       <span className="text-base-content/70 text-xs">{label}</span>
@@ -25,7 +32,8 @@ export function GradeBox({ label, value }: { label: string; value: number | null
 
 /** Tarjeta de "Mis notas": lapsos, promedio o definitiva y situación de la materia */
 export function SubjectGradesCard({ item }: { item: StudentSubjectGrades }) {
-  const settings = useAcademicSettings();
+  // Cada materia se presenta con las reglas de su periodo (congeladas si se cerró alguna vez)
+  const settings = useSubjectRules(item.subject.semester);
   const { subject, projection } = item;
   const final = projection.final_grade;
 
@@ -51,7 +59,12 @@ export function SubjectGradesCard({ item }: { item: StudentSubjectGrades }) {
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(4.5rem,1fr))] gap-2">
           {item.grades.map((g) => (
-            <GradeBox key={g.term} label={termName(settings, g.term)} value={g.value} />
+            <GradeBox
+              key={g.term}
+              label={termName(settings, g.term)}
+              value={g.value}
+              settings={settings}
+            />
           ))}
           <div className="flex flex-col items-center gap-0.5 rounded-field bg-neutral px-2 py-2 text-neutral-content">
             <span className="text-neutral-content/70 text-xs">

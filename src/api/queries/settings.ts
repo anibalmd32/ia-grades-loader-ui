@@ -69,3 +69,26 @@ export async function applyAcademicSettings(queryClient: QueryClient, saved: Aca
     predicate: (query) => query.queryKey[0] !== settingsKeys.all[0],
   });
 }
+
+export type GradingRules = components["schemas"]["GradingRulesRead"];
+
+/** Lo que hace falta de un periodo para saber con qué reglas se evalúa */
+type SemesterWithRules = { rules?: GradingRules | null } | null | undefined;
+
+/**
+ * Reglas con que se evalúan las notas de un periodo: las congeladas al cerrarlo (que se
+ * conservan aunque se reabra) sobre la configuración vigente. Sin reglas propias, el periodo
+ * sigue la configuración actual. Los nombres de periodo, la institución o el documento salen
+ * siempre de la configuración.
+ */
+export function rulesFor(
+  semester: SemesterWithRules,
+  settings: AcademicSettings,
+): AcademicSettings {
+  return semester?.rules ? { ...settings, ...semester.rules } : settings;
+}
+
+/** `rulesFor` con la configuración vigente: úsalo para mostrar o validar notas de una materia */
+export function useSubjectRules(semester: SemesterWithRules): AcademicSettings {
+  return rulesFor(semester, useAcademicSettings());
+}

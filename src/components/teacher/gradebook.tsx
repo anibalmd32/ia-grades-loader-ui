@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
 import { CircleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useAcademicSettings } from "@/api/queries/settings";
+import { type AcademicSettings, useSubjectRules } from "@/api/queries/settings";
 import {
   type GradeEntry,
   gradeOf,
@@ -30,10 +30,11 @@ type InvalidCell = { student: StudentGrades; term: Term };
 
 /**
  * Celdas editadas de la planilla. Solo guarda lo que el profesor escribió; el resto se lee
- * del servidor. Expone los cambios válidos (para el PUT) y las celdas inválidas.
+ * del servidor. Expone los cambios válidos (para el PUT) y las celdas inválidas, según las
+ * reglas del periodo de la materia (las congeladas si se cerró alguna vez).
  */
 export function useGradeDrafts(data: SubjectGrades) {
-  const settings = useAcademicSettings();
+  const settings = useSubjectRules(data.subject.semester);
   const [drafts, setDrafts] = useState<Map<string, string>>(new Map());
 
   const text = (row: StudentGrades, term: Term) =>
@@ -116,8 +117,13 @@ export function useUnsavedChangesGuard(pending: number) {
 }
 
 /** Aviso con la primera celda inválida (en el formato del diseño) */
-export function InvalidCellAlert({ invalid }: { invalid: InvalidCell[] }) {
-  const settings = useAcademicSettings();
+export function InvalidCellAlert({
+  invalid,
+  settings,
+}: {
+  invalid: InvalidCell[];
+  settings: AcademicSettings;
+}) {
   const first = invalid[0];
   if (!first) return null;
   const more = invalid.length - 1;
@@ -172,8 +178,7 @@ export function GradeCell({
 }
 
 /** Definitiva y aprobado (de la API) o "En curso" si faltan lapsos; en rojo si reprueba */
-export function FinalGrade({ row }: { row: StudentGrades }) {
-  const settings = useAcademicSettings();
+export function FinalGrade({ row, settings }: { row: StudentGrades; settings: AcademicSettings }) {
   if (row.final_grade == null) {
     return <span className="font-semibold text-base-content/60">En curso</span>;
   }

@@ -1,12 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { useAcademicSettings } from "@/api/queries/settings";
+import { useSubjectRules } from "@/api/queries/settings";
 import type { TeacherSubject } from "@/api/queries/teacher";
 import { ClosedBadge } from "@/components/ui/closed-period";
 import { termName, termNumbers } from "@/lib/grades";
 
 /** Tarjeta de "Mis materias": estudiantes, notas cargadas por lapso y accesos */
 export function SubjectCard({ subject }: { subject: TeacherSubject }) {
-  const settings = useAcademicSettings();
+  // Lapsos según las reglas del periodo (congeladas si se cerró alguna vez)
+  const settings = useSubjectRules(subject.semester);
   const total = subject.students_count;
   const closed = subject.semester.is_closed;
 

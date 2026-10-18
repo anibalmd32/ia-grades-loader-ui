@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { FileSpreadsheet, Info, Link2 } from "lucide-react";
 import { type DragEvent, useId, useState } from "react";
-import { useAcademicSettings } from "@/api/queries/settings";
+import { rulesFor, useAcademicSettings } from "@/api/queries/settings";
 import { teacherKeys, teacherSubjectsQuery, uploadImport } from "@/api/queries/teacher";
 import { FormError } from "@/components/form/form";
 import { termName, termNumbers } from "@/lib/grades";
@@ -21,6 +21,8 @@ export function UploadForm({ defaultSubject }: { defaultSubject?: number }) {
   const selected = subjects.data?.find((s) => String(s.id) === subjectId);
   const closedSubject = selected?.semester.is_closed ? selected : undefined;
   const anyClosed = subjects.data?.some((s) => s.semester.is_closed) ?? false;
+  // Los lapsos que se ofrecen son los del periodo de la materia elegida
+  const rules = rulesFor(selected?.semester, settings);
   const [term, setTerm] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -70,7 +72,10 @@ export function UploadForm({ defaultSubject }: { defaultSubject?: number }) {
             <select
               className="select w-full"
               value={subjectId}
-              onChange={(event) => setSubjectId(event.target.value)}
+              onChange={(event) => {
+                setSubjectId(event.target.value);
+                setTerm("");
+              }}
               disabled={!subjects.data}
             >
               <option value="">Selecciona una materia…</option>
@@ -98,16 +103,16 @@ export function UploadForm({ defaultSubject }: { defaultSubject?: number }) {
             )}
           </label>
           <label className="flex flex-col gap-1">
-            <span className="font-semibold text-sm">{settings.term_label}</span>
+            <span className="font-semibold text-sm">{rules.term_label}</span>
             <select
               className="select w-full"
               value={term}
               onChange={(event) => setTerm(event.target.value)}
             >
               <option value="">Lo indica el archivo</option>
-              {termNumbers(settings).map((t) => (
+              {termNumbers(rules).map((t) => (
                 <option key={t} value={t}>
-                  {termName(settings, t)}
+                  {termName(rules, t)}
                 </option>
               ))}
             </select>

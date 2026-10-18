@@ -313,7 +313,8 @@ export function AcademicSettingsForm({ settings }: { settings: AcademicSettings 
           Los cambios afectan a todas las pantallas de notas, a la importación desde Excel y al
           asistente IA. La API rechaza los cambios que dejarían inválidas notas ya cargadas (por
           ejemplo, reducir las evaluaciones si hay notas en las últimas o cambiar la escala si
-          quedan notas fuera).
+          quedan notas fuera). Los periodos cerrados conservan sus reglas; los cambios solo afectan
+          a los periodos abiertos que no se han cerrado nunca.
         </span>
       </div>
       <FormError message={formError} />

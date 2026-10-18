@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, stripSearchParams } from "@tanstack/react-router";
 import * as v from "valibot";
 import { PAGE_SIZE } from "@/api/queries/admin";
-import { useAcademicSettings } from "@/api/queries/settings";
+import { useSubjectRules } from "@/api/queries/settings";
 import { type SubjectGrades, subjectGradesQuery } from "@/api/queries/teacher";
 import { BackLink } from "@/components/admin/common";
 import {
@@ -21,7 +21,7 @@ import { Pagination } from "@/components/ui/data-table";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
-import { isTerm, scaleText, termName, termNumbers } from "@/lib/grades";
+import { isTerm, termName, termNumbers } from "@/lib/grades";
 
 const SHOW_OPTIONS: { value: "all" | Standing; label: string }[] = [
   { value: "all", label: "Mostrar: Todos" },
@@ -54,8 +54,9 @@ export const Route = createFileRoute("/_app/teacher/subjects/$subjectId")({
   search: { middlewares: [stripSearchParams({ q: "", show: "all", term: 1, offset: 0 })] },
   staticData: {
     title: "Planilla de notas",
-    description: (s) =>
-      `${s.terms_count} ${(s.terms_count === 1 ? s.term_label : s.term_label_plural).toLowerCase()} · se aprueba con ${scaleText(s.passing_grade)}`,
+    // Sin lapsos ni escala: cada materia se evalúa con las reglas de su periodo (pueden estar
+    // congeladas y no coincidir con la configuración vigente); la planilla las muestra
+    description: "Notas de la materia",
   },
   component: GradebookPage,
 });
@@ -91,10 +92,11 @@ function GradebookPage() {
 function Gradebook({ data }: { data: SubjectGrades }) {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const settings = useAcademicSettings();
+  const { subject, students } = data;
+  // Reglas del periodo de la materia: las congeladas al cerrarlo o, si no, las vigentes
+  const settings = useSubjectRules(subject.semester);
   const terms = termNumbers(settings);
   const currentTerm = isTerm(search.term, settings) ? search.term : 1;
-  const { subject, students } = data;
   // Periodo cerrado: la planilla es de solo lectura (la API rechazaría los cambios con un 409)
   const closed = subject.semester.is_closed;
   const drafts = useGradeDrafts(data);
@@ -161,7 +163,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
         ) : (
           <>
             <GradebookStats students={students} />
-            <InvalidCellAlert invalid={drafts.invalid} />
+            <InvalidCellAlert invalid={drafts.invalid} settings={settings} />
 
             <div className="flex flex-col gap-2 sm:flex-row">
               <SearchInput
@@ -284,7 +286,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                             </td>
                           ))}
                           <td>
-                            <FinalGrade row={row} />
+                            <FinalGrade row={row} settings={settings} />
                           </td>
                         </tr>
                       ))}

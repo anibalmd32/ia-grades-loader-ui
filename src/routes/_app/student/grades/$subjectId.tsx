@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import * as v from "valibot";
-import { useAcademicSettings } from "@/api/queries/settings";
+import { useAcademicSettings, useSubjectRules } from "@/api/queries/settings";
 import { type StudentSubjectGrades, studentSubjectQuery } from "@/api/queries/student";
 import { BackLink } from "@/components/admin/common";
 import { StandingBadge, standingSentence } from "@/components/student/projection";
@@ -57,7 +57,8 @@ function SubjectPage() {
 }
 
 function SubjectDetail({ item }: { item: StudentSubjectGrades }) {
-  const settings = useAcademicSettings();
+  // Reglas del periodo de la materia (congeladas si se cerró alguna vez)
+  const settings = useSubjectRules(item.subject.semester);
   const { subject, projection } = item;
   const final = projection.final_grade;
   const pending = projection.pending_terms;

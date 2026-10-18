@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { CircleAlert, TriangleAlert, Users } from "lucide-react";
 import { useState } from "react";
-import { type AcademicSettings, useAcademicSettings } from "@/api/queries/settings";
+import { type AcademicSettings, useSubjectRules } from "@/api/queries/settings";
 import {
   type GradeEntry,
   type ImportJobRead,
@@ -79,7 +79,8 @@ function entryOf(
 
 /** Previsualización de una importación: revisar, corregir, excluir y confirmar */
 export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Preview }) {
-  const settings = useAcademicSettings();
+  // Lapsos y escala del periodo de la materia (congelados si se cerró alguna vez)
+  const settings = useSubjectRules(preview.subject.semester);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const markReviewed = useImportReviews((s) => s.markReviewed);
@@ -302,6 +303,7 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
                 key={index}
                 row={row}
                 decision={decisions[index] as Decision}
+                settings={settings}
                 onChange={(change) => update(index, change)}
               />
             ))}
@@ -321,13 +323,14 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
 function PreviewRow({
   row,
   decision,
+  settings,
   onChange,
 }: {
   row: ImportRow;
   decision: Decision;
+  settings: AcademicSettings;
   onChange: (change: Partial<Decision>) => void;
 }) {
-  const settings = useAcademicSettings();
   const editable = canSave(row);
   const parsed = parseGrade(decision.value, settings);
   const invalid = decision.include && (!parsed.valid || parsed.value == null);
