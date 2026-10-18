@@ -274,3 +274,35 @@ describe("modo claro/oscuro", () => {
     expect(screen.queryByText(/Grades Loader/)).not.toBeInTheDocument();
   });
 });
+
+describe("mostrar contraseña", () => {
+  it("cada campo de contraseña tiene su casilla, desmarcada por defecto", async () => {
+    signedInAs(makeUser({ role: "teacher", must_change_password: true }));
+    const user = userEvent.setup();
+    renderApp("/change-password");
+
+    const current = await screen.findByLabelText("Contraseña actual");
+    await user.type(current, "secreta123");
+    const toggles = screen.getAllByRole("checkbox", { name: "Mostrar contraseña" });
+    // Contraseña actual, nueva y confirmación
+    expect(toggles).toHaveLength(3);
+    for (const toggle of toggles) expect(toggle).not.toBeChecked();
+    expect(current).toHaveAttribute("type", "password");
+
+    await user.click(toggles[0] as HTMLElement);
+    expect(current).toHaveAttribute("type", "text");
+    expect(current).toHaveValue("secreta123");
+    // Solo cambia su propio campo
+    expect(screen.getByLabelText("Nueva contraseña")).toHaveAttribute("type", "password");
+
+    await user.click(toggles[0] as HTMLElement);
+    expect(current).toHaveAttribute("type", "password");
+  });
+
+  it("también en el login", async () => {
+    signedOut();
+    renderApp("/login");
+    expect(await screen.findByLabelText("Contraseña")).toHaveAttribute("type", "password");
+    expect(screen.getByRole("checkbox", { name: "Mostrar contraseña" })).not.toBeChecked();
+  });
+});

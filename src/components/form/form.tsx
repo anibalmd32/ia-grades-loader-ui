@@ -1,5 +1,5 @@
 import { createFormHook, createFormHookContexts, useStore } from "@tanstack/react-form";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, type ReactNode, useState } from "react";
 
 export const { fieldContext, formContext, useFieldContext, useFormContext } =
   createFormHookContexts();
@@ -46,17 +46,25 @@ function FieldShell({
 
 type InputProps = Omit<ComponentProps<"input">, "value" | "onChange" | "onBlur" | "name">;
 
+/**
+ * Campo de texto. Si es de contraseña (`type="password"`), debajo lleva la casilla
+ * "Mostrar contraseña" (desmarcada por defecto) para ver lo que se escribe.
+ */
 export function TextField({
   label,
   hint,
+  type,
   ...props
 }: { label: string; hint?: string } & InputProps) {
   const field = useFieldContext<string>();
   const invalid = useStore(field.store, (state) => state.meta.errors.length > 0);
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === "password";
   return (
     <FieldShell label={label} hint={hint}>
       <input
         {...props}
+        type={isPassword && showPassword ? "text" : type}
         id={field.name}
         name={field.name}
         className={`input w-full ${invalid ? "input-error" : ""}`}
@@ -65,6 +73,17 @@ export function TextField({
         onBlur={field.handleBlur}
         onChange={(event) => field.handleChange(event.target.value)}
       />
+      {isPassword && (
+        <label className="label mt-1 cursor-pointer gap-2 text-base-content/80">
+          <input
+            type="checkbox"
+            className="checkbox checkbox-sm"
+            checked={showPassword}
+            onChange={(event) => setShowPassword(event.target.checked)}
+          />
+          Mostrar contraseña
+        </label>
+      )}
     </FieldShell>
   );
 }
