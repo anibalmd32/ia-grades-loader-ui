@@ -61,7 +61,7 @@ La API tiene que estar levantada en `http://localhost:8000`; el README explica c
 - **Textos de la interfaz en español.**
 - **Imports** con el alias `@/` (apunta a `src/`).
 - **Formato**: Biome (2 espacios, comillas dobles, ancho 100). El hook `pre-commit` lo aplica solo; usa `bun run check` para formatear y revisar.
-- **Tests**: Vitest + Testing Library + MSW. La API simulada está en `src/test/` (`handlers.ts` y `server.ts`), y se renderiza con `renderWithQuery`. Pon cada test junto al archivo que prueba (`*.test.tsx`). Usa MSW 3: la opción es `onUnhandledFrame`.
+- **Tests**: Vitest + Testing Library + MSW. La API simulada está en `src/test/` (`handlers.ts` y `server.ts`), y se renderiza con `renderWithQuery`. Pon cada test junto al archivo que prueba (`*.test.tsx`). Usa MSW 3: la opción es `onUnhandledFrame`. **En los tests no hagas peticiones a URLs `https://` reales** (aunque estén simuladas): el interceptor de MSW abre la conexión TLS real y en Linux puede abortar el worker de Vitest. Usa hosts `http://*.test` configurables (ver `.env.test`).
 
 ## Reglas de negocio que la UI debe respetar
 

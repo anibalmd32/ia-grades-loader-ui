@@ -32,5 +32,10 @@ export const DOWNLOAD_URLS = {
   android: `${RELEASES_URL}/download/Notas-android.apk`,
 } as const;
 
-/** API pública de GitHub (sin token) para mostrar el número de la última versión */
-export const LATEST_RELEASE_API = `https://api.github.com/repos/${REPO}/releases/latest`;
+/**
+ * API pública de GitHub (sin token) para mostrar el número de la última versión.
+ * En los tests se sustituye por una URL http (.env.test): las conexiones TLS reales que abre
+ * el interceptor de MSW pueden abortar el worker de Vitest en Linux.
+ */
+export const LATEST_RELEASE_API =
+  import.meta.env.VITE_LATEST_RELEASE_API || `https://api.github.com/repos/${REPO}/releases/latest`;

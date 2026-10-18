@@ -30,31 +30,38 @@ describe("detectPlatform", () => {
 
 describe("DownloadApp", () => {
   const link = (name: string) => screen.getByRole("link", { name });
+  // Cada test espera a que termine la consulta de la versión: si el archivo acaba con la
+  // petición en vuelo, al cerrar MSW el worker de Vitest puede abortar (SIGABRT en Linux)
+  const versionLoaded = () => screen.findByText(/versión 0\.1\.0/);
 
   it("en Windows ofrece el instalador del último release y muestra la versión", async () => {
     renderWithQuery(<DownloadApp platform="windows" />);
     expect(link("Descargar para Windows")).toHaveAttribute("href", DOWNLOAD_URLS.windows);
     expect(screen.queryByRole("link", { name: "Descargar para Android" })).not.toBeInTheDocument();
-    expect(await screen.findByText(/versión 0\.1\.0/)).toBeInTheDocument();
+    expect(await versionLoaded()).toBeInTheDocument();
   });
 
-  it("en Android ofrece el APK", () => {
+  it("en Android ofrece el APK", async () => {
     renderWithQuery(<DownloadApp platform="android" />);
     expect(link("Descargar para Android")).toHaveAttribute("href", DOWNLOAD_URLS.android);
+    await versionLoaded();
   });
 
-  it("en iPhone y macOS avisa de que aún no está disponible", () => {
+  it("en iPhone y macOS avisa de que aún no está disponible", async () => {
     const { unmount } = renderWithQuery(<DownloadApp platform="ios" />);
     expect(screen.getByRole("note")).toHaveTextContent("no está disponible para iPhone y iPad");
     expect(screen.queryByRole("link", { name: /Descargar para/ })).not.toBeInTheDocument();
+    await versionLoaded();
     unmount();
     renderWithQuery(<DownloadApp platform="mac" />);
     expect(screen.getByRole("note")).toHaveTextContent("no está disponible para macOS");
+    await versionLoaded();
   });
 
-  it("en otros sistemas ofrece las dos descargas", () => {
+  it("en otros sistemas ofrece las dos descargas", async () => {
     renderWithQuery(<DownloadApp platform="other" />);
     expect(link("Descargar para Windows")).toBeInTheDocument();
     expect(link("Descargar para Android")).toBeInTheDocument();
+    await versionLoaded();
   });
 });
