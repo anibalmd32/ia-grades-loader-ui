@@ -15,6 +15,7 @@ import {
   usersQuery,
 } from "@/api/queries/admin";
 import { useAcademicSettings } from "@/api/queries/settings";
+import { documentNoun } from "@/components/form/document-fields";
 import { GradeHistory } from "@/components/grade-history";
 import { confirm } from "@/components/ui/confirm";
 import { DataTable } from "@/components/ui/data-table";
@@ -139,6 +140,7 @@ export function SubjectTeachers({ subject }: { subject: SubjectRead }) {
 export function SubjectStudents({ subject }: { subject: SubjectRead }) {
   const queryClient = useQueryClient();
   const settings = useAcademicSettings();
+  const documentLabel = settings.document_label;
   const closed = subject.semester.is_closed;
   const closedHint = `El ${settings.period_label.toLowerCase()} está cerrado`;
   const students = useQuery(subjectStudentsQuery(subject.id));
@@ -196,7 +198,11 @@ export function SubjectStudents({ subject }: { subject: SubjectRead }) {
         </button>
       }
     >
-      <SearchInput value={filter} onChange={setFilter} placeholder="Buscar por nombre o cédula" />
+      <SearchInput
+        value={filter}
+        onChange={setFilter}
+        placeholder={`Buscar por nombre o ${documentNoun(documentLabel)}`}
+      />
       <DataTable
         rows={rows}
         isLoading={students.isPending}
@@ -208,7 +214,7 @@ export function SubjectStudents({ subject }: { subject: SubjectRead }) {
         }
         columns={[
           { header: "Estudiante", cell: (s) => s.full_name },
-          { header: "Cédula", cell: (s) => s.cedula_display },
+          { header: documentLabel, cell: (s) => s.cedula_display },
           {
             header: "Acciones",
             cell: (s) => (
@@ -265,6 +271,7 @@ function EnrollStudentsModal({
 }) {
   const queryClient = useQueryClient();
   const [q, setQ] = useState("");
+  const documentLabel = useAcademicSettings().document_label;
   const [selected, setSelected] = useState<Map<number, UserRead>>(new Map());
   const candidates = useQuery(usersQuery("students", { q, is_active: true }));
 
@@ -304,7 +311,11 @@ function EnrollStudentsModal({
   return (
     <Modal open title={`Matricular en ${subject.code}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <SearchInput value={q} onChange={setQ} placeholder="Buscar por nombre o cédula" />
+        <SearchInput
+          value={q}
+          onChange={setQ}
+          placeholder={`Buscar por nombre o ${documentNoun(documentLabel)}`}
+        />
         <div className="max-h-72 overflow-y-auto">
           {candidates.error ? (
             <ErrorState error={candidates.error} onRetry={() => candidates.refetch()} />

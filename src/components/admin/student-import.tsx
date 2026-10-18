@@ -211,7 +211,8 @@ function UploadStep({
               <strong>Tipo</strong> (opcional): {types.join(", ")}.
             </li>
             <li>
-              <strong>{settings.document_label}</strong>: solo el número, sin letras ni puntos.
+              <strong>{settings.document_label}</strong> (o «Documento»): solo el número, sin letras
+              ni puntos.
             </li>
             <li>
               <strong>Materias</strong> (opcional): códigos separados por comas, p. ej.{" "}

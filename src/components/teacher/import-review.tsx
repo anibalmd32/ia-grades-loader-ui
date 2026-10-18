@@ -13,6 +13,7 @@ import {
   teacherKeys,
 } from "@/api/queries/teacher";
 import { BackLink } from "@/components/admin/common";
+import { documentNoun } from "@/components/form/document-fields";
 import { confirm } from "@/components/ui/confirm";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { SearchInput } from "@/components/ui/search-input";
@@ -313,8 +314,9 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
         )}
 
         <p className="text-base-content/70 text-xs">
-          La IA solo extrae cédula/nombre, {settings.term_label.toLowerCase()} y nota; el sistema
-          identifica al estudiante entre los matriculados.
+          La IA solo extrae {documentNoun(settings.document_label)}/nombre,{" "}
+          {settings.term_label.toLowerCase()} y nota; el sistema identifica al estudiante entre los
+          matriculados.
         </p>
       </PageBody>
     </>

@@ -211,9 +211,9 @@ export function enrollStudentInSubjects(studentId: number, subjectIds: number[])
   );
 }
 
-/** Email del personal o cédula del estudiante */
-export const accountIdentity = (user: UserRead) =>
-  user.email ?? (user.cedula_display ? `Cédula ${user.cedula_display}` : "");
+/** Email del personal o documento del estudiante ("Cédula V-28456123") */
+export const accountIdentity = (user: UserRead, documentLabel: string) =>
+  user.email ?? (user.cedula_display ? `${documentLabel} ${user.cedula_display}` : "");
 
 export type StudentImportResult = components["schemas"]["StudentImportResult"];
 export type StudentImportRow = components["schemas"]["StudentImportRow"];

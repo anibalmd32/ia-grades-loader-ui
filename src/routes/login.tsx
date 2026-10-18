@@ -1,12 +1,21 @@
+import { useStore } from "@tanstack/react-form";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 import { api, unwrap } from "@/api/client";
 import { isApiError } from "@/api/errors";
+import { useAcademicSettings } from "@/api/queries/settings";
 import { setupStatusQuery } from "@/api/queries/setup";
 import { DownloadApp } from "@/components/download-app";
 import { applyApiErrors } from "@/components/form/api-errors";
+import {
+  cedulaSchema,
+  documentNoun,
+  nationalitySchema,
+  useDocumentFields,
+  useValidDocumentType,
+} from "@/components/form/document-fields";
 import { FormError, useAppForm } from "@/components/form/form";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { homePath } from "@/lib/roles";
@@ -33,24 +42,21 @@ const StaffSchema = v.object({
 });
 
 const StudentSchema = v.object({
-  nationality: v.picklist(["V", "E"]),
-  cedula: v.pipe(
-    v.string(),
-    v.trim(),
-    v.regex(/^\d{1,9}$/, "Escribe solo números, sin puntos ni letras."),
-  ),
+  nationality: nationalitySchema,
+  cedula: cedulaSchema,
   password: v.pipe(v.string(), v.minLength(1, "Escribe tu contraseña.")),
 });
 
-const INVALID_CREDENTIALS: Record<LoginTab, string> = {
-  staff: "Email o contraseña incorrectos.",
-  student: "Cédula o contraseña incorrectas.",
-};
+/** Credenciales inválidas, con el nombre del documento configurado para estudiantes */
+const invalidCredentials = (tab: LoginTab, documentLabel: string) =>
+  tab === "staff"
+    ? "Email o contraseña incorrectos."
+    : `${documentLabel} o contraseña incorrectos.`;
 
 /** Mensaje de error del login: genérico ante credenciales inválidas */
-function loginError(tab: LoginTab, error: unknown): string | null {
+function loginError(tab: LoginTab, error: unknown, documentLabel = ""): string | null {
   if (isApiError(error) && (error.status === 401 || error.status === 400 || error.status === 403)) {
-    return error.status === 403 ? error.message : INVALID_CREDENTIALS[tab];
+    return error.status === 403 ? error.message : invalidCredentials(tab, documentLabel);
   }
   return null;
 }
@@ -129,9 +135,10 @@ function StaffForm() {
 
 function StudentForm() {
   const finishLogin = useFinishLogin();
+  const documentFields = useDocumentFields();
   const [formError, setFormError] = useState<string | null>(null);
   const form = useAppForm({
-    defaultValues: { nationality: "V" as "V" | "E", cedula: "", password: "" },
+    defaultValues: { nationality: documentFields.codes[0] ?? "", cedula: "", password: "" },
     validators: { onSubmit: StudentSchema },
     onSubmit: async ({ value }) => {
       setFormError(null);
@@ -147,10 +154,16 @@ function StudentForm() {
         );
         await finishLogin(token.access_token);
       } catch (error) {
-        setFormError(loginError("student", error) ?? applyApiErrors(form, error));
+        setFormError(
+          loginError("student", error, documentFields.label) ?? applyApiErrors(form, error),
+        );
       }
     },
   });
+  const nationality = useStore(form.store, (state) => state.values.nationality);
+  useValidDocumentType(nationality, documentFields.codes, (code) =>
+    form.setFieldValue("nationality", code),
+  );
 
   return (
     <form
@@ -164,30 +177,19 @@ function StudentForm() {
       <FormError message={formError} />
       <div className="grid grid-cols-[6rem_1fr] items-end gap-3">
         <form.AppField name="nationality">
-          {(field) => (
-            <field.SelectField
-              label="Cédula de identidad"
-              aria-label="Tipo de cédula"
-              options={[
-                { value: "V", label: "V" },
-                { value: "E", label: "E" },
-              ]}
-            />
-          )}
+          {(field) => <field.SelectField {...documentFields.nationality} />}
         </form.AppField>
         <form.AppField name="cedula">
           {(field) => (
             <field.TextField
-              label=" "
-              aria-label="Número de cédula"
-              inputMode="numeric"
+              {...documentFields.cedula}
               placeholder="Número, sin puntos"
               autoComplete="username"
             />
           )}
         </form.AppField>
       </div>
-      <p className="-mt-1 text-base-content/60 text-xs">V = venezolano · E = extranjero</p>
+      <p className="-mt-1 text-base-content/60 text-xs">{documentFields.hint}</p>
       <form.AppField name="password">
         {(field) => (
           <field.TextField label="Contraseña" type="password" autoComplete="current-password" />
@@ -203,18 +205,27 @@ function StudentForm() {
   );
 }
 
-const TABS: { value: LoginTab; label: string; description: string }[] = [
-  { value: "staff", label: "Personal", description: "Super admin, coordinadores y profesores." },
-  { value: "student", label: "Estudiante", description: "Entra con tu cédula y contraseña." },
+const TABS: { value: LoginTab; label: string; description: (documentLabel: string) => string }[] = [
+  {
+    value: "staff",
+    label: "Personal",
+    description: () => "Super admin, coordinadores y profesores.",
+  },
+  {
+    value: "student",
+    label: "Estudiante",
+    description: (documentLabel) => `Entra con tu ${documentNoun(documentLabel)} y contraseña.`,
+  },
 ];
 
 function LoginPage() {
   const { loginTab, setLoginTab } = usePreferences();
   const expired = useSession((s) => s.expired);
   const current = TABS.find((t) => t.value === loginTab) ?? TABS[0];
+  const documentLabel = useAcademicSettings().document_label;
 
   return (
-    <AuthLayout title="Inicia sesión" description={current.description}>
+    <AuthLayout title="Inicia sesión" description={current.description(documentLabel)}>
       {expired && (
         <div role="alert" className="alert alert-warning alert-soft mb-4">
           <TriangleAlert className="size-5 shrink-0" />

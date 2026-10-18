@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Info, Plus } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import * as v from "valibot";
 import {
   type AccountKind,
@@ -13,7 +13,15 @@ import {
   updateAccount,
   usersQuery,
 } from "@/api/queries/admin";
+import { useAcademicSettings } from "@/api/queries/settings";
 import { applyApiErrors } from "@/components/form/api-errors";
+import {
+  cedulaSchema,
+  DocumentRow,
+  documentNoun,
+  nationalitySchema,
+  useDocumentFields,
+} from "@/components/form/document-fields";
 import { FormError, useAppForm } from "@/components/form/form";
 import {
   FIRST_NAME_FIELD,
@@ -68,7 +76,8 @@ export const ACCOUNTS: Record<
     newLabel: "Nuevo estudiante",
     created: "Estudiante creado correctamente.",
     listPath: "/admin/students",
-    searchPlaceholder: "Buscar por nombre o cédula",
+    // La lista de estudiantes usa el nombre del documento configurado
+    searchPlaceholder: "Buscar por nombre",
   },
 };
 
@@ -102,6 +111,7 @@ export function AccountsList({
 }) {
   const navigate = useNavigate();
   const config = ACCOUNTS[kind];
+  const documentLabel = useAcademicSettings().document_label;
   const query = useQuery(
     usersQuery(kind, {
       q: search.q,
@@ -117,7 +127,11 @@ export function AccountsList({
       <div className="flex flex-col gap-3 sm:flex-row">
         <SearchInput
           value={search.q}
-          placeholder={config.searchPlaceholder}
+          placeholder={
+            kind === "students"
+              ? `Buscar por nombre o ${documentNoun(documentLabel)}`
+              : config.searchPlaceholder
+          }
           onChange={(q) => onSearchChange({ q, offset: 0 })}
         />
         <select
@@ -153,7 +167,7 @@ export function AccountsList({
             cell: (user) => <span className="font-medium">{user.full_name}</span>,
           },
           {
-            header: kind === "students" ? "Cédula" : "Email",
+            header: kind === "students" ? documentLabel : "Email",
             cell: (user) => (kind === "students" ? user.cedula_display : user.email),
           },
           // Coordinadores no tienen materias (la API devuelve null)
@@ -207,6 +221,7 @@ export function subjectsText(count: number | null | undefined): string {
 /** Tarjeta de cabecera del detalle: datos y acciones (editar, restablecer contraseña, activar) */
 export function AccountHeader({ kind, user }: { kind: AccountKind; user: UserRead }) {
   const queryClient = useQueryClient();
+  const documentLabel = useAcademicSettings().document_label;
   const [editing, setEditing] = useState(false);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: adminKeys.users(kind) });
 
@@ -224,7 +239,7 @@ export function AccountHeader({ kind, user }: { kind: AccountKind; user: UserRea
     onSuccess: ({ generated_password }) =>
       showGeneratedPassword({
         message: "Contraseña restablecida. Se cerraron sus sesiones abiertas.",
-        account: `${user.full_name} · ${accountIdentity(user)}`,
+        account: `${user.full_name} · ${accountIdentity(user, documentLabel)}`,
         password: generated_password,
       }),
     onError: (error) => toast.error(error.message),
@@ -264,7 +279,7 @@ export function AccountHeader({ kind, user }: { kind: AccountKind; user: UserRea
               <h2 className="font-bold text-2xl">{user.full_name}</h2>
               <StatusBadge active={user.is_active} />
             </div>
-            <p className="text-base-content/70 text-sm">{accountIdentity(user)}</p>
+            <p className="text-base-content/70 text-sm">{accountIdentity(user, documentLabel)}</p>
             {kind === "students" && (
               <p className="text-base-content/70 text-sm">
                 {user.telegram_linked ? "Telegram vinculado" : "Telegram sin vincular"}
@@ -300,15 +315,6 @@ export function AccountHeader({ kind, user }: { kind: AccountKind; user: UserRea
 }
 
 const emailSchema = v.pipe(v.string(), v.trim(), v.email("Escribe un email válido."));
-export const cedulaSchema = v.pipe(
-  v.string(),
-  v.trim(),
-  v.regex(/^\d{1,9}$/, "Escribe solo números, sin puntos ni letras."),
-);
-export const NATIONALITY_OPTIONS = [
-  { value: "V", label: "V" },
-  { value: "E", label: "E" },
-];
 
 const StaffSchema = v.object({
   first_name: firstNameSchema,
@@ -318,7 +324,7 @@ const StaffSchema = v.object({
 const StudentEditSchema = v.object({
   first_name: firstNameSchema,
   last_name: lastNameSchema,
-  nationality: v.picklist(["V", "E"]),
+  nationality: nationalitySchema,
   cedula: cedulaSchema,
 });
 
@@ -336,13 +342,14 @@ function EditAccountModal({
   const queryClient = useQueryClient();
   const [formError, setFormError] = useState<string | null>(null);
   const isStudent = kind === "students";
+  const documentFields = useDocumentFields();
 
   const form = useAppForm({
     defaultValues: {
       first_name: user.first_name,
       last_name: user.last_name,
       email: user.email ?? "",
-      nationality: (user.nationality ?? "V") as "V" | "E",
+      nationality: user.nationality ?? "",
       cedula: user.cedula ? String(user.cedula) : "",
     },
     validators: {
@@ -406,15 +413,15 @@ function EditAccountModal({
           }
         />
         {isStudent ? (
-          <CedulaRow
+          <DocumentRow
             nationality={
               <form.AppField name="nationality">
-                {(field) => <field.SelectField {...NATIONALITY_FIELD} />}
+                {(field) => <field.SelectField {...documentFields.nationality} />}
               </form.AppField>
             }
             cedula={
               <form.AppField name="cedula">
-                {(field) => <field.TextField {...CEDULA_FIELD} />}
+                {(field) => <field.TextField {...documentFields.cedula} />}
               </form.AppField>
             }
           />
@@ -435,33 +442,6 @@ function EditAccountModal({
     </Modal>
   );
 }
-
-/** Fila "Cédula de identidad": selector V/E + número (cada uno es un form.AppField) */
-export function CedulaRow({ nationality, cedula }: { nationality: ReactNode; cedula: ReactNode }) {
-  return (
-    <>
-      <div className="grid grid-cols-[6rem_1fr] items-end gap-3">
-        {nationality}
-        {cedula}
-      </div>
-      <p className="-mt-1 text-base-content/60 text-xs">
-        V = venezolano · E = extranjero. V-123 y E-123 son personas distintas.
-      </p>
-    </>
-  );
-}
-
-export const NATIONALITY_FIELD = {
-  label: "Cédula de identidad",
-  "aria-label": "Tipo de cédula",
-  options: NATIONALITY_OPTIONS,
-};
-export const CEDULA_FIELD = {
-  label: " ",
-  "aria-label": "Número de cédula",
-  inputMode: "numeric" as const,
-  placeholder: "Número, sin letras ni puntos",
-};
 
 export function GeneratedPasswordNotice() {
   return (

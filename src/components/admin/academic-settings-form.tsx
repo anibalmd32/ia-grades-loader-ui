@@ -1,6 +1,6 @@
 import { useStore } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { TriangleAlert } from "lucide-react";
+import { Plus, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 import { isApiError } from "@/api/errors";
@@ -32,6 +32,14 @@ const DECIMAL_OPTIONS = [
 ];
 
 export const MAX_TERMS = 10;
+export const MAX_DOCUMENT_TYPES = 10;
+const DUPLICATE_CODES = "Hay tipos de documento con el mismo código.";
+
+/** ¿Se repite algún código (sin distinguir mayúsculas)? */
+export function hasDuplicateCodes(types: { code: string }[]): boolean {
+  const codes = types.map((t) => t.code.trim().toUpperCase()).filter(Boolean);
+  return new Set(codes).size !== codes.length;
+}
 const MAX_GRADE_LIMIT = 100;
 
 /** Número escrito por el usuario (acepta coma decimal) */
@@ -117,6 +125,27 @@ export const AcademicSettingsSchema = v.pipe(
     passing_grade: gradeText,
     grade_decimals: v.picklist(["0", "1", "2"]),
     round_final_grade: v.boolean(),
+    document_label: v.pipe(
+      v.string(),
+      v.trim(),
+      v.minLength(2, "Mínimo 2 caracteres."),
+      v.maxLength(30, "Máximo 30 caracteres."),
+    ),
+    document_types: v.pipe(
+      v.array(
+        v.object({
+          code: v.pipe(v.string(), v.trim(), v.regex(/^[A-Za-z]{1,3}$/, "De 1 a 3 letras.")),
+          name: v.pipe(
+            v.string(),
+            v.trim(),
+            v.minLength(2, "Mínimo 2 caracteres."),
+            v.maxLength(40, "Máximo 40 caracteres."),
+          ),
+        }),
+      ),
+      v.minLength(1, "Debe haber al menos un tipo de documento."),
+      v.maxLength(MAX_DOCUMENT_TYPES, `Máximo ${MAX_DOCUMENT_TYPES} tipos.`),
+    ),
   }),
   v.forward(
     v.partialCheck(
@@ -170,6 +199,14 @@ export const AcademicSettingsSchema = v.pipe(
     ),
     ["term_weights"],
   ),
+  v.forward(
+    v.partialCheck(
+      [["document_types"]],
+      (input) => !hasDuplicateCodes(input.document_types),
+      DUPLICATE_CODES,
+    ),
+    ["document_types"],
+  ),
 );
 
 export type SettingsFormValues = {
@@ -184,6 +221,8 @@ export type SettingsFormValues = {
   passing_grade: string;
   grade_decimals: string;
   round_final_grade: boolean;
+  document_label: string;
+  document_types: { code: string; name: string }[];
 };
 
 export function toFormValues(settings: AcademicSettings): SettingsFormValues {
@@ -201,22 +240,19 @@ export function toFormValues(settings: AcademicSettings): SettingsFormValues {
     passing_grade: scaleText(settings.passing_grade),
     grade_decimals: String(settings.grade_decimals),
     round_final_grade: settings.round_final_grade,
+    document_label: settings.document_label,
+    document_types: settings.document_types.map((t) => ({ code: t.code, name: t.name })),
   };
 }
 
 /** Lo que este formulario aún no edita se envía tal cual estaba (la API exige la configuración completa) */
-type KeptSettings = Pick<
-  AcademicSettings,
-  "document_label" | "document_types" | "assistant_enabled" | "telegram_enabled"
->;
+type KeptSettings = Pick<AcademicSettings, "assistant_enabled" | "telegram_enabled">;
 
 export function toUpdateBody(
   values: SettingsFormValues,
   kept: KeptSettings,
 ): AcademicSettingsUpdate {
   return {
-    document_label: kept.document_label,
-    document_types: kept.document_types,
     assistant_enabled: kept.assistant_enabled,
     telegram_enabled: kept.telegram_enabled,
     institution_name: values.institution_name.trim(),
@@ -229,6 +265,11 @@ export function toUpdateBody(
     passing_grade: toNumber(values.passing_grade),
     grade_decimals: Number(values.grade_decimals),
     round_final_grade: values.round_final_grade,
+    document_label: values.document_label.trim(),
+    document_types: values.document_types.map((t) => ({
+      code: t.code.trim().toUpperCase(),
+      name: t.name.trim(),
+    })),
   };
 }
 
@@ -284,6 +325,15 @@ export function AcademicSettingsForm({ settings }: { settings: AcademicSettings 
   const clearWeightsError = () => {
     if (!form.getFieldMeta("term_weights")?.errorMap.onSubmit) return;
     form.setFieldMeta("term_weights", (meta) => ({
+      ...meta,
+      errorMap: { ...meta.errorMap, onSubmit: undefined },
+    }));
+  };
+
+  /** Igual con los tipos de documento: el código repetido es un error de la lista */
+  const clearDocumentTypesError = () => {
+    if (!form.getFieldMeta("document_types")?.errorMap.onSubmit) return;
+    form.setFieldMeta("document_types", (meta) => ({
       ...meta,
       errorMap: { ...meta.errorMap, onSubmit: undefined },
     }));
@@ -472,6 +522,97 @@ export function AcademicSettingsForm({ settings }: { settings: AcademicSettings 
                 Redondear la definitiva al entero (9,5 → 10)
               </label>
             )}
+          </form.Field>
+        </div>
+      </section>
+
+      <section className="card card-border bg-base-100">
+        <div className="card-body gap-2">
+          <h2 className="card-title">Documento de los estudiantes</h2>
+          <p className="text-base-content/70 text-sm">
+            Los estudiantes entran con el tipo y el número de su documento. No se puede quitar un
+            tipo que ya tenga estudiantes.
+          </p>
+          <form.AppField name="document_label">
+            {(field) => (
+              <field.TextField
+                label="Nombre del documento"
+                placeholder="Ej. Cédula, DNI"
+                hint="Se muestra en el login, las listas y los formularios."
+              />
+            )}
+          </form.AppField>
+          <form.Field name="document_types" mode="array">
+            {(field) => {
+              const error = field.state.meta.errors
+                .map((e) => (typeof e === "string" ? e : (e as { message?: string })?.message))
+                .find(Boolean);
+              const types = field.state.value;
+              return (
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend text-sm">Tipos de documento</legend>
+                  <ul className="flex flex-col gap-1">
+                    {types.map((_, index) => (
+                      // Las filas solo se añaden al final o se quitan: el índice basta como clave
+                      // biome-ignore lint/suspicious/noArrayIndexKey: filas de un formulario
+                      <li key={index} className="grid grid-cols-[6rem_1fr_auto] items-end gap-2">
+                        <form.AppField
+                          name={`document_types[${index}].code`}
+                          listeners={{ onChange: clearDocumentTypesError }}
+                        >
+                          {(code) => (
+                            <code.TextField
+                              label="Código"
+                              aria-label={`Código del tipo ${index + 1}`}
+                              maxLength={3}
+                              style={{ textTransform: "uppercase" }}
+                            />
+                          )}
+                        </form.AppField>
+                        <form.AppField name={`document_types[${index}].name`}>
+                          {(name) => (
+                            <name.TextField
+                              label="Nombre"
+                              aria-label={`Nombre del tipo ${index + 1}`}
+                              placeholder="Ej. Venezolano"
+                            />
+                          )}
+                        </form.AppField>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-square mb-1 text-error"
+                          aria-label={`Quitar el tipo ${index + 1}`}
+                          disabled={types.length <= 1}
+                          onClick={() => {
+                            clearDocumentTypesError();
+                            field.removeValue(index);
+                          }}
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  {error && (
+                    <p className="text-error text-sm" role="alert">
+                      {error}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-primary btn-sm mt-1 w-fit"
+                    disabled={types.length >= MAX_DOCUMENT_TYPES}
+                    onClick={() => field.pushValue({ code: "", name: "" })}
+                  >
+                    <Plus className="size-4" />
+                    Añadir tipo
+                  </button>
+                  <p className="label">
+                    Código de 1 a 3 letras (V, E, P…); cada código solo puede aparecer una vez.
+                  </p>
+                </fieldset>
+              );
+            }}
           </form.Field>
         </div>
       </section>

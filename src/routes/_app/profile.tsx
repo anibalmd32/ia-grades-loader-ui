@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Download, KeyRound, LogOut } from "lucide-react";
+import { useAcademicSettings } from "@/api/queries/settings";
 import { AppVersion } from "@/components/app-version";
 import { Avatar } from "@/components/ui/avatar";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
@@ -36,6 +37,7 @@ function ProfilePage() {
   const { user } = Route.useRouteContext();
   // El usuario de la sesión se actualiza (p. ej. al vincular Telegram); el del contexto no
   const current = useSession((s) => s.user) ?? user;
+  const documentLabel = useAcademicSettings().document_label;
   const signOut = useSession((s) => s.signOut);
   const navigate = useNavigate();
   const { theme, setTheme } = usePreferences();
@@ -61,7 +63,9 @@ function ProfilePage() {
               </div>
               <dl className="flex flex-col gap-3">
                 {current.email && <Row label="Correo">{current.email}</Row>}
-                {current.cedula_display && <Row label="Cédula">{current.cedula_display}</Row>}
+                {current.cedula_display && (
+                  <Row label={documentLabel}>{current.cedula_display}</Row>
+                )}
                 {current.role === "student" && (
                   <Row label="Telegram">
                     {current.telegram_linked ? "Vinculado" : "No vinculado"}

@@ -1,3 +1,4 @@
+import { useStore } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -12,6 +13,13 @@ import {
 } from "@/api/queries/admin";
 import { useAcademicSettings } from "@/api/queries/settings";
 import { applyApiErrors } from "@/components/form/api-errors";
+import {
+  cedulaSchema,
+  DocumentRow,
+  nationalitySchema,
+  useDocumentFields,
+  useValidDocumentType,
+} from "@/components/form/document-fields";
 import { FormError, useAppForm } from "@/components/form/form";
 import {
   FIRST_NAME_FIELD,
@@ -21,28 +29,23 @@ import {
   PersonNameRow,
 } from "@/components/form/person-name";
 import { toast } from "@/components/ui/toast";
-import {
-  CEDULA_FIELD,
-  CedulaRow,
-  cedulaSchema,
-  GeneratedPasswordNotice,
-  NATIONALITY_FIELD,
-} from "./accounts";
+import { GeneratedPasswordNotice } from "./accounts";
 import { showGeneratedPassword } from "./generated-password";
 
 const StudentSchema = v.object({
   first_name: firstNameSchema,
   last_name: lastNameSchema,
-  nationality: v.picklist(["V", "E"]),
+  nationality: nationalitySchema,
   cedula: cedulaSchema,
 });
 
-/** Alta de estudiante (nombre, V/E + cédula) con matrícula opcional en materias */
+/** Alta de estudiante (nombre, tipo y número de documento) con matrícula opcional en materias */
 export function StudentCreateForm() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const subjects = useQuery(allSubjectsQuery);
   const settings = useAcademicSettings();
+  const documentFields = useDocumentFields();
   const [subjectIds, setSubjectIds] = useState<Set<number>>(new Set());
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -55,7 +58,12 @@ export function StudentCreateForm() {
     });
 
   const form = useAppForm({
-    defaultValues: { first_name: "", last_name: "", nationality: "V" as "V" | "E", cedula: "" },
+    defaultValues: {
+      first_name: "",
+      last_name: "",
+      nationality: documentFields.codes[0] ?? "",
+      cedula: "",
+    },
     validators: { onSubmit: StudentSchema },
     onSubmit: async ({ value }) => {
       setFormError(null);
@@ -85,12 +93,16 @@ export function StudentCreateForm() {
       await queryClient.invalidateQueries({ queryKey: adminKeys.users("students") });
       showGeneratedPassword({
         message: "Estudiante creado correctamente.",
-        account: `${user.full_name} · Cédula ${user.cedula_display}`,
+        account: `${user.full_name} · ${settings.document_label} ${user.cedula_display}`,
         password: generated_password,
       });
       await navigate({ to: "/admin/students" });
     },
   });
+  const nationality = useStore(form.store, (state) => state.values.nationality);
+  useValidDocumentType(nationality, documentFields.codes, (code) =>
+    form.setFieldValue("nationality", code),
+  );
 
   return (
     <form
@@ -115,15 +127,15 @@ export function StudentCreateForm() {
             </form.AppField>
           }
         />
-        <CedulaRow
+        <DocumentRow
           nationality={
             <form.AppField name="nationality">
-              {(field) => <field.SelectField {...NATIONALITY_FIELD} />}
+              {(field) => <field.SelectField {...documentFields.nationality} />}
             </form.AppField>
           }
           cedula={
             <form.AppField name="cedula">
-              {(field) => <field.TextField {...CEDULA_FIELD} />}
+              {(field) => <field.TextField {...documentFields.cedula} />}
             </form.AppField>
           }
         />
