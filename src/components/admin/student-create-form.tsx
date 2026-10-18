@@ -10,8 +10,16 @@ import {
   groupBySemester,
   subjectLabel,
 } from "@/api/queries/admin";
+import { useAcademicSettings } from "@/api/queries/settings";
 import { applyApiErrors } from "@/components/form/api-errors";
 import { FormError, useAppForm } from "@/components/form/form";
+import {
+  FIRST_NAME_FIELD,
+  firstNameSchema,
+  LAST_NAME_FIELD,
+  lastNameSchema,
+  PersonNameRow,
+} from "@/components/form/person-name";
 import { toast } from "@/components/ui/toast";
 import {
   CEDULA_FIELD,
@@ -23,12 +31,8 @@ import {
 import { showGeneratedPassword } from "./generated-password";
 
 const StudentSchema = v.object({
-  full_name: v.pipe(
-    v.string(),
-    v.trim(),
-    v.minLength(3, "Escribe el nombre completo."),
-    v.maxLength(150, "Máximo 150 caracteres."),
-  ),
+  first_name: firstNameSchema,
+  last_name: lastNameSchema,
   nationality: v.picklist(["V", "E"]),
   cedula: cedulaSchema,
 });
@@ -38,6 +42,7 @@ export function StudentCreateForm() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const subjects = useQuery(allSubjectsQuery);
+  const settings = useAcademicSettings();
   const [subjectIds, setSubjectIds] = useState<Set<number>>(new Set());
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -50,14 +55,15 @@ export function StudentCreateForm() {
     });
 
   const form = useAppForm({
-    defaultValues: { full_name: "", nationality: "V" as "V" | "E", cedula: "" },
+    defaultValues: { first_name: "", last_name: "", nationality: "V" as "V" | "E", cedula: "" },
     validators: { onSubmit: StudentSchema },
     onSubmit: async ({ value }) => {
       setFormError(null);
       let created: Awaited<ReturnType<typeof createStudent>>;
       try {
         created = await createStudent({
-          full_name: value.full_name.trim(),
+          first_name: value.first_name.trim(),
+          last_name: value.last_name.trim(),
           nationality: value.nationality,
           cedula: Number(value.cedula.trim()),
         });
@@ -97,9 +103,18 @@ export function StudentCreateForm() {
     >
       <div className="card-body gap-2">
         <FormError message={formError} />
-        <form.AppField name="full_name">
-          {(field) => <field.TextField label="Nombre completo" placeholder="Ej. María Pérez" />}
-        </form.AppField>
+        <PersonNameRow
+          firstName={
+            <form.AppField name="first_name">
+              {(field) => <field.TextField {...FIRST_NAME_FIELD} placeholder="Ej. María" />}
+            </form.AppField>
+          }
+          lastName={
+            <form.AppField name="last_name">
+              {(field) => <field.TextField {...LAST_NAME_FIELD} placeholder="Ej. Pérez" />}
+            </form.AppField>
+          }
+        />
         <CedulaRow
           nationality={
             <form.AppField name="nationality">
@@ -120,7 +135,9 @@ export function StudentCreateForm() {
             </legend>
             {groupBySemester(subjects.data.items).map(({ semester, subjects: list }) => (
               <div key={semester.id} className="flex flex-col gap-2">
-                <p className="text-base-content/60 text-xs">Semestre {semester.name}</p>
+                <p className="text-base-content/60 text-xs">
+                  {settings.period_label} {semester.name}
+                </p>
                 {list.map((subject) => (
                   <label key={subject.id} className="flex cursor-pointer items-center gap-3">
                     <input

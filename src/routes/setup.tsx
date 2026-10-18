@@ -6,6 +6,13 @@ import { api, unwrap } from "@/api/client";
 import { setupStatusQuery } from "@/api/queries/setup";
 import { applyApiErrors } from "@/components/form/api-errors";
 import { FormError, useAppForm } from "@/components/form/form";
+import {
+  FIRST_NAME_FIELD,
+  firstNameSchema,
+  LAST_NAME_FIELD,
+  lastNameSchema,
+  PersonNameRow,
+} from "@/components/form/person-name";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { homePath } from "@/lib/roles";
 import { useSession } from "@/stores/session";
@@ -23,12 +30,8 @@ const PASSWORD_MIN = 8;
 
 const SetupSchema = v.pipe(
   v.object({
-    full_name: v.pipe(
-      v.string(),
-      v.trim(),
-      v.minLength(3, "Escribe el nombre completo."),
-      v.maxLength(150, "Máximo 150 caracteres."),
-    ),
+    first_name: firstNameSchema,
+    last_name: lastNameSchema,
     email: v.pipe(v.string(), v.trim(), v.email("Escribe un email válido.")),
     password: v.pipe(
       v.string(),
@@ -55,7 +58,7 @@ function SetupPage() {
   const [showNotice, setShowNotice] = useState(true);
 
   const form = useAppForm({
-    defaultValues: { full_name: "", email: "", password: "", confirm: "" },
+    defaultValues: { first_name: "", last_name: "", email: "", password: "", confirm: "" },
     validators: { onSubmit: SetupSchema },
     onSubmit: async ({ value }) => {
       setFormError(null);
@@ -63,7 +66,8 @@ function SetupPage() {
         const token = await unwrap(
           api.POST("/api/v1/setup", {
             body: {
-              full_name: value.full_name.trim(),
+              first_name: value.first_name.trim(),
+              last_name: value.last_name.trim(),
               email: value.email.trim(),
               password: value.password,
             },
@@ -106,15 +110,18 @@ function SetupPage() {
           </div>
         )}
         <FormError message={formError} />
-        <form.AppField name="full_name">
-          {(field) => (
-            <field.TextField
-              label="Nombre completo"
-              placeholder="Ej. Anibal Torres"
-              autoComplete="name"
-            />
-          )}
-        </form.AppField>
+        <PersonNameRow
+          firstName={
+            <form.AppField name="first_name">
+              {(field) => <field.TextField {...FIRST_NAME_FIELD} placeholder="Ej. Anibal" />}
+            </form.AppField>
+          }
+          lastName={
+            <form.AppField name="last_name">
+              {(field) => <field.TextField {...LAST_NAME_FIELD} placeholder="Ej. Torres" />}
+            </form.AppField>
+          }
+        />
         <form.AppField name="email">
           {(field) => (
             <field.TextField

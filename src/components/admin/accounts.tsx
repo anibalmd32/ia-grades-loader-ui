@@ -15,6 +15,13 @@ import {
 } from "@/api/queries/admin";
 import { applyApiErrors } from "@/components/form/api-errors";
 import { FormError, useAppForm } from "@/components/form/form";
+import {
+  FIRST_NAME_FIELD,
+  firstNameSchema,
+  LAST_NAME_FIELD,
+  lastNameSchema,
+  PersonNameRow,
+} from "@/components/form/person-name";
 import { Avatar } from "@/components/ui/avatar";
 import { confirm } from "@/components/ui/confirm";
 import { DataTable } from "@/components/ui/data-table";
@@ -251,7 +258,7 @@ export function AccountHeader({ kind, user }: { kind: AccountKind; user: UserRea
     <section className="card card-border bg-base-100">
       <div className="card-body flex-col gap-4 lg:flex-row lg:items-center">
         <div className="flex flex-1 items-center gap-4">
-          <Avatar name={user.full_name} size="lg" />
+          <Avatar person={user} size="lg" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-bold text-2xl">{user.full_name}</h2>
@@ -292,12 +299,6 @@ export function AccountHeader({ kind, user }: { kind: AccountKind; user: UserRea
   );
 }
 
-const nameSchema = v.pipe(
-  v.string(),
-  v.trim(),
-  v.minLength(3, "Escribe el nombre completo."),
-  v.maxLength(150, "Máximo 150 caracteres."),
-);
 const emailSchema = v.pipe(v.string(), v.trim(), v.email("Escribe un email válido."));
 export const cedulaSchema = v.pipe(
   v.string(),
@@ -309,9 +310,14 @@ export const NATIONALITY_OPTIONS = [
   { value: "E", label: "E" },
 ];
 
-const StaffSchema = v.object({ full_name: nameSchema, email: emailSchema });
+const StaffSchema = v.object({
+  first_name: firstNameSchema,
+  last_name: lastNameSchema,
+  email: emailSchema,
+});
 const StudentEditSchema = v.object({
-  full_name: nameSchema,
+  first_name: firstNameSchema,
+  last_name: lastNameSchema,
   nationality: v.picklist(["V", "E"]),
   cedula: cedulaSchema,
 });
@@ -333,7 +339,8 @@ function EditAccountModal({
 
   const form = useAppForm({
     defaultValues: {
-      full_name: user.full_name,
+      first_name: user.first_name,
+      last_name: user.last_name,
       email: user.email ?? "",
       nationality: (user.nationality ?? "V") as "V" | "E",
       cedula: user.cedula ? String(user.cedula) : "",
@@ -355,11 +362,16 @@ function EditAccountModal({
           user.id,
           isStudent
             ? {
-                full_name: value.full_name.trim(),
+                first_name: value.first_name.trim(),
+                last_name: value.last_name.trim(),
                 nationality: value.nationality,
                 cedula: Number(value.cedula),
               }
-            : { full_name: value.full_name.trim(), email: value.email.trim() },
+            : {
+                first_name: value.first_name.trim(),
+                last_name: value.last_name.trim(),
+                email: value.email.trim(),
+              },
         );
         await queryClient.invalidateQueries({ queryKey: adminKeys.users(kind) });
         toast.success("Datos actualizados.");
@@ -381,9 +393,18 @@ function EditAccountModal({
         }}
       >
         <FormError message={formError} />
-        <form.AppField name="full_name">
-          {(field) => <field.TextField label="Nombre completo" />}
-        </form.AppField>
+        <PersonNameRow
+          firstName={
+            <form.AppField name="first_name">
+              {(field) => <field.TextField {...FIRST_NAME_FIELD} />}
+            </form.AppField>
+          }
+          lastName={
+            <form.AppField name="last_name">
+              {(field) => <field.TextField {...LAST_NAME_FIELD} />}
+            </form.AppField>
+          }
+        />
         {isStudent ? (
           <CedulaRow
             nationality={
@@ -459,13 +480,14 @@ export function StaffCreateForm({ kind }: { kind: "coordinators" | "teachers" })
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useAppForm({
-    defaultValues: { full_name: "", email: "" },
+    defaultValues: { first_name: "", last_name: "", email: "" },
     validators: { onSubmit: StaffSchema },
     onSubmit: async ({ value }) => {
       setFormError(null);
       try {
         const { user, generated_password } = await createAccount(kind, {
-          full_name: value.full_name.trim(),
+          first_name: value.first_name.trim(),
+          last_name: value.last_name.trim(),
           email: value.email.trim(),
         });
         await queryClient.invalidateQueries({ queryKey: adminKeys.users(kind) });
@@ -492,9 +514,18 @@ export function StaffCreateForm({ kind }: { kind: "coordinators" | "teachers" })
     >
       <div className="card-body gap-2">
         <FormError message={formError} />
-        <form.AppField name="full_name">
-          {(field) => <field.TextField label="Nombre completo" placeholder="Ej. José Méndez" />}
-        </form.AppField>
+        <PersonNameRow
+          firstName={
+            <form.AppField name="first_name">
+              {(field) => <field.TextField {...FIRST_NAME_FIELD} placeholder="Ej. José" />}
+            </form.AppField>
+          }
+          lastName={
+            <form.AppField name="last_name">
+              {(field) => <field.TextField {...LAST_NAME_FIELD} placeholder="Ej. Méndez" />}
+            </form.AppField>
+          }
+        />
         <form.AppField name="email">
           {(field) => (
             <field.TextField

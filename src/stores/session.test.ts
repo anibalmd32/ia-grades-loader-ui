@@ -12,6 +12,8 @@ const LOGOUT = `${API_URL}/auth/logout`;
 const user: User = {
   id: 1,
   role: "coordinator",
+  first_name: "Ana",
+  last_name: "Pérez",
   full_name: "Ana Pérez",
   email: "ana@uni.edu",
   nationality: null,
