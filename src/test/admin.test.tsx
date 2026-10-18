@@ -230,6 +230,49 @@ describe("estudiantes", () => {
   });
 });
 
+describe("recuentos de la API en los listados", () => {
+  it("muestra las materias de cada profesor", async () => {
+    server.use(
+      http.get(`${API_URL}/teachers`, () =>
+        HttpResponse.json(
+          page([
+            { ...teacher, subjects_count: 3 },
+            { ...teacher, id: 6, full_name: "Ramón Díaz", subjects_count: 0 },
+          ]),
+        ),
+      ),
+    );
+    renderApp("/admin/teachers");
+
+    expect((await screen.findAllByText(/3 materias/)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Sin materias/).length).toBeGreaterThan(0);
+  });
+
+  it("muestra profesores, estudiantes y materias por semestre", async () => {
+    server.use(
+      http.get(`${API_URL}/semesters`, () =>
+        HttpResponse.json([
+          { ...s2026, subjects_count: 2 },
+          { ...s2025, subjects_count: 0 },
+        ]),
+      ),
+      http.get(`${API_URL}/subjects`, () =>
+        HttpResponse.json(
+          page([
+            { ...mat, teachers_count: 1, students_count: 42 },
+            { ...fis, teachers_count: 0, students_count: 38 },
+          ]),
+        ),
+      ),
+    );
+    renderApp("/admin/academic");
+
+    expect(await screen.findByText("2 materias")).toBeInTheDocument();
+    expect((await screen.findAllByText("Sin asignar")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("42").length).toBeGreaterThan(0);
+  });
+});
+
 describe("semestres y materias", () => {
   it("muestra las materias del primer semestre y crea un semestre", async () => {
     let semesterQuery = "";

@@ -34,6 +34,7 @@ const mat: TeacherSubject = {
   name: "Matemática I",
   semester: s2026,
   students_count: 3,
+  grades_count: { "1": 3, "2": 0, "3": 0 },
 };
 const maria = { id: 7, full_name: "María Pérez", cedula_display: "V-28456123" };
 const carlos = { id: 8, full_name: "Carlos Gómez", cedula_display: "V-27118904" };
@@ -47,6 +48,8 @@ const summary = {
   created_at: "2026-10-16T12:00:00Z",
   started_at: null,
   finished_at: null,
+  attempts: 1,
+  confirmed_at: null,
 };
 
 const row = (overrides: Partial<ImportRow>): ImportRow => ({
@@ -231,10 +234,11 @@ describe("seguimiento y revisión", () => {
           { student_id: 7, term: 2, value: 17 },
           { student_id: 9, term: 2, value: 18.5 },
         ],
+        // La API marca la importación como confirmada (confirmed_at)
+        import_job_id: "job-1",
       }),
     );
     await waitFor(() => expect(router.state.location.pathname).toBe("/teacher/subjects/10"));
-    expect(useImportReviews.getState().reviews["job-1"]).toBe("confirmed");
   });
 
   it("no deja confirmar dos notas del mismo estudiante y lapso", async () => {
@@ -282,9 +286,11 @@ describe("seguimiento y revisión", () => {
 
   it("avisa antes de volver a confirmar una importación ya confirmada", async () => {
     let saved = false;
-    useImportReviews.setState({ reviews: { "job-1": "confirmed" } });
     server.use(
-      http.get(`${API_URL}/teacher/import-jobs/job-1`, () => HttpResponse.json(doneJob)),
+      // La API ya registró la confirmación
+      http.get(`${API_URL}/teacher/import-jobs/job-1`, () =>
+        HttpResponse.json({ ...doneJob, confirmed_at: "2026-10-16T12:05:00Z" }),
+      ),
       http.put(`${API_URL}/teacher/subjects/10/grades`, () => {
         saved = true;
         return HttpResponse.json({});
@@ -306,7 +312,8 @@ describe("seguimiento y revisión", () => {
 describe("historial de importaciones", () => {
   it("lista cada importación con su estado y abre la revisión", async () => {
     const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
-    useImportReviews.setState({ reviews: { "job-4": "confirmed" } });
+    // Descartar solo se recuerda en el dispositivo; confirmar lo registra la API
+    useImportReviews.setState({ reviews: { "job-6": "discarded" } });
     server.use(
       http.get(`${API_URL}/teacher/import-jobs`, () =>
         HttpResponse.json([
@@ -319,8 +326,16 @@ describe("historial de importaciones", () => {
             status: "failed",
             error: "Sin notas",
           },
-          { ...summary, id: "job-4", file_name: "viejas.xlsx", status: "done" },
+          {
+            ...summary,
+            id: "job-4",
+            file_name: "viejas.xlsx",
+            status: "done",
+            attempts: 2,
+            confirmed_at: minutesAgo(30),
+          },
           { ...summary, id: "job-5", file_name: "cola.xlsx", status: "pending" },
+          { ...summary, id: "job-6", file_name: "descartada.xlsx", status: "done" },
         ]),
       ),
       http.get(`${API_URL}/teacher/import-jobs/job-2`, () =>
@@ -341,6 +356,8 @@ describe("historial de importaciones", () => {
     expect(within(await item("lista.xlsx")).getByText("Falló")).toBeInTheDocument();
     expect(within(await item("lista.xlsx")).getByText(/Sin notas/)).toBeInTheDocument();
     expect(within(await item("viejas.xlsx")).getByText("Confirmada")).toBeInTheDocument();
+    expect(within(await item("viejas.xlsx")).getByText(/2 intentos/)).toBeInTheDocument();
+    expect(within(await item("descartada.xlsx")).getByText("Descartada")).toBeInTheDocument();
     expect(within(await item("cola.xlsx")).getByText("En cola")).toBeInTheDocument();
 
     await user.click(await item("fisica.xlsx"));

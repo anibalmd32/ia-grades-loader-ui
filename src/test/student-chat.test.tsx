@@ -130,7 +130,10 @@ describe("asistente", () => {
             ["conversation", { id: 9, title: "Hola" }],
             [
               "error",
-              { detail: "Has hecho muchas preguntas seguidas. Espera 30 s e inténtalo de nuevo." },
+              {
+                detail: "Has hecho muchas preguntas seguidas. Espera 30 s e inténtalo de nuevo.",
+                retry_after: 30,
+              },
             ],
           ]),
         ),

@@ -71,7 +71,13 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const markReviewed = useImportReviews((s) => s.markReviewed);
-  const previousReview = useImportReviews((s) => s.reviews[job.id]);
+  const localReview = useImportReviews((s) => s.reviews[job.id]);
+  // La confirmación la registra la API; el descarte solo se recuerda en este dispositivo
+  const previousReview = job.confirmed_at
+    ? "confirmed"
+    : localReview === "discarded"
+      ? "discarded"
+      : undefined;
   const [decisions, setDecisions] = useState(() => preview.rows.map(initialDecision));
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | RowStatus>("all");
@@ -104,10 +110,10 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
   });
 
   const confirmImport = useMutation({
-    mutationFn: () => saveGrades(preview.subject.id, entries),
+    mutationFn: () => saveGrades(preview.subject.id, entries, job.id),
     onSuccess: async (data) => {
       queryClient.setQueryData(teacherKeys.grades(preview.subject.id), data);
-      markReviewed(job.id, "confirmed");
+      await queryClient.invalidateQueries({ queryKey: teacherKeys.jobs });
       toast.success(
         entries.length === 1 ? "1 nota guardada." : `${entries.length} notas guardadas.`,
       );

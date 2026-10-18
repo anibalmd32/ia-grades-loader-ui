@@ -1,11 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { gradeOf, subjectGradesQuery, TERMS, type TeacherSubject } from "@/api/queries/teacher";
+import { TERMS, type TeacherSubject } from "@/api/queries/teacher";
 
 /** Tarjeta de "Mis materias": estudiantes, notas cargadas por lapso y accesos */
 export function SubjectCard({ subject }: { subject: TeacherSubject }) {
-  // Misma consulta que la planilla: al abrirla ya está en caché
-  const grades = useQuery(subjectGradesQuery(subject.id));
   const total = subject.students_count;
 
   return (
@@ -24,7 +21,8 @@ export function SubjectCard({ subject }: { subject: TeacherSubject }) {
 
         <ul className="flex flex-col gap-2">
           {TERMS.map((term) => {
-            const loaded = grades.data?.students.filter((s) => gradeOf(s, term) != null).length;
+            // Recuento de la API (claves "1", "2" y "3"): no hace falta cargar la planilla
+            const loaded = subject.grades_count[String(term)] ?? 0;
             const complete = total > 0 && loaded === total;
             return (
               <li key={term} className="flex flex-col gap-1">
@@ -33,14 +31,14 @@ export function SubjectCard({ subject }: { subject: TeacherSubject }) {
                   <span
                     className={complete ? "font-semibold text-success" : "text-base-content/70"}
                   >
-                    {loaded ?? (grades.error ? "—" : "…")}/{total} notas
+                    {loaded}/{total} notas
                   </span>
                 </div>
                 <progress
                   className={`progress h-1.5 ${complete ? "progress-success" : "progress-primary"}`}
-                  value={loaded ?? 0}
+                  value={loaded}
                   max={Math.max(total, 1)}
-                  aria-label={`Lapso ${term}: ${loaded ?? 0} de ${total} notas`}
+                  aria-label={`Lapso ${term}: ${loaded} de ${total} notas`}
                 />
               </li>
             );

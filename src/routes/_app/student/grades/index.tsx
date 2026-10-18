@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import * as v from "valibot";
-import { type StudentSubjectGrades, studentOverviewQuery } from "@/api/queries/student";
+import { studentOverviewQuery } from "@/api/queries/student";
 import { summaryOf } from "@/components/student/projection";
 import { SubjectGradesCard } from "@/components/student/subject-grades-card";
 import { formatGrade } from "@/components/ui/grade-badge";
@@ -20,20 +20,17 @@ export const Route = createFileRoute("/_app/student/grades/")({
   component: StudentGradesPage,
 });
 
-/** Semestres de mis materias, el más reciente primero */
-function semestersOf(subjects: StudentSubjectGrades[]) {
-  const map = new Map(subjects.map((s) => [s.subject.semester.id, s.subject.semester]));
-  return [...map.values()].sort((a, b) => b.id - a.id);
-}
-
 function StudentGradesPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const overview = useQuery(studentOverviewQuery);
 
   const subjects = overview.data?.subjects ?? [];
-  const semesters = semestersOf(subjects);
+  // Semestres con su promedio y aprobadas/reprobadas, calculados por la API (en su orden)
+  const semesterStats = overview.data?.semesters ?? [];
+  const semesters = semesterStats.map((s) => s.semester);
   const semester = semesters.find((s) => s.id === search.semester) ?? semesters[0];
+  const current = semesterStats.find((s) => s.semester.id === semester?.id);
   const visible = subjects.filter((s) => s.subject.semester.id === semester?.id);
   const summary = summaryOf(visible);
 
@@ -85,10 +82,7 @@ function StudentGradesPage() {
               )}
 
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <Stat
-                  label="Promedio general (todos los semestres)"
-                  value={formatGrade(overview.data.average)}
-                />
+                <Stat label="Promedio del semestre" value={formatGrade(current?.average)} />
                 <Stat label="Aprobadas" value={summary.approved} className="text-success" />
                 <Stat label="En curso" value={summary.inProgress} className="text-primary" />
                 <Stat label="En riesgo" value={summary.atRisk} className="text-error" />

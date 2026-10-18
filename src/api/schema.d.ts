@@ -554,7 +554,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Mis materias */
+        /**
+         * Mis materias
+         * @description Materias asignadas con el número de estudiantes y de notas cargadas por lapso.
+         */
         get: operations["my_subjects_api_v1_teacher_subjects_get"];
         put?: never;
         post?: never;
@@ -581,6 +584,9 @@ export interface paths {
          * @description Envía solo las notas que cambian. `value: null` borra la nota de ese lapso.
          *
          *     Es todo o nada: si algún estudiante no está matriculado no se guarda ninguna.
+         *
+         *     Si las notas salen de una importación, envía su `import_job_id` para marcarla como
+         *     confirmada (debe ser de esta materia y estar en `done`; si no, 409).
          */
         put: operations["save_subject_grades_api_v1_teacher_subjects__subject_id__grades_put"];
         post?: never;
@@ -659,7 +665,8 @@ export interface paths {
         /**
          * Mis materias y notas
          * @description Todas las materias en las que estás matriculado, con la nota de cada lapso
-         *     (null si aún no se ha cargado), el promedio de cada una y el promedio general.
+         *     (null si aún no se ha cargado), el promedio de cada una, el de cada semestre y el
+         *     promedio general.
          */
         get: operations["my_subjects_api_v1_student_subjects_get"];
         put?: never;
@@ -727,7 +734,9 @@ export interface paths {
          *     - `conversation`: `{"id", "title"}` (guárdalo para continuar la conversación)
          *     - `delta`: `{"text"}` fragmento de la respuesta; concaténalos según llegan
          *     - `done`: `{}` la respuesta terminó (ya está guardada)
-         *     - `error`: `{"detail"}` si algo falla (p. ej. la IA no responde)
+         *     - `error`: `{"detail", "retry_after"}` si algo falla (p. ej. la IA no responde).
+         *       `retry_after` son los segundos que hay que esperar cuando se superó el límite de
+         *       preguntas por minuto; en cualquier otro error es `null`.
          */
         post: operations["ask_about_my_grades_stream_api_v1_student_chat_stream_post"];
         delete?: never;
@@ -972,6 +981,11 @@ export interface components {
         GradesUpdate: {
             /** Grades */
             grades: components["schemas"]["GradeEntry"][];
+            /**
+             * Import Job Id
+             * @description Si las notas vienen de una importación de Excel, su id: la importación queda marcada como confirmada (`confirmed_at`)
+             */
+            import_job_id?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1012,6 +1026,16 @@ export interface components {
             started_at: string | null;
             /** Finished At */
             finished_at: string | null;
+            /**
+             * Attempts
+             * @description Veces que el worker ha intentado procesar el archivo (se reintenta si falla)
+             */
+            attempts: number;
+            /**
+             * Confirmed At
+             * @description Cuándo se guardaron las notas de esta importación; null = sin confirmar. Se marca al enviar `import_job_id` en `PUT /teacher/subjects/{id}/grades`
+             */
+            confirmed_at: string | null;
             /** @description Previsualización, cuando status = done */
             result: components["schemas"]["ImportPreview"] | null;
         };
@@ -1036,6 +1060,16 @@ export interface components {
             started_at: string | null;
             /** Finished At */
             finished_at: string | null;
+            /**
+             * Attempts
+             * @description Veces que el worker ha intentado procesar el archivo (se reintenta si falla)
+             */
+            attempts: number;
+            /**
+             * Confirmed At
+             * @description Cuándo se guardaron las notas de esta importación; null = sin confirmar. Se marca al enviar `import_job_id` en `PUT /teacher/subjects/{id}/grades`
+             */
+            confirmed_at: string | null;
         };
         /** ImportPreview */
         ImportPreview: {
@@ -1176,6 +1210,30 @@ export interface components {
          * @enum {string}
          */
         Role: "super_admin" | "coordinator" | "teacher" | "student";
+        /** SemesterAverage */
+        SemesterAverage: {
+            semester: components["schemas"]["SemesterRead"];
+            /**
+             * Average
+             * @description Promedio del semestre: media de los promedios de sus materias con notas
+             */
+            average: number | null;
+            /**
+             * Subjects Count
+             * @description Materias matriculadas en el semestre
+             */
+            subjects_count: number;
+            /**
+             * Passed Count
+             * @description Materias aprobadas (los 3 lapsos cargados)
+             */
+            passed_count: number;
+            /**
+             * Failed Count
+             * @description Materias reprobadas (los 3 lapsos cargados)
+             */
+            failed_count: number;
+        };
         /** SemesterCreate */
         SemesterCreate: {
             /**
@@ -1190,6 +1248,11 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+            /**
+             * Subjects Count
+             * @description Materias. Solo en el listado y el detalle; null dentro de otras respuestas.
+             */
+            subjects_count?: number | null;
         };
         /** SemesterUpdate */
         SemesterUpdate: {
@@ -1308,6 +1371,11 @@ export interface components {
              * @description Promedio general: media de los promedios de las materias con notas
              */
             average: number | null;
+            /**
+             * Semesters
+             * @description Promedio y materias aprobadas/reprobadas de cada semestre, en el mismo orden que `subjects`
+             */
+            semesters: components["schemas"]["SemesterAverage"][];
         };
         /** StudentSubjectGrades */
         StudentSubjectGrades: {
@@ -1401,6 +1469,16 @@ export interface components {
             /** Name */
             name: string;
             semester: components["schemas"]["SemesterRead"];
+            /**
+             * Teachers Count
+             * @description Profesores asignados. Solo en el listado y el detalle; null dentro de otras respuestas.
+             */
+            teachers_count?: number | null;
+            /**
+             * Students Count
+             * @description Estudiantes matriculados. Solo en el listado y el detalle; null dentro de otras respuestas.
+             */
+            students_count?: number | null;
         };
         /** SubjectUpdate */
         SubjectUpdate: {
@@ -1420,8 +1498,25 @@ export interface components {
             /** Name */
             name: string;
             semester: components["schemas"]["SemesterRead"];
+            /**
+             * Teachers Count
+             * @description Profesores asignados. Solo en el listado y el detalle; null dentro de otras respuestas.
+             */
+            teachers_count?: number | null;
             /** Students Count */
             students_count: number;
+            /**
+             * Grades Count
+             * @description Notas cargadas en cada lapso (claves 1, 2 y 3; siempre las tres)
+             * @example {
+             *       "1": 30,
+             *       "2": 12,
+             *       "3": 0
+             *     }
+             */
+            grades_count: {
+                [key: string]: number;
+            };
         };
         /** TeacherSubjectsUpdate */
         TeacherSubjectsUpdate: {
@@ -1525,6 +1620,11 @@ export interface components {
             must_change_password: boolean;
             /** Telegram Linked */
             telegram_linked: boolean;
+            /**
+             * Subjects Count
+             * @description Materias asignadas (profesor) o matriculadas (estudiante). Solo en el listado y el detalle de profesores y estudiantes; null en coordinadores y dentro de otras respuestas.
+             */
+            subjects_count?: number | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -3126,6 +3226,15 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Se superó el límite de preguntas por minuto */
+            429: {
+                headers: {
+                    /** @description Segundos que hay que esperar antes de volver a preguntar */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

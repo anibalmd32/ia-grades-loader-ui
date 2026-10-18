@@ -42,12 +42,15 @@ export const subjectGradesQuery = (subjectId: number) =>
       ),
   });
 
-/** Guarda en lote solo las notas que cambian (`value: null` borra). Todo o nada. */
-export function saveGrades(subjectId: number, grades: GradeEntry[]) {
+/**
+ * Guarda en lote solo las notas que cambian (`value: null` borra). Todo o nada.
+ * Con `importJobId`, la API marca esa importación como confirmada (`confirmed_at`).
+ */
+export function saveGrades(subjectId: number, grades: GradeEntry[], importJobId?: string) {
   return unwrap(
     api.PUT("/api/v1/teacher/subjects/{subject_id}/grades", {
       params: { path: { subject_id: subjectId } },
-      body: { grades },
+      body: importJobId ? { grades, import_job_id: importJobId } : { grades },
     }),
   );
 }

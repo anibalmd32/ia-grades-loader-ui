@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { ApiError, retryAfterFromMessage, toApiError } from "@/api/errors";
+import { ApiError, toApiError } from "@/api/errors";
 import { type ImportJobRead, importJobQuery } from "@/api/queries/teacher";
 import { Markdown } from "@/components/student/markdown";
 
@@ -9,16 +9,16 @@ const openExternal = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock("@/lib/open-url", () => ({ openExternal }));
 
 describe("límite de preguntas", () => {
-  it("lee los segundos del mensaje de la API", () => {
-    expect(retryAfterFromMessage("Has hecho muchas preguntas. Espera 42 s e inténtalo.")).toBe(42);
-    expect(retryAfterFromMessage("Otro error")).toBeNull();
+  it("un 429 toma la espera de la cabecera Retry-After", () => {
+    const response = new Response(null, { status: 429, headers: { "Retry-After": "15" } });
+    expect(toApiError(response, { detail: "Demasiadas preguntas." }).retryAfter).toBe(15);
   });
 
-  it("un 429 sin cabecera Retry-After toma la espera del mensaje", () => {
+  it("ya no depende del texto del mensaje", () => {
     const error = toApiError(new Response(null, { status: 429 }), {
       detail: "Demasiadas preguntas. Espera 15 s e inténtalo de nuevo.",
     });
-    expect(error.retryAfter).toBe(15);
+    expect(error.retryAfter).toBeNull();
   });
 });
 

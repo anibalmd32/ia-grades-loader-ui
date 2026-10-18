@@ -99,6 +99,11 @@ function AcademicPage() {
                     },
                     { header: "Materia", cell: (s) => s.name },
                     {
+                      header: "Profesores",
+                      cell: (s) => <TeachersCount count={s.teachers_count} />,
+                    },
+                    { header: "Estudiantes", cell: (s) => s.students_count ?? "" },
+                    {
                       header: "Acciones",
                       cell: (s) => (
                         <Link
@@ -112,9 +117,16 @@ function AcademicPage() {
                     },
                   ]}
                   renderCard={(s) => (
-                    <p className="font-bold">
-                      {s.code} · {s.name}
-                    </p>
+                    <div className="min-w-0">
+                      <p className="truncate font-bold">
+                        {s.code} · {s.name}
+                      </p>
+                      <p className="text-base-content/70 text-sm">
+                        <TeachersCount count={s.teachers_count} />
+                        {s.students_count != null &&
+                          ` · ${s.students_count} ${s.students_count === 1 ? "estudiante" : "estudiantes"}`}
+                      </p>
+                    </div>
                   )}
                 />
               )}
@@ -124,4 +136,11 @@ function AcademicPage() {
       </PageBody>
     </>
   );
+}
+
+/** Profesores asignados a la materia; sin ninguno se destaca como pendiente */
+function TeachersCount({ count }: { count: number | null | undefined }) {
+  if (count == null) return null;
+  if (count === 0) return <span className="font-semibold text-warning">Sin asignar</span>;
+  return <>{count === 1 ? "1 profesor" : `${count} profesores`}</>;
 }

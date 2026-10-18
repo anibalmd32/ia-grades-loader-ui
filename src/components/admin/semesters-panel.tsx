@@ -99,10 +99,17 @@ export function SemestersPanel({
                   <button
                     type="button"
                     aria-current={active ? "true" : undefined}
-                    className={`flex-1 px-3 py-2 text-left font-bold ${active ? "text-primary" : ""}`}
+                    className={`flex flex-1 items-center justify-between gap-2 px-3 py-2 text-left font-bold ${active ? "text-primary" : ""}`}
                     onClick={() => onSelect(semester.id)}
                   >
                     {semester.name}
+                    {semester.subjects_count != null && (
+                      <span className="font-normal text-base-content/60 text-xs">
+                        {semester.subjects_count === 1
+                          ? "1 materia"
+                          : `${semester.subjects_count} materias`}
+                      </span>
+                    )}
                   </button>
                   <button
                     type="button"

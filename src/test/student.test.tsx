@@ -75,7 +75,15 @@ const old = subject(
   s2025,
 );
 
-const overview: StudentOverview = { subjects: [old, mat, fis, prg, qui], average: 11.95 };
+const overview: StudentOverview = {
+  subjects: [old, mat, fis, prg, qui],
+  average: 11.95,
+  // Promedios por semestre que calcula la API (el front no los recalcula)
+  semesters: [
+    { semester: s2026, average: 11.66, subjects_count: 4, passed_count: 1, failed_count: 0 },
+    { semester: s2025, average: 12, subjects_count: 1, passed_count: 1, failed_count: 0 },
+  ],
+};
 
 beforeEach(() => {
   localStorage.clear();
@@ -100,7 +108,9 @@ describe("mis notas", () => {
   it("muestra el semestre más reciente con el resumen y la situación de cada materia", async () => {
     renderApp("/student/grades");
 
-    expect(await screen.findByText("11.95")).toBeInTheDocument();
+    // Promedio del semestre elegido (de la API), no el general
+    expect(await screen.findByText("Promedio del semestre")).toBeInTheDocument();
+    expect(screen.getByText("Promedio del semestre").previousSibling).toHaveTextContent("11.66");
     expect(screen.getByText("Aprobadas").previousSibling).toHaveTextContent("2");
     expect(screen.getByText("En curso").previousSibling).toHaveTextContent("1");
     expect(screen.getByText("En riesgo").previousSibling).toHaveTextContent("1");

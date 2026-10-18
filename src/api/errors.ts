@@ -28,14 +28,6 @@ export class ApiError extends Error {
   }
 }
 
-const RETRY_PATTERN = /Espera (\d+) s/;
-
-/** "…Espera 42 s e inténtalo de nuevo." → 42 (formato de los mensajes de límite de la API) */
-export function retryAfterFromMessage(message: string): number | null {
-  const match = RETRY_PATTERN.exec(message);
-  return match ? Number(match[1]) : null;
-}
-
 export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }
@@ -49,14 +41,10 @@ export function toApiError(response: Response, body: unknown): ApiError {
   const detail = (body as { detail?: unknown } | null)?.detail;
   const requestId =
     (body as { request_id?: string } | null)?.request_id ?? response.headers.get("X-Request-ID");
+  // La API envía Retry-After en los 429 y lo expone por CORS
   const retryAfterHeader = Number(response.headers.get("Retry-After"));
-  // La API no expone Retry-After por CORS: si falta, se lee del mensaje ("Espera 42 s")
   const retryAfter =
-    Number.isFinite(retryAfterHeader) && retryAfterHeader > 0
-      ? retryAfterHeader
-      : typeof detail === "string"
-        ? retryAfterFromMessage(detail)
-        : null;
+    Number.isFinite(retryAfterHeader) && retryAfterHeader > 0 ? retryAfterHeader : null;
 
   if (response.status === 422 && Array.isArray(detail)) {
     const fieldErrors: Record<string, string> = {};

@@ -149,6 +149,12 @@ export function AccountsList({
             header: kind === "students" ? "Cédula" : "Email",
             cell: (user) => (kind === "students" ? user.cedula_display : user.email),
           },
+          // Coordinadores no tienen materias (la API devuelve null)
+          ...(kind === "coordinators"
+            ? []
+            : [
+                { header: "Materias", cell: (user: UserRead) => subjectsText(user.subjects_count) },
+              ]),
           { header: "Estado", cell: (user) => <StatusBadge active={user.is_active} /> },
           {
             header: "Acciones",
@@ -168,7 +174,12 @@ export function AccountsList({
             <div className="min-w-0">
               <p className="truncate font-bold">{user.full_name}</p>
               <p className="truncate text-base-content/70 text-sm">
-                {kind === "students" ? user.cedula_display : user.email}
+                {[
+                  kind === "students" ? user.cedula_display : user.email,
+                  kind === "coordinators" ? null : subjectsText(user.subjects_count),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
             </div>
             <StatusBadge active={user.is_active} />
@@ -177,6 +188,13 @@ export function AccountsList({
       />
     </>
   );
+}
+
+/** "3 materias", "1 materia" o "Sin materias" (recuento de la API) */
+export function subjectsText(count: number | null | undefined): string {
+  if (count == null) return "";
+  if (count === 0) return "Sin materias";
+  return count === 1 ? "1 materia" : `${count} materias`;
 }
 
 /** Tarjeta de cabecera del detalle: datos y acciones (editar, restablecer contraseña, activar) */

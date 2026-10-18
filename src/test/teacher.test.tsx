@@ -15,6 +15,8 @@ const mat: TeacherSubject = {
   name: "Matemática I",
   semester: s2026,
   students_count: 2,
+  // Recuento de la API: lapsos 1 y 2 completos, lapso 3 a medias
+  grades_count: { "1": 2, "2": 2, "3": 1 },
 };
 const fis: TeacherSubject = {
   id: 11,
@@ -22,6 +24,7 @@ const fis: TeacherSubject = {
   name: "Física I",
   semester: s2025,
   students_count: 0,
+  grades_count: { "1": 0, "2": 0, "3": 0 },
 };
 
 const maria = { id: 7, full_name: "María Pérez", cedula_display: "V-28456123" };

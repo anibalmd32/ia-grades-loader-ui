@@ -12,7 +12,10 @@ import { type ImportReview, useImportReviews } from "@/stores/import-reviews";
 
 type Badge = { label: string; className: string };
 
-/** Estado para mostrar: el de la API más si ya se confirmó o descartó en este dispositivo */
+/**
+ * Estado para mostrar: el de la API (incluida la confirmación, `confirmed_at`) más si se
+ * descartó en este dispositivo (descartar no llega a la API).
+ */
 export function jobBadge(job: ImportJobSummary, review: ImportReview | undefined): Badge {
   switch (job.status) {
     case "pending":
@@ -22,7 +25,7 @@ export function jobBadge(job: ImportJobSummary, review: ImportReview | undefined
     case "failed":
       return { label: "Falló", className: "badge-error" };
     case "done":
-      if (review === "confirmed") return { label: "Confirmada", className: "badge-neutral" };
+      if (job.confirmed_at) return { label: "Confirmada", className: "badge-neutral" };
       if (review === "discarded") return { label: "Descartada", className: "badge-ghost" };
       return { label: "Lista para revisar", className: "badge-success" };
   }
@@ -57,7 +60,13 @@ export function RecentImports() {
           <ul className="-mx-2 flex flex-col">
             {jobs.data.map((job) => {
               const badge = jobBadge(job, reviews[job.id]);
-              const detail = [codeOf(job.subject_id), timeAgo(job.created_at), job.error]
+              const attempts =
+                job.attempts > 1
+                  ? `${job.attempts} intentos`
+                  : job.attempts === 1
+                    ? "1 intento"
+                    : "";
+              const detail = [codeOf(job.subject_id), timeAgo(job.created_at), attempts, job.error]
                 .filter(Boolean)
                 .join(" · ");
               return (
@@ -70,7 +79,12 @@ export function RecentImports() {
                     <div className="flex items-center gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-bold text-sm">{job.file_name}</p>
-                        <p className="truncate text-base-content/70 text-xs">{detail}</p>
+                        <p
+                          className="truncate text-base-content/70 text-xs"
+                          title={new Date(job.created_at).toLocaleString("es")}
+                        >
+                          {detail}
+                        </p>
                       </div>
                       <span
                         className={`badge badge-soft badge-sm shrink-0 font-semibold ${badge.className}`}

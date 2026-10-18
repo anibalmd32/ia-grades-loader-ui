@@ -5,7 +5,7 @@ import { appStorage } from "@/lib/app-storage";
 export type ImportReview = "confirmed" | "discarded";
 
 type ImportReviewsState = {
-  /** Importaciones ya revisadas en este dispositivo (la API no guarda si se confirmaron) */
+  /** Importaciones descartadas en este dispositivo (la confirmación la registra la API: confirmed_at) */
   reviews: Record<string, ImportReview>;
   markReviewed: (jobId: string, review: ImportReview) => void;
 };

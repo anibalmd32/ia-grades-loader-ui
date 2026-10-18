@@ -1,6 +1,6 @@
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { api, authorizedFetch, unwrap } from "../client";
-import { ApiError, retryAfterFromMessage } from "../errors";
+import { ApiError } from "../errors";
 import type { components } from "../schema";
 
 export type ConversationSummary = components["schemas"]["ConversationSummary"];
@@ -51,12 +51,11 @@ export type ChatRequest = { message: string; conversationId?: number; signal?: A
 
 /**
  * Error de un evento `error` del stream. El límite de preguntas llega así (con HTTP 200) y
- * se trata como un 429; los segundos vienen en `retry_after` o, si falta, en el mensaje.
+ * trae `retry_after` (segundos): se trata como un 429. En cualquier otro error es null.
  */
 function streamError(detail: string, retryAfter?: unknown): ApiError {
-  const seconds = typeof retryAfter === "number" ? retryAfter : retryAfterFromMessage(detail);
-  return seconds != null
-    ? new ApiError({ status: 429, message: detail, retryAfter: seconds })
+  return typeof retryAfter === "number"
+    ? new ApiError({ status: 429, message: detail, retryAfter })
     : new ApiError({ status: 503, message: detail });
 }
 
