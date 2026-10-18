@@ -167,7 +167,8 @@ describe("alta masiva de estudiantes", () => {
     server.use(
       http.get(`${API_URL}/students/import/template`, ({ request }) => {
         auth = request.headers.get("Authorization");
-        return new HttpResponse(new Blob(["xlsx"]), {
+        // Bytes y no un Blob: el Blob de jsdom no lo acepta el fetch nativo de Node (falla en Linux)
+        return new HttpResponse(new TextEncoder().encode("xlsx"), {
           headers: { "Content-Type": "application/octet-stream" },
         });
       }),
