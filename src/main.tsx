@@ -2,6 +2,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { MissingApiConfig } from "@/components/missing-api-config";
+import { API_CONFIGURED } from "@/lib/config";
 import { queryClient } from "@/lib/query-client";
 // Registra el token en el cliente de la API y restaura la sesión guardada
 import "@/stores/session";
@@ -25,8 +27,12 @@ declare module "@tanstack/react-router" {
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
+    {API_CONFIGURED ? (
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    ) : (
+      <MissingApiConfig />
+    )}
   </StrictMode>,
 );
