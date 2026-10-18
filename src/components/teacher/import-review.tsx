@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { CircleAlert, TriangleAlert, Users } from "lucide-react";
 import { useState } from "react";
+import { gradeHistoryKeys } from "@/api/queries/grade-history";
 import { type AcademicSettings, useSubjectRules } from "@/api/queries/settings";
 import {
   type GradeEntry,
@@ -128,6 +129,7 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
     mutationFn: () => saveGrades(preview.subject.id, entries, job.id),
     onSuccess: async (data) => {
       queryClient.setQueryData(teacherKeys.grades(preview.subject.id), data);
+      void queryClient.invalidateQueries({ queryKey: gradeHistoryKeys.all });
       await queryClient.invalidateQueries({ queryKey: teacherKeys.jobs });
       toast.success(
         entries.length === 1 ? "1 nota guardada." : `${entries.length} notas guardadas.`,

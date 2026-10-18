@@ -7,6 +7,7 @@ import { useAcademicSettings } from "@/api/queries/settings";
 import { BackLink } from "@/components/admin/common";
 import {
   DeleteSubjectButton,
+  SubjectGradeHistory,
   SubjectStudents,
   SubjectTeachers,
 } from "@/components/admin/subject-detail";
@@ -80,6 +81,7 @@ function SubjectPage() {
             )}
             <SubjectTeachers subject={subject} />
             <SubjectStudents subject={subject} />
+            <SubjectGradeHistory subject={subject} />
             {editing && <EditSubjectModal subject={subject} onClose={() => setEditing(false)} />}
           </>
         )}

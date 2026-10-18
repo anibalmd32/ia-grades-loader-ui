@@ -1,10 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, stripSearchParams } from "@tanstack/react-router";
+import { History } from "lucide-react";
+import { useState } from "react";
 import * as v from "valibot";
 import { PAGE_SIZE } from "@/api/queries/admin";
 import { useSubjectRules } from "@/api/queries/settings";
 import { type SubjectGrades, subjectGradesQuery } from "@/api/queries/teacher";
 import { BackLink } from "@/components/admin/common";
+import { GradeHistoryModal } from "@/components/grade-history";
 import {
   FinalGrade,
   GradebookStats,
@@ -102,6 +105,8 @@ function Gradebook({ data }: { data: SubjectGrades }) {
   const drafts = useGradeDrafts(data);
   const save = useSaveGrades(subject.id, drafts);
   useUnsavedChangesGuard(drafts.pending);
+  // Historial abierto: de toda la materia (null) o de un estudiante
+  const [history, setHistory] = useState<{ id: number; full_name: string } | null | undefined>();
 
   const filter = search.q.trim().toLowerCase();
   const filtered = students.filter(
@@ -115,8 +120,17 @@ function Gradebook({ data }: { data: SubjectGrades }) {
   const rows = filtered.slice(offset, offset + PAGE_SIZE);
 
   const canSave = drafts.changes.length > 0 && drafts.invalid.length === 0 && !save.isPending;
-  const actions = closed ? undefined : (
+  const historyButton = (
+    <button type="button" className="btn btn-outline btn-primary" onClick={() => setHistory(null)}>
+      <History className="size-4" />
+      Historial
+    </button>
+  );
+  const actions = closed ? (
+    historyButton
+  ) : (
     <>
+      {historyButton}
       <Link
         to="/teacher/imports"
         search={{ subject: subject.id }}
@@ -242,6 +256,10 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                           onChange={(value) => drafts.set(row, currentTerm, value)}
                           disabled={closed || save.isPending}
                         />
+                        <HistoryButton
+                          name={row.student.full_name}
+                          onClick={() => setHistory(row.student)}
+                        />
                       </li>
                     ))}
                   </ul>
@@ -265,13 +283,21 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                       {rows.map((row) => (
                         <tr key={row.student.id}>
                           <td>
-                            {row.student.full_name}
-                            {row.student.cedula_display && (
-                              <span className="text-base-content/70">
-                                {" "}
-                                · {row.student.cedula_display}
+                            <div className="flex items-center justify-between gap-2">
+                              <span>
+                                {row.student.full_name}
+                                {row.student.cedula_display && (
+                                  <span className="text-base-content/70">
+                                    {" "}
+                                    · {row.student.cedula_display}
+                                  </span>
+                                )}
                               </span>
-                            )}
+                              <HistoryButton
+                                name={row.student.full_name}
+                                onClick={() => setHistory(row.student)}
+                              />
+                            </div>
                           </td>
                           {terms.map((term) => (
                             <td key={term}>
@@ -311,6 +337,29 @@ function Gradebook({ data }: { data: SubjectGrades }) {
           </>
         )}
       </PageBody>
+      {history !== undefined && (
+        <GradeHistoryModal
+          scope="teacher"
+          subject={subject}
+          student={history ?? undefined}
+          onClose={() => setHistory(undefined)}
+        />
+      )}
     </>
+  );
+}
+
+/** Abre el historial de cambios de notas de un estudiante */
+function HistoryButton({ name, onClick }: { name: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="btn btn-ghost btn-sm btn-square"
+      aria-label={`Historial de ${name}`}
+      title="Historial de notas"
+      onClick={onClick}
+    >
+      <History className="size-4" />
+    </button>
   );
 }

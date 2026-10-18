@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
 import { CircleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { gradeHistoryKeys } from "@/api/queries/grade-history";
 import { type AcademicSettings, useSubjectRules } from "@/api/queries/settings";
 import {
   type GradeEntry,
@@ -83,6 +84,7 @@ export function useSaveGrades(subjectId: number, drafts: GradeDrafts) {
     mutationFn: (changes: GradeEntry[]) => saveGrades(subjectId, changes),
     onSuccess: (data, changes) => {
       queryClient.setQueryData(teacherKeys.grades(subjectId), data);
+      void queryClient.invalidateQueries({ queryKey: gradeHistoryKeys.all });
       drafts.reset();
       toast.success(
         changes.length === 1 ? "1 nota guardada." : `${changes.length} notas guardadas.`,

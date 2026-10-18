@@ -15,6 +15,7 @@ import {
   usersQuery,
 } from "@/api/queries/admin";
 import { useAcademicSettings } from "@/api/queries/settings";
+import { GradeHistory } from "@/components/grade-history";
 import { confirm } from "@/components/ui/confirm";
 import { DataTable } from "@/components/ui/data-table";
 import { Modal } from "@/components/ui/modal";
@@ -387,5 +388,38 @@ export function DeleteSubjectButton({ subject }: { subject: SubjectRead }) {
     >
       Eliminar
     </button>
+  );
+}
+
+/** Historial de cambios de notas de la materia, con filtro opcional por estudiante */
+export function SubjectGradeHistory({ subject }: { subject: SubjectRead }) {
+  const students = useQuery(subjectStudentsQuery(subject.id));
+  const [studentId, setStudentId] = useState("");
+
+  return (
+    <Section
+      title="Historial de notas"
+      description="Cada nota cargada, corregida o borrada: quién lo hizo, cuándo y cómo."
+    >
+      <select
+        className="select w-full sm:max-w-md"
+        aria-label="Filtrar el historial por estudiante"
+        value={studentId}
+        onChange={(event) => setStudentId(event.target.value)}
+      >
+        <option value="">Todos los estudiantes</option>
+        {students.data?.map((student) => (
+          <option key={student.id} value={student.id}>
+            {student.full_name}
+          </option>
+        ))}
+      </select>
+      <GradeHistory
+        key={studentId}
+        scope="admin"
+        subject={subject}
+        studentId={studentId ? Number(studentId) : undefined}
+      />
+    </Section>
   );
 }
