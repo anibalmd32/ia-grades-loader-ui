@@ -40,7 +40,7 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
     <nav className="flex min-h-full w-64 flex-col bg-neutral p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-neutral-content">
       <div className="flex items-start justify-between gap-2 px-3 py-2">
         <div className="min-w-0">
-          <p className="font-bold text-xl">IA Grades Loader</p>
+          <p className="font-bold text-xl">Notas</p>
           <p className="truncate text-neutral-content/70 text-xs">{settings.institution_name}</p>
         </div>
         <ThemeToggle className="-mr-2" />
