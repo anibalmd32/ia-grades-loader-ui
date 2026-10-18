@@ -1,19 +1,27 @@
 import { Link, useMatches, useNavigate } from "@tanstack/react-router";
 import { KeyRound, LogOut, Menu, UserRound } from "lucide-react";
 import { type ReactNode, useId } from "react";
+import { type AcademicSettings, useAcademicSettings } from "@/api/queries/settings";
 import { AppVersion } from "@/components/app-version";
 import { Avatar } from "@/components/ui/avatar";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { userSubtitle } from "@/lib/roles";
 import { type User, useSession } from "@/stores/session";
 import { useNav } from "./use-nav";
 
+/** Texto fijo o que depende de la configuración académica ("Semestres y materias"…) */
+type SettingsText = string | ((settings: AcademicSettings) => string);
+
 declare module "@tanstack/react-router" {
   interface StaticDataRouteOption {
     /** Título de la pantalla (barra superior en móvil) */
-    title?: string;
-    description?: string;
+    title?: SettingsText;
+    description?: SettingsText;
   }
 }
+
+const resolve = (text: SettingsText | undefined, settings: AcademicSettings) =>
+  typeof text === "function" ? text(settings) : text;
 
 function useSignOut() {
   const signOut = useSession((s) => s.signOut);
@@ -27,11 +35,15 @@ function useSignOut() {
 function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) {
   const handleSignOut = useSignOut();
   const nav = useNav(user);
+  const settings = useAcademicSettings();
   return (
     <nav className="flex min-h-full w-64 flex-col bg-neutral p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-neutral-content">
-      <div className="px-3 py-2">
-        <p className="font-bold text-xl">IA Grades Loader</p>
-        <p className="text-neutral-content/70 text-xs">Cargador de notas</p>
+      <div className="flex items-start justify-between gap-2 px-3 py-2">
+        <div className="min-w-0">
+          <p className="font-bold text-xl">IA Grades Loader</p>
+          <p className="truncate text-neutral-content/70 text-xs">{settings.institution_name}</p>
+        </div>
+        <ThemeToggle className="-mr-2" />
       </div>
       <ul className="menu mt-6 w-full gap-1 p-0">
         {nav.map((item) => (
@@ -54,7 +66,7 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
           className="flex items-center gap-3 rounded-box bg-white/5 p-3 hover:bg-white/10"
           activeProps={{ className: "ring-2 ring-primary" }}
         >
-          <Avatar name={user.full_name} />
+          <Avatar person={user} />
           <div className="min-w-0">
             <p className="truncate font-bold text-sm">{user.full_name}</p>
             <p className="truncate text-neutral-content/70 text-xs">{userSubtitle(user)}</p>
@@ -86,8 +98,11 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
 export function AppLayout({ user, children }: { user: User; children: ReactNode }) {
   const drawerId = useId();
   const nav = useNav(user);
+  const settings = useAcademicSettings();
   const matches = useMatches();
-  const { title, description } = matches.at(-1)?.staticData ?? {};
+  const staticData = matches.at(-1)?.staticData ?? {};
+  const title = resolve(staticData.title, settings);
+  const description = resolve(staticData.description, settings);
   const closeDrawer = () => {
     const toggle = document.getElementById(drawerId) as HTMLInputElement | null;
     if (toggle) toggle.checked = false;
@@ -106,23 +121,26 @@ export function AppLayout({ user, children }: { user: User; children: ReactNode 
             <p className="truncate font-bold text-lg leading-tight">{title ?? "Notas"}</p>
             {description && <p className="truncate text-base-content/70 text-xs">{description}</p>}
           </div>
-          <Avatar name={user.full_name} />
+          <ThemeToggle />
+          <Avatar person={user} />
         </header>
 
         <main className="flex-1">{children}</main>
 
         <nav className="dock dock-sm z-20 border-base-300 border-t bg-base-100 lg:hidden">
-          {nav.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="text-base-content/60"
-              activeProps={{ className: "dock-active text-primary!" }}
-            >
-              <item.icon className="size-5" />
-              <span className="dock-label">{item.label}</span>
-            </Link>
-          ))}
+          {nav
+            .filter((item) => item.dock !== false)
+            .map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="text-base-content/60"
+                activeProps={{ className: "dock-active text-primary!" }}
+              >
+                <item.icon className="size-5" />
+                <span className="dock-label">{item.label}</span>
+              </Link>
+            ))}
           <Link
             to="/profile"
             className="text-base-content/60"

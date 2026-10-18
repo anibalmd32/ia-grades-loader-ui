@@ -27,22 +27,33 @@ async function expectPath(router: ReturnType<typeof renderApp>["router"], path: 
 }
 
 describe("instalador", () => {
-  it("crea el super admin y entra en la app", async () => {
+  it("crea el super admin (nombre y apellido) y entra en la app", async () => {
+    let body: unknown;
     server.use(
       http.get(`${API_URL}/setup/status`, () => HttpResponse.json({ installed: false })),
-      http.post(`${API_URL}/setup`, () => HttpResponse.json(token("super_admin"), { status: 201 })),
+      http.post(`${API_URL}/setup`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(token("super_admin"), { status: 201 });
+      }),
       http.get(`${API_URL}/auth/me`, () => HttpResponse.json(makeUser({ role: "super_admin" }))),
     );
     const user = userEvent.setup();
     const { router } = renderApp("/setup");
 
-    await user.type(await screen.findByLabelText("Nombre completo"), "Anibal Torres");
+    await user.type(await screen.findByLabelText("Nombre"), "Anibal");
+    await user.type(screen.getByLabelText("Apellido"), "Torres ");
     await user.type(screen.getByLabelText("Email"), "admin@uni.edu");
     await user.type(screen.getByLabelText("Contraseña"), "secreta123");
     await user.type(screen.getByLabelText("Confirmar contraseña"), "secreta123");
     await user.click(screen.getByRole("button", { name: "Crear super admin" }));
 
     await expectPath(router, "/admin/coordinators");
+    expect(body).toEqual({
+      first_name: "Anibal",
+      last_name: "Torres",
+      email: "admin@uni.edu",
+      password: "secreta123",
+    });
     expect(useSession.getState().token).toBe("nuevo");
   });
 
@@ -51,7 +62,8 @@ describe("instalador", () => {
     const user = userEvent.setup();
     renderApp("/setup");
 
-    await user.type(await screen.findByLabelText("Nombre completo"), "Anibal Torres");
+    await user.type(await screen.findByLabelText("Nombre"), "Anibal");
+    await user.type(screen.getByLabelText("Apellido"), "Torres");
     await user.type(screen.getByLabelText("Email"), "admin@uni.edu");
     await user.type(screen.getByLabelText("Contraseña"), "secreta123");
     await user.type(screen.getByLabelText("Confirmar contraseña"), "otra12345");
@@ -229,5 +241,36 @@ describe("cambio de contraseña y cierre de sesión", () => {
 
     await expectPath(router, "/login");
     expect(useSession.getState().token).toBeNull();
+  });
+});
+
+describe("modo claro/oscuro", () => {
+  it("se puede cambiar desde el login, sin sesión", async () => {
+    usePreferences.setState({ theme: "light" });
+    const user = userEvent.setup();
+    renderApp("/login");
+
+    await user.click(await screen.findByRole("button", { name: "Cambiar a modo oscuro" }));
+    expect(usePreferences.getState().theme).toBe("dark");
+    await waitFor(() =>
+      expect(document.documentElement).toHaveAttribute("data-theme", "notas-dark"),
+    );
+  });
+
+  it("está en la app con sesión (menú lateral y barra superior en móvil)", async () => {
+    usePreferences.setState({ theme: "dark" });
+    server.use(
+      http.get(`${API_URL}/teachers`, () =>
+        HttpResponse.json({ items: [], total: 0, limit: 20, offset: 0 }),
+      ),
+    );
+    signedInAs(makeUser());
+    renderApp("/admin/teachers");
+
+    const toggles = await screen.findAllByRole("button", { name: "Cambiar a modo claro" });
+    expect(toggles).toHaveLength(2);
+    // La marca: "Notas" y el nombre de la institución de la configuración académica
+    expect(screen.getByText("Universidad")).toBeInTheDocument();
+    expect(screen.queryByText(/Grades Loader/)).not.toBeInTheDocument();
   });
 });
