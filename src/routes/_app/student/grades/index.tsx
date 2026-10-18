@@ -1,16 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import * as v from "valibot";
+import { type AcademicSettings, useAcademicSettings } from "@/api/queries/settings";
 import { studentOverviewQuery } from "@/api/queries/student";
 import { summaryOf } from "@/components/student/projection";
 import { SubjectGradesCard } from "@/components/student/subject-grades-card";
-import { formatGrade } from "@/components/ui/grade-badge";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
+import { formatGrade, scaleText, termName } from "@/lib/grades";
 
 const title = "Mis notas";
-const description = "Tus notas por lapso en cada materia.";
+const description = (settings: AcademicSettings) =>
+  `Tus notas por ${settings.term_label.toLowerCase()} en cada materia.`;
 
 export const Route = createFileRoute("/_app/student/grades/")({
   validateSearch: v.object({
@@ -24,6 +26,7 @@ function StudentGradesPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const overview = useQuery(studentOverviewQuery);
+  const settings = useAcademicSettings();
 
   const subjects = overview.data?.subjects ?? [];
   // Semestres con su promedio y aprobadas/reprobadas, calculados por la API (en su orden)
@@ -46,8 +49,8 @@ function StudentGradesPage() {
         title={title}
         description={
           semester
-            ? `Semestre ${semester.name} · ${visible.length} ${visible.length === 1 ? "materia" : "materias"}`
-            : description
+            ? `${settings.period_label} ${semester.name} · ${visible.length} ${visible.length === 1 ? "materia" : "materias"}`
+            : description(settings)
         }
         actions={subjects.length > 0 ? ask : undefined}
       />
@@ -67,7 +70,7 @@ function StudentGradesPage() {
               {semesters.length > 1 && (
                 <select
                   className="select w-full sm:max-w-56"
-                  aria-label="Semestre"
+                  aria-label={settings.period_label}
                   value={semester?.id}
                   onChange={(event) =>
                     navigate({ search: { semester: Number(event.target.value) }, replace: true })
@@ -75,14 +78,17 @@ function StudentGradesPage() {
                 >
                   {semesters.map((s) => (
                     <option key={s.id} value={s.id}>
-                      Semestre {s.name}
+                      {settings.period_label} {s.name}
                     </option>
                   ))}
                 </select>
               )}
 
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <Stat label="Promedio del semestre" value={formatGrade(current?.average)} />
+                <Stat
+                  label={`Promedio del ${settings.period_label.toLowerCase()}`}
+                  value={formatGrade(current?.average, settings)}
+                />
                 <Stat label="Aprobadas" value={summary.approved} className="text-success" />
                 <Stat label="En curso" value={summary.inProgress} className="text-primary" />
                 <Stat label="En riesgo" value={summary.atRisk} className="text-error" />
@@ -95,7 +101,11 @@ function StudentGradesPage() {
               </div>
 
               <p className="text-base-content/70 text-xs">
-                Los 3 lapsos pesan igual. La definitiva es el promedio simple y se aprueba con 10.
+                {settings.summary}.
+                {settings.term_weights != null &&
+                  ` Pesos: ${settings.term_percentages
+                    .map((p, i) => `${termName(settings, i + 1)} ${scaleText(p)} %`)
+                    .join(" · ")}.`}
               </p>
             </>
           )}

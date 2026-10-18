@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { SubjectGrades, TeacherSubject } from "@/api/queries/teacher";
 import { API_URL } from "@/lib/config";
 import { makeUser, renderApp, signedInAs } from "./app";
+import { makeSettings, personName, settingsHandler } from "./handlers";
 import { server } from "./server";
 
 const s2026 = { id: 1, name: "2026-I" };
@@ -27,8 +28,8 @@ const fis: TeacherSubject = {
   grades_count: { "1": 0, "2": 0, "3": 0 },
 };
 
-const maria = { id: 7, full_name: "María Pérez", cedula_display: "V-28456123" };
-const carlos = { id: 8, full_name: "Carlos Gómez", cedula_display: "V-27118904" };
+const maria = { id: 7, ...personName("María Pérez"), cedula_display: "V-28456123" };
+const carlos = { id: 8, ...personName("Carlos Gómez"), cedula_display: "V-27118904" };
 
 const grades = (values: [number | null, number | null, number | null]) =>
   values.map((value, i) => ({ term: i + 1, value }));
@@ -36,8 +37,20 @@ const grades = (values: [number | null, number | null, number | null]) =>
 const matGrades: SubjectGrades = {
   subject: mat,
   students: [
-    { student: maria, grades: grades([15.75, 17, null]), average: 16.38 },
-    { student: carlos, grades: grades([9.5, 8, 9]), average: 8.83 },
+    {
+      student: maria,
+      grades: grades([15.75, 17, null]),
+      average: 16.38,
+      final_grade: null,
+      passed: null,
+    },
+    {
+      student: carlos,
+      grades: grades([9.5, 8, 9]),
+      average: 8.83,
+      final_grade: 8.83,
+      passed: false,
+    },
   ],
 };
 
@@ -216,5 +229,98 @@ describe("planilla de notas", () => {
       expect(within(screen.getByRole("table")).queryByText("María Pérez")).not.toBeInTheDocument(),
     );
     expect(within(screen.getByRole("table")).getByText("Carlos Gómez")).toBeInTheDocument();
+  });
+});
+
+describe("con otra configuración académica", () => {
+  // Escala del 0 al 100 sin decimales, 4 cortes y se aprueba con 60
+  const settings = makeSettings({
+    terms_count: 4,
+    term_label: "Corte",
+    term_label_plural: "Cortes",
+    min_grade: 0,
+    max_grade: 100,
+    passing_grade: 60,
+    grade_decimals: 0,
+    summary: "La definitiva es el promedio simple de los 4 cortes y se aprueba con 60 o más",
+  });
+  const four = (values: (number | null)[]) => values.map((value, i) => ({ term: i + 1, value }));
+  const subject: TeacherSubject = { ...mat, grades_count: { "1": 2, "2": 2, "3": 1, "4": 0 } };
+  const data: SubjectGrades = {
+    subject,
+    students: [
+      {
+        student: maria,
+        grades: four([85, 70, null, null]),
+        average: 78,
+        final_grade: null,
+        passed: null,
+      },
+      {
+        student: carlos,
+        grades: four([50, 55, 60, 52]),
+        average: 54,
+        final_grade: 54,
+        passed: false,
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    server.use(
+      settingsHandler(settings),
+      http.get(`${API_URL}/teacher/subjects`, () => HttpResponse.json([subject])),
+      http.get(`${API_URL}/teacher/subjects/10/grades`, () => HttpResponse.json(data)),
+    );
+  });
+
+  it("la planilla muestra una columna por corte y valida con la escala configurada", async () => {
+    const user = userEvent.setup();
+    renderApp("/teacher/subjects/10");
+
+    const table = await screen.findByRole("table");
+    await waitFor(() =>
+      expect(
+        within(table)
+          .getAllByRole("columnheader")
+          .map((th) => th.textContent),
+      ).toEqual(["Estudiante", "Corte 1", "Corte 2", "Corte 3", "Corte 4", "Definitiva"]),
+    );
+    // Sin decimales: 85, no 85.00; la definitiva y el aprobado vienen de la API
+    expect(await screen.findAllByLabelText("María Pérez · Corte 1")).not.toHaveLength(0);
+    expect(screen.getAllByLabelText("María Pérez · Corte 1").at(-1) as HTMLElement).toHaveValue(
+      "85",
+    );
+    expect(within(table).getByText("54")).toHaveClass("text-error");
+    expect(screen.getByText(/se aprueba con 60 o más/)).toBeInTheDocument();
+
+    const cell4 = screen.getAllByLabelText("María Pérez · Corte 4").at(-1) as HTMLElement;
+    await user.type(cell4, "85.5");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "María Pérez · Corte 4: la nota debe estar entre 0 y 100, sin decimales.",
+    );
+    await user.clear(cell4);
+    await user.type(cell4, "100");
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    expect(screen.getAllByRole("button", { name: "Guardar cambios (1)" })[0]).toBeEnabled();
+  });
+
+  it("el selector de corte en móvil admite el cuarto", async () => {
+    const { router } = renderApp("/teacher/subjects/10?term=4");
+
+    expect(await screen.findByRole("tab", { name: "Corte 4" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(router.state.location.search).toMatchObject({ term: 4 });
+  });
+
+  it("mis materias muestra el avance de los 4 cortes", async () => {
+    renderApp("/teacher/subjects");
+
+    const card = (await screen.findByRole("heading", { name: "Matemática I" })).closest("article");
+    if (!card) throw new Error("sin tarjeta");
+    expect(await within(card).findByText("Corte 4")).toBeInTheDocument();
+    expect(within(card).getByText("0/2 notas")).toBeInTheDocument();
   });
 });

@@ -2,14 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { FileSpreadsheet, Info, Link2 } from "lucide-react";
 import { type DragEvent, useId, useState } from "react";
-import {
-  TERMS,
-  type Term,
-  teacherKeys,
-  teacherSubjectsQuery,
-  uploadImport,
-} from "@/api/queries/teacher";
+import { useAcademicSettings } from "@/api/queries/settings";
+import { teacherKeys, teacherSubjectsQuery, uploadImport } from "@/api/queries/teacher";
 import { FormError } from "@/components/form/form";
+import { termName, termNumbers } from "@/lib/grades";
 
 const isXlsx = (file: File) => file.name.toLowerCase().endsWith(".xlsx");
 
@@ -18,6 +14,7 @@ export function UploadForm({ defaultSubject }: { defaultSubject?: number }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const subjects = useQuery(teacherSubjectsQuery);
+  const settings = useAcademicSettings();
   const inputId = useId();
   const [subjectId, setSubjectId] = useState(defaultSubject ? String(defaultSubject) : "");
   const [term, setTerm] = useState("");
@@ -28,7 +25,7 @@ export function UploadForm({ defaultSubject }: { defaultSubject?: number }) {
   const upload = useMutation({
     mutationFn: () => {
       if (!file) throw new Error("Selecciona un archivo .xlsx.");
-      return uploadImport(Number(subjectId), file, term ? (Number(term) as Term) : null);
+      return uploadImport(Number(subjectId), file, term ? Number(term) : null);
     },
     onSuccess: async (job) => {
       await queryClient.invalidateQueries({ queryKey: teacherKeys.jobs });
@@ -81,16 +78,16 @@ export function UploadForm({ defaultSubject }: { defaultSubject?: number }) {
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span className="font-semibold text-sm">Lapso</span>
+            <span className="font-semibold text-sm">{settings.term_label}</span>
             <select
               className="select w-full"
               value={term}
               onChange={(event) => setTerm(event.target.value)}
             >
               <option value="">Lo indica el archivo</option>
-              {TERMS.map((t) => (
+              {termNumbers(settings).map((t) => (
                 <option key={t} value={t}>
-                  Lapso {t}
+                  {termName(settings, t)}
                 </option>
               ))}
             </select>

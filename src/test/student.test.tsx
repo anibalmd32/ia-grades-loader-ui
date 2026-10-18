@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { StudentOverview, StudentSubjectGrades } from "@/api/queries/student";
 import { API_URL } from "@/lib/config";
 import { makeUser, renderApp, signedInAs } from "./app";
+import { makeSettings, settingsHandler } from "./handlers";
 import { server } from "./server";
 
 const s2026 = { id: 2, name: "2026-I" };
@@ -117,12 +118,12 @@ describe("mis notas", () => {
 
     expect(within(await card("Matemática I")).getByText("Aprobada asegurada")).toBeInTheDocument();
     expect(
-      within(await card("Matemática I")).getByText("Ya aprobaste aunque saques 1 en el Lapso 3."),
+      within(await card("Matemática I")).getByText("Ya aprobaste aunque saques 1 en Lapso 3."),
     ).toBeInTheDocument();
     const fisica = await card("Física I");
     expect(within(fisica).getByText("Necesitas 12.50")).toBeInTheDocument();
     expect(
-      within(fisica).getByText("Necesitas al menos 12.50 en el Lapso 3 para aprobar."),
+      within(fisica).getByText("Necesitas al menos 12.50 en Lapso 3 para aprobar."),
     ).toBeInTheDocument();
     expect(within(fisica).getByText("8.00")).toHaveClass("text-error");
     const prog = await card("Programación I");
@@ -165,8 +166,8 @@ describe("detalle de materia", () => {
     server.use(http.get(`${API_URL}/student/subjects/11`, () => HttpResponse.json(fis)));
     renderApp("/student/grades/11");
 
-    expect(await screen.findByText("12.50 en el Lapso 3")).toBeInTheDocument();
-    expect(screen.getByText("Falta el lapso 3")).toBeInTheDocument();
+    expect(await screen.findByText("12.50 en Lapso 3")).toBeInTheDocument();
+    expect(screen.getByText("Pendiente: Lapso 3")).toBeInTheDocument();
     // Sin cálculos de notas en el front: no hay "puntos acumulados"
     expect(screen.queryByText(/puntos necesarios/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Abrir asistente" })).toHaveAttribute(
@@ -181,5 +182,54 @@ describe("detalle de materia", () => {
 
     expect(await screen.findByText("Materia cerrada")).toBeInTheDocument();
     expect(screen.getAllByText("Nota definitiva: 19.17.").length).toBeGreaterThan(0);
+  });
+});
+
+describe("con otra configuración académica", () => {
+  it("las frases usan la escala, los cortes y el periodo configurados", async () => {
+    server.use(
+      settingsHandler(
+        makeSettings({
+          period_type: "trimester",
+          period_label: "Trimestre",
+          period_label_plural: "Trimestres",
+          terms_count: 4,
+          term_label: "Corte",
+          term_label_plural: "Cortes",
+          term_weights: [20, 20, 30, 30],
+          term_percentages: [20, 20, 30, 30],
+          min_grade: 0,
+          max_grade: 100,
+          passing_grade: 60,
+          grade_decimals: 0,
+          summary:
+            "La definitiva es el promedio ponderado de los 4 cortes y se aprueba con 60 o más",
+        }),
+      ),
+      http.get(`${API_URL}/student/subjects`, () =>
+        HttpResponse.json({
+          ...overview,
+          subjects: [
+            {
+              ...qui,
+              grades: [10, 20, null, null].map((value, i) => ({ term: i + 1, value })),
+              average: 15,
+              projection: { ...qui.projection, pending_terms: [3, 4] },
+            },
+          ],
+        }),
+      ),
+    );
+    renderApp("/student/grades");
+
+    const quimica = await card("Química I");
+    expect(
+      await within(quimica).findByText("Aunque saques 100 en Cortes 3 y 4 no llegarías a 60."),
+    ).toBeInTheDocument();
+    expect(within(quimica).getByText("Corte 4")).toBeInTheDocument();
+    expect(screen.getByText("Promedio del trimestre")).toBeInTheDocument();
+    expect(
+      screen.getByText(/se aprueba con 60 o más\. Pesos: Corte 1 20 % · Corte 2 20 %/),
+    ).toBeInTheDocument();
   });
 });

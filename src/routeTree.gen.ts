@@ -19,6 +19,7 @@ import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppStudentRouteImport } from './routes/_app/student'
 import { Route as AppTeacherRouteImport } from './routes/_app/teacher'
 import { Route as AppAdminCoordinatorsRouteImport } from './routes/_app/admin/coordinators'
+import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
 import { Route as AppStudentAssistantRouteImport } from './routes/_app/student/assistant'
 import { Route as AppStudentTelegramRouteImport } from './routes/_app/student/telegram'
 import { Route as AppAdminAcademicIndexRouteImport } from './routes/_app/admin/academic/index'
@@ -87,6 +88,11 @@ const AppTeacherRoute = AppTeacherRouteImport.update({
 const AppAdminCoordinatorsRoute = AppAdminCoordinatorsRouteImport.update({
   id: '/coordinators',
   path: '/coordinators',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppStudentAssistantRoute = AppStudentAssistantRouteImport.update({
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/student': typeof AppStudentRouteWithChildren
   '/teacher': typeof AppTeacherRouteWithChildren
   '/admin/coordinators': typeof AppAdminCoordinatorsRouteWithChildren
+  '/admin/settings': typeof AppAdminSettingsRoute
   '/student/assistant': typeof AppStudentAssistantRoute
   '/student/telegram': typeof AppStudentTelegramRoute
   '/admin/academic/new': typeof AppAdminAcademicNewRoute
@@ -235,6 +242,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AppProfileRoute
   '/student': typeof AppStudentRouteWithChildren
   '/teacher': typeof AppTeacherRouteWithChildren
+  '/admin/settings': typeof AppAdminSettingsRoute
   '/student/assistant': typeof AppStudentAssistantRoute
   '/student/telegram': typeof AppStudentTelegramRoute
   '/admin/academic/new': typeof AppAdminAcademicNewRoute
@@ -268,6 +276,7 @@ export interface FileRoutesById {
   '/_app/student': typeof AppStudentRouteWithChildren
   '/_app/teacher': typeof AppTeacherRouteWithChildren
   '/_app/admin/coordinators': typeof AppAdminCoordinatorsRouteWithChildren
+  '/_app/admin/settings': typeof AppAdminSettingsRoute
   '/_app/student/assistant': typeof AppStudentAssistantRoute
   '/_app/student/telegram': typeof AppStudentTelegramRoute
   '/_app/admin/academic/new': typeof AppAdminAcademicNewRoute
@@ -301,6 +310,7 @@ export interface FileRouteTypes {
     | '/student'
     | '/teacher'
     | '/admin/coordinators'
+    | '/admin/settings'
     | '/student/assistant'
     | '/student/telegram'
     | '/admin/academic/new'
@@ -331,6 +341,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/student'
     | '/teacher'
+    | '/admin/settings'
     | '/student/assistant'
     | '/student/telegram'
     | '/admin/academic/new'
@@ -363,6 +374,7 @@ export interface FileRouteTypes {
     | '/_app/student'
     | '/_app/teacher'
     | '/_app/admin/coordinators'
+    | '/_app/admin/settings'
     | '/_app/student/assistant'
     | '/_app/student/telegram'
     | '/_app/admin/academic/new'
@@ -463,6 +475,13 @@ declare module '@tanstack/react-router' {
       path: '/coordinators'
       fullPath: '/admin/coordinators'
       preLoaderRoute: typeof AppAdminCoordinatorsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/settings': {
+      id: '/_app/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AppAdminSettingsRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/student/assistant': {
@@ -625,6 +644,7 @@ const AppAdminCoordinatorsRouteWithChildren =
 
 interface AppAdminRouteChildren {
   AppAdminCoordinatorsRoute: typeof AppAdminCoordinatorsRouteWithChildren
+  AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminAcademicNewRoute: typeof AppAdminAcademicNewRoute
   AppAdminStudentsUserIdRoute: typeof AppAdminStudentsUserIdRoute
   AppAdminStudentsNewRoute: typeof AppAdminStudentsNewRoute
@@ -638,6 +658,7 @@ interface AppAdminRouteChildren {
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminCoordinatorsRoute: AppAdminCoordinatorsRouteWithChildren,
+  AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminAcademicNewRoute: AppAdminAcademicNewRoute,
   AppAdminStudentsUserIdRoute: AppAdminStudentsUserIdRoute,
   AppAdminStudentsNewRoute: AppAdminStudentsNewRoute,

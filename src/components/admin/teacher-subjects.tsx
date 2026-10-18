@@ -8,12 +8,14 @@ import {
   subjectLabel,
   teacherSubjectsQuery,
 } from "@/api/queries/admin";
+import { useAcademicSettings } from "@/api/queries/settings";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
 import { toast } from "@/components/ui/toast";
 import { Section } from "./common";
 
-/** Casillas de materias por semestre; guardar reemplaza el conjunto completo del profesor */
+/** Casillas de materias por periodo (semestre…); guardar reemplaza el conjunto completo del profesor */
 export function TeacherSubjects({ teacherId }: { teacherId: number }) {
+  const settings = useAcademicSettings();
   const queryClient = useQueryClient();
   const subjects = useQuery(allSubjectsQuery);
   const assigned = useQuery(teacherSubjectsQuery(teacherId));
@@ -55,7 +57,7 @@ export function TeacherSubjects({ teacherId }: { teacherId: number }) {
     content = (
       <EmptyState
         title="No hay materias"
-        description="Crea materias en Semestres y materias para poder asignarlas."
+        description={`Crea materias en ${settings.period_label_plural} y materias para poder asignarlas.`}
       />
     );
   } else {
@@ -65,7 +67,7 @@ export function TeacherSubjects({ teacherId }: { teacherId: number }) {
           {groupBySemester(subjects.data.items).map(({ semester, subjects: list }) => (
             <fieldset key={semester.id} className="flex flex-col gap-2">
               <legend className="mb-2 font-semibold text-base-content/70 text-sm">
-                Semestre {semester.name}
+                {settings.period_label} {semester.name}
               </legend>
               {list.map((subject) => (
                 <label key={subject.id} className="flex cursor-pointer items-center gap-3">

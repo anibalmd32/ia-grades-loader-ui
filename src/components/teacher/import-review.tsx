@@ -2,23 +2,30 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { CircleAlert, TriangleAlert, Users } from "lucide-react";
 import { useState } from "react";
+import { type AcademicSettings, useAcademicSettings } from "@/api/queries/settings";
 import {
   type GradeEntry,
   type ImportJobRead,
   type ImportRow,
   saveGrades,
-  TERMS,
   type Term,
   teacherKeys,
 } from "@/api/queries/teacher";
 import { BackLink } from "@/components/admin/common";
 import { confirm } from "@/components/ui/confirm";
-import { formatGrade } from "@/components/ui/grade-badge";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState } from "@/components/ui/states";
 import { toast } from "@/components/ui/toast";
-import { GRADE_RULE, gradeText, parseGrade } from "@/lib/grades";
+import {
+  formatGrade,
+  gradeRule,
+  gradeText,
+  isTerm,
+  parseGrade,
+  termName,
+  termNumbers,
+} from "@/lib/grades";
 import { useImportReviews } from "@/stores/import-reviews";
 import { GradeCell } from "./gradebook";
 
@@ -35,8 +42,8 @@ const STATUS_CLASS: Record<RowStatus, string> = {
   error: "text-error",
 };
 
-const asTerm = (term: number | null): Term | null =>
-  term === 1 || term === 2 || term === 3 ? term : null;
+const asTerm = (term: number | null, settings: AcademicSettings): Term | null =>
+  isTerm(term, settings) ? term : null;
 
 /** "Fila 4 · "Valentina Rios 84112345"" */
 function excelText(row: ImportRow): string {
@@ -48,26 +55,31 @@ function excelText(row: ImportRow): string {
 /** Solo se puede guardar si el servidor identificó al estudiante */
 const canSave = (row: ImportRow) => row.student != null;
 
-function initialDecision(row: ImportRow): Decision {
-  const term = asTerm(row.term);
+function initialDecision(row: ImportRow, settings: AcademicSettings): Decision {
+  const term = asTerm(row.term, settings);
   return {
     include: canSave(row) && row.status !== "error" && term != null && row.value != null,
     term,
-    value: gradeText(row.value),
+    value: gradeText(row.value, settings),
   };
 }
 
 /** Comprueba una fila incluida: lapso elegido y nota válida (no vacía) */
-function entryOf(row: ImportRow, decision: Decision): GradeEntry | string {
+function entryOf(
+  row: ImportRow,
+  decision: Decision,
+  settings: AcademicSettings,
+): GradeEntry | string {
   if (!row.student) return "estudiante no identificado";
-  if (decision.term == null) return "falta el lapso";
-  const parsed = parseGrade(decision.value);
-  if (!parsed.valid || parsed.value == null) return GRADE_RULE;
+  if (decision.term == null) return `sin ${settings.term_label.toLowerCase()}`;
+  const parsed = parseGrade(decision.value, settings);
+  if (!parsed.valid || parsed.value == null) return gradeRule(settings);
   return { student_id: row.student.id, term: decision.term, value: parsed.value };
 }
 
 /** Previsualización de una importación: revisar, corregir, excluir y confirmar */
 export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Preview }) {
+  const settings = useAcademicSettings();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const markReviewed = useImportReviews((s) => s.markReviewed);
@@ -78,7 +90,9 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
     : localReview === "discarded"
       ? "discarded"
       : undefined;
-  const [decisions, setDecisions] = useState(() => preview.rows.map(initialDecision));
+  const [decisions, setDecisions] = useState(() =>
+    preview.rows.map((row) => initialDecision(row, settings)),
+  );
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | RowStatus>("all");
 
@@ -92,7 +106,7 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
   preview.rows.forEach((row, i) => {
     const decision = decisions[i];
     if (!decision?.include) return;
-    const entry = entryOf(row, decision);
+    const entry = entryOf(row, decision, settings);
     if (typeof entry === "string") {
       problems.push(`${excelText(row)}: ${entry}.`);
       return;
@@ -101,7 +115,7 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
     const other = seen.get(key);
     if (other) {
       problems.push(
-        `${row.student?.full_name} tiene dos notas para el lapso ${entry.term} (${excelText(other)} y ${excelText(row)}). Excluye una.`,
+        `${row.student?.full_name} tiene dos notas en ${termName(settings, entry.term)} (${excelText(other)} y ${excelText(row)}). Excluye una.`,
       );
       return;
     }
@@ -295,8 +309,8 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
         )}
 
         <p className="text-base-content/70 text-xs">
-          La IA solo extrae cédula/nombre, lapso y nota; el sistema identifica al estudiante entre
-          los matriculados.
+          La IA solo extrae cédula/nombre, {settings.term_label.toLowerCase()} y nota; el sistema
+          identifica al estudiante entre los matriculados.
         </p>
       </PageBody>
     </>
@@ -313,8 +327,9 @@ function PreviewRow({
   decision: Decision;
   onChange: (change: Partial<Decision>) => void;
 }) {
+  const settings = useAcademicSettings();
   const editable = canSave(row);
-  const parsed = parseGrade(decision.value);
+  const parsed = parseGrade(decision.value, settings);
   const invalid = decision.include && (!parsed.valid || parsed.value == null);
   const label = row.student?.full_name ?? excelText(row);
   const issues = row.issues.length > 0 ? row.issues.join(" · ") : STATUS_LABEL[row.status];
@@ -344,24 +359,26 @@ function PreviewRow({
         </p>
         <select
           className="select select-sm w-full"
-          aria-label={`Lapso de ${label}`}
+          aria-label={`${settings.term_label} de ${label}`}
           disabled={!editable}
           value={decision.term ?? ""}
           onChange={(event) =>
-            onChange({ term: event.target.value ? asTerm(Number(event.target.value)) : null })
+            onChange({
+              term: event.target.value ? asTerm(Number(event.target.value), settings) : null,
+            })
           }
         >
-          <option value="">Lapso…</option>
-          {TERMS.map((t) => (
+          <option value="">{settings.term_label}…</option>
+          {termNumbers(settings).map((t) => (
             <option key={t} value={t}>
-              Lapso {t}
+              {termName(settings, t)}
             </option>
           ))}
         </select>
         <GradeCell
           label={`Nota de ${label}`}
           value={decision.value}
-          edited={decision.value !== gradeText(row.value)}
+          edited={decision.value !== gradeText(row.value, settings)}
           invalid={invalid}
           disabled={!editable}
           onChange={(value) => onChange({ value, include: true })}
@@ -370,7 +387,7 @@ function PreviewRow({
           {issues}
           {row.current_value != null && (
             <span className="block font-normal text-base-content/60 text-xs">
-              Nota actual: {formatGrade(row.current_value)} (se sobrescribirá)
+              Nota actual: {formatGrade(row.current_value, settings)} (se sobrescribirá)
             </span>
           )}
         </p>

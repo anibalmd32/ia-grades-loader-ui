@@ -6,6 +6,7 @@ import { useToasts } from "@/components/ui/toast";
 import { routeTree } from "@/routeTree.gen";
 import type { User } from "@/stores/session";
 import { useSession } from "@/stores/session";
+import { personName } from "./handlers";
 
 /** Monta la app completa (router real) en la ruta indicada */
 export function renderApp(path: string) {
@@ -26,11 +27,12 @@ export function renderApp(path: string) {
   return { ...view, router, queryClient };
 }
 
+/** Usuario de prueba; con `full_name` y sin nombre/apellido, los deduce de él */
 export function makeUser(overrides: Partial<User> = {}): User {
   return {
     id: 1,
     role: "coordinator",
-    full_name: "Carmen Rojas",
+    ...personName(overrides.full_name ?? "Carmen Rojas"),
     email: "carmen@uni.edu",
     nationality: null,
     cedula: null,

@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import * as v from "valibot";
 import { subjectQuery } from "@/api/queries/admin";
+import { useAcademicSettings } from "@/api/queries/settings";
 import { BackLink } from "@/components/admin/common";
 import {
   DeleteSubjectButton,
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_app/admin/academic/subjects/$subjectId")
 function SubjectPage() {
   const { subjectId } = Route.useParams();
   const query = useQuery(subjectQuery(subjectId));
+  const settings = useAcademicSettings();
   const subject = query.data;
   const [editing, setEditing] = useState(false);
 
@@ -47,14 +49,14 @@ function SubjectPage() {
     <>
       <PageHeader
         title={subject ? `${subject.code} · ${subject.name}` : "Materia"}
-        description={subject ? `Semestre ${subject.semester.name}` : undefined}
+        description={subject ? `${settings.period_label} ${subject.semester.name}` : undefined}
         actions={actions}
       />
       <PageBody>
         <BackLink
           to="/admin/academic"
           search={subject ? { semester: subject.semester.id } : {}}
-          label="Semestres y materias"
+          label={`${settings.period_label_plural} y materias`}
         />
         {query.error ? (
           <ErrorState error={query.error} onRetry={() => query.refetch()} />

@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
+import { useAcademicSettings } from "@/api/queries/settings";
 import { RecentImports } from "@/components/teacher/recent-imports";
 import { UploadForm } from "@/components/teacher/upload-form";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 
 const title = "Importar notas desde Excel";
-const description = "La IA lee el archivo y te propone a qué estudiante y lapso va cada nota.";
 
 export const Route = createFileRoute("/_app/teacher/imports/")({
   validateSearch: v.object({
@@ -18,6 +18,8 @@ export const Route = createFileRoute("/_app/teacher/imports/")({
 
 function ImportsPage() {
   const { subject } = Route.useSearch();
+  const settings = useAcademicSettings();
+  const description = `La IA lee el archivo y te propone a qué estudiante y ${settings.term_label.toLowerCase()} va cada nota.`;
   return (
     <>
       <PageHeader title={title} description={description} />

@@ -12,8 +12,8 @@ export type ImportJobRead = components["schemas"]["ImportJobRead"];
 export type ImportRow = components["schemas"]["ImportRow"];
 export type JobStatus = components["schemas"]["JobStatus"];
 
-export const TERMS = [1, 2, 3] as const;
-export type Term = (typeof TERMS)[number];
+/** Número de lapso: de 1 a `terms_count` de la configuración académica (`termNumbers`) */
+export type Term = number;
 
 export const teacherKeys = {
   all: ["teacher"] as const,
@@ -58,11 +58,6 @@ export function saveGrades(subjectId: number, grades: GradeEntry[], importJobId?
 /** Estado actual de cada nota de la materia, para la planilla */
 export function gradeOf(row: StudentGrades, term: Term): number | null {
   return row.grades.find((g) => g.term === term)?.value ?? null;
-}
-
-/** La definitiva solo existe con los 3 lapsos cargados (la calcula la API: `average`) */
-export function finalGrade(row: StudentGrades): number | null {
-  return row.grades.every((g) => g.value != null) ? row.average : null;
 }
 
 /** En cola o leyéndose: hay que seguir consultando su estado */

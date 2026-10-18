@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import * as v from "valibot";
+import { useAcademicSettings } from "@/api/queries/settings";
 import { type StudentSubjectGrades, studentSubjectQuery } from "@/api/queries/student";
 import { BackLink } from "@/components/admin/common";
-import { StandingBadge, standingSentence, termsText } from "@/components/student/projection";
-import { formatGrade, PASSING_GRADE } from "@/components/ui/grade-badge";
+import { StandingBadge, standingSentence } from "@/components/student/projection";
+import { gradeColor } from "@/components/student/subject-grades-card";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { ErrorState, LoadingState } from "@/components/ui/states";
+import { formatGrade, termName, termsText } from "@/lib/grades";
 
 export const Route = createFileRoute("/_app/student/grades/$subjectId")({
   params: {
@@ -22,6 +24,7 @@ export const Route = createFileRoute("/_app/student/grades/$subjectId")({
 function SubjectPage() {
   const { subjectId } = Route.useParams();
   const query = useQuery(studentSubjectQuery(subjectId));
+  const settings = useAcademicSettings();
   const item = query.data;
 
   return (
@@ -30,7 +33,10 @@ function SubjectPage() {
         title={item ? `${item.subject.code} · ${item.subject.name}` : "Materia"}
         description={
           item
-            ? [`Semestre ${item.subject.semester.name}`, ...item.teachers.map((t) => `Prof. ${t}`)]
+            ? [
+                `${settings.period_label} ${item.subject.semester.name}`,
+                ...item.teachers.map((t) => `Prof. ${t}`),
+              ]
                 .filter(Boolean)
                 .join(" · ")
             : undefined
@@ -51,6 +57,7 @@ function SubjectPage() {
 }
 
 function SubjectDetail({ item }: { item: StudentSubjectGrades }) {
+  const settings = useAcademicSettings();
   const { subject, projection } = item;
   const final = projection.final_grade;
   const pending = projection.pending_terms;
@@ -69,17 +76,11 @@ function SubjectDetail({ item }: { item: StudentSubjectGrades }) {
         {item.grades.map((g) => (
           <div key={g.term} className="card card-border bg-base-100">
             <div className="card-body items-center gap-1 p-4 text-center">
-              <p className="text-base-content/70 text-sm">Lapso {g.term}</p>
+              <p className="text-base-content/70 text-sm">{termName(settings, g.term)}</p>
               <p
-                className={`font-bold text-3xl tabular-nums lg:text-4xl ${
-                  g.value == null
-                    ? "text-base-content/30"
-                    : g.value < PASSING_GRADE
-                      ? "text-error"
-                      : ""
-                }`}
+                className={`font-bold text-3xl tabular-nums lg:text-4xl ${gradeColor(g.value, settings)}`}
               >
-                {formatGrade(g.value)}
+                {formatGrade(g.value, settings)}
               </p>
               <p className="text-base-content/60 text-xs">
                 {g.value == null ? "Pendiente" : "Cargada"}
@@ -93,14 +94,12 @@ function SubjectDetail({ item }: { item: StudentSubjectGrades }) {
               {final != null ? "Definitiva" : "Promedio actual"}
             </p>
             <p className="font-bold text-3xl tabular-nums lg:text-4xl">
-              {formatGrade(final ?? item.average)}
+              {formatGrade(final ?? item.average, settings)}
             </p>
             <p className="text-neutral-content/70 text-xs">
               {final != null
                 ? "Materia cerrada"
-                : pending.length === 1
-                  ? `Falta el lapso ${pending[0]}`
-                  : `Faltan ${termsText(pending)}`}
+                : `${pending.length === 1 ? "Pendiente" : "Pendientes"}: ${termsText(settings, pending)}`}
             </p>
           </div>
         </div>
@@ -110,7 +109,7 @@ function SubjectDetail({ item }: { item: StudentSubjectGrades }) {
         <div className="card-body gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="card-title">¿Qué necesito para aprobar?</h2>
-            <StandingBadge projection={projection} />
+            <StandingBadge projection={projection} settings={settings} />
           </div>
           {projection.standing === "in_progress" && projection.needed_average != null ? (
             <>
@@ -118,11 +117,11 @@ function SubjectDetail({ item }: { item: StudentSubjectGrades }) {
                 {pending.length === 1 ? "Necesitas al menos" : "Necesitas un promedio de al menos"}
               </p>
               <p className="font-bold text-2xl text-primary lg:text-3xl">
-                {formatGrade(projection.needed_average)} en {termsText(pending)}
+                {formatGrade(projection.needed_average, settings)} en {termsText(settings, pending)}
               </p>
             </>
           ) : (
-            <p className="text-lg">{standingSentence(projection)}</p>
+            <p className="text-lg">{standingSentence(projection, settings)}</p>
           )}
         </div>
       </section>

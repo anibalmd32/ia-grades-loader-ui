@@ -53,7 +53,7 @@ function ProfilePage() {
           <section className="card card-border bg-base-100">
             <div className="card-body gap-4">
               <div className="flex items-center gap-3">
-                <Avatar name={current.full_name} />
+                <Avatar person={current} />
                 <div className="min-w-0">
                   <h2 className="truncate font-bold text-lg">{current.full_name}</h2>
                   <p className="text-base-content/70 text-sm">{ROLE_LABEL[current.role]}</p>

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import * as v from "valibot";
 import { groupBySemester } from "@/api/queries/admin";
+import { useAcademicSettings } from "@/api/queries/settings";
 import { teacherSubjectsQuery } from "@/api/queries/teacher";
 import { SubjectCard } from "@/components/teacher/subject-card";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
@@ -25,6 +26,7 @@ function TeacherSubjectsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const subjects = useQuery(teacherSubjectsQuery);
+  const settings = useAcademicSettings();
 
   const semesters = groupBySemester(subjects.data ?? []).map((g) => g.semester);
   const term = search.q.trim().toLowerCase();
@@ -46,7 +48,7 @@ function TeacherSubjectsPage() {
           />
           <select
             className="select w-full sm:max-w-56"
-            aria-label="Filtrar por semestre"
+            aria-label={`Filtrar por ${settings.period_label.toLowerCase()}`}
             value={search.semester ?? ""}
             onChange={(event) =>
               navigate({
@@ -58,10 +60,10 @@ function TeacherSubjectsPage() {
               })
             }
           >
-            <option value="">Semestre: Todos</option>
+            <option value="">{settings.period_label}: Todos</option>
             {semesters.map((semester) => (
               <option key={semester.id} value={semester.id}>
-                Semestre: {semester.name}
+                {settings.period_label}: {semester.name}
               </option>
             ))}
           </select>

@@ -77,14 +77,15 @@ describe("cuentas", () => {
     const user = userEvent.setup();
     const { router } = renderApp("/admin/teachers/new");
 
-    await user.type(await screen.findByLabelText("Nombre completo"), "Ramón Díaz");
+    await user.type(await screen.findByLabelText("Nombre"), "Ramón");
+    await user.type(screen.getByLabelText("Apellido"), "Díaz");
     await user.type(screen.getByLabelText("Email"), "ramon@uni.edu");
     await user.click(screen.getByRole("button", { name: "Crear profesor" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Contraseña generada" });
     expect(within(dialog).getByTestId("generated-password")).toHaveTextContent("k7Q2-mXp9");
     expect(within(dialog).getByText("Ramón Díaz · ramon@uni.edu")).toBeInTheDocument();
-    expect(body).toEqual({ full_name: "Ramón Díaz", email: "ramon@uni.edu" });
+    expect(body).toEqual({ first_name: "Ramón", last_name: "Díaz", email: "ramon@uni.edu" });
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/teachers"));
 
     await user.click(within(dialog).getByRole("button", { name: "Entendido" }));
@@ -107,7 +108,8 @@ describe("cuentas", () => {
     const user = userEvent.setup();
     renderApp("/admin/teachers/new");
 
-    await user.type(await screen.findByLabelText("Nombre completo"), "Ramón Díaz");
+    await user.type(await screen.findByLabelText("Nombre"), "Ramón");
+    await user.type(screen.getByLabelText("Apellido"), "Díaz");
     await user.type(screen.getByLabelText("Email"), "jose@uni.edu");
     await user.click(screen.getByRole("button", { name: "Crear profesor" }));
 
@@ -194,13 +196,20 @@ describe("estudiantes", () => {
     const user = userEvent.setup();
     renderApp("/admin/students/new");
 
-    await user.type(await screen.findByLabelText("Nombre completo"), "María Pérez");
+    await user.type(await screen.findByLabelText("Nombre"), "  María ");
+    await user.type(screen.getByLabelText("Apellido"), "Pérez");
     await user.type(screen.getByLabelText("Número de cédula"), "28456123");
     await user.click(await screen.findByRole("checkbox", { name: "MAT-101 Matemática I" }));
     await user.click(screen.getByRole("button", { name: "Crear estudiante" }));
 
     expect(await screen.findByTestId("generated-password")).toHaveTextContent("Est-1");
-    expect(created).toEqual({ full_name: "María Pérez", nationality: "V", cedula: 28456123 });
+    // Nombre y apellido por separado, sin espacios de sobra
+    expect(created).toEqual({
+      first_name: "María",
+      last_name: "Pérez",
+      nationality: "V",
+      cedula: 28456123,
+    });
     expect(enrolled).toEqual({ subject_ids: [10] });
   });
 
@@ -375,5 +384,68 @@ describe("semestres y materias", () => {
 
     await waitFor(() => expect(bulk).toEqual({ student_ids: [7, 8] }));
     expect(await screen.findByText("1 matriculados; 1 ya lo estaban.")).toBeInTheDocument();
+  });
+});
+
+describe("nombre y apellido", () => {
+  it("pide los dos por separado al crear un coordinador", async () => {
+    let body: unknown;
+    server.use(
+      http.post(`${API_URL}/coordinators`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(
+          { user: makeUser({ id: 4, full_name: "Luisa Mora" }), generated_password: "x" },
+          { status: 201 },
+        );
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp("/admin/coordinators/new");
+
+    await user.type(await screen.findByLabelText("Nombre"), "Luisa");
+    await user.type(screen.getByLabelText("Email"), "luisa@uni.edu");
+    await user.click(screen.getByRole("button", { name: "Crear coordinador" }));
+
+    expect(await screen.findByText("Escribe el apellido.")).toBeInTheDocument();
+    expect(body).toBeUndefined();
+
+    await user.type(screen.getByLabelText("Apellido"), "Mora");
+    await user.click(screen.getByRole("button", { name: "Crear coordinador" }));
+    await waitFor(() =>
+      expect(body).toEqual({ first_name: "Luisa", last_name: "Mora", email: "luisa@uni.edu" }),
+    );
+  });
+
+  it("edita nombre y apellido de un estudiante", async () => {
+    let patch: unknown;
+    server.use(
+      http.get(`${API_URL}/students/7`, () => HttpResponse.json(student)),
+      http.get(`${API_URL}/students/7/subjects`, () => HttpResponse.json([])),
+      http.patch(`${API_URL}/students/7`, async ({ request }) => {
+        patch = await request.json();
+        return HttpResponse.json(student);
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp("/admin/students/7");
+
+    // Iniciales del avatar: nombre + apellido
+    expect(await screen.findByText("MP")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Editar" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText("Nombre")).toHaveValue("María");
+    const last = within(dialog).getByLabelText("Apellido");
+    await user.clear(last);
+    await user.type(last, "Pérez Gómez");
+    await user.click(within(dialog).getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() =>
+      expect(patch).toEqual({
+        first_name: "María",
+        last_name: "Pérez Gómez",
+        nationality: "V",
+        cedula: 28456123,
+      }),
+    );
   });
 });

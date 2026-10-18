@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleAlert, Square, Trash2 } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { chatKeys, conversationsQuery, deleteConversation } from "@/api/queries/chat";
+import { useAcademicSettings } from "@/api/queries/settings";
 import { studentOverviewQuery } from "@/api/queries/student";
 import { confirm } from "@/components/ui/confirm";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
@@ -91,11 +92,12 @@ export function ConversationList({
 /** Preguntas de ejemplo; usa una materia en curso del estudiante si la hay */
 function useSuggestions(): string[] {
   const overview = useQuery(studentOverviewQuery);
+  const settings = useAcademicSettings();
   const pending = overview.data?.subjects.find((s) => s.projection.standing === "in_progress");
   return [
     "¿En qué materia voy peor?",
     pending ? `¿Cuánto necesito en ${pending.subject.name}?` : "¿Qué necesito para aprobar?",
-    "Resumen del semestre",
+    `Resumen del ${settings.period_label.toLowerCase()}`,
   ];
 }
 

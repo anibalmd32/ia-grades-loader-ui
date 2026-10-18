@@ -3,14 +3,16 @@ import { createFileRoute, Link, stripSearchParams } from "@tanstack/react-router
 import { Plus } from "lucide-react";
 import * as v from "valibot";
 import { semestersQuery, subjectsQuery } from "@/api/queries/admin";
+import { type AcademicSettings, useAcademicSettings } from "@/api/queries/settings";
 import { SemestersPanel } from "@/components/admin/semesters-panel";
 import { DataTable } from "@/components/ui/data-table";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState } from "@/components/ui/states";
 
-const title = "Semestres y materias";
-const description = "Cada materia pertenece a un único semestre.";
+const title = (settings: AcademicSettings) => `${settings.period_label_plural} y materias`;
+const description = (settings: AcademicSettings) =>
+  `Cada materia pertenece a un único ${settings.period_label.toLowerCase()}.`;
 
 export const Route = createFileRoute("/_app/admin/academic/")({
   validateSearch: v.object({
@@ -27,6 +29,8 @@ function AcademicPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const semesters = useQuery(semestersQuery);
+  const settings = useAcademicSettings();
+  const period = settings.period_label.toLowerCase();
   // Sin semestre en la URL se muestra el primero
   const semester = semesters.data?.find((s) => s.id === search.semester) ?? semesters.data?.[0];
   const subjects = useQuery({
@@ -47,7 +51,11 @@ function AcademicPage() {
 
   return (
     <>
-      <PageHeader title={title} description={description} actions={newSubject} />
+      <PageHeader
+        title={title(settings)}
+        description={description(settings)}
+        actions={newSubject}
+      />
       <PageBody>
         <div className="grid items-start gap-4 lg:grid-cols-[18rem_1fr]">
           <SemestersPanel
@@ -71,8 +79,8 @@ function AcademicPage() {
               </div>
               {!semester && semesters.data ? (
                 <EmptyState
-                  title="Aún no hay semestres"
-                  description="Crea un semestre para poder añadir materias."
+                  title={`Aún no hay ${settings.period_label_plural.toLowerCase()}`}
+                  description={`Crea un ${period} para poder añadir materias.`}
                 />
               ) : (
                 <DataTable
@@ -82,7 +90,9 @@ function AcademicPage() {
                   onRetry={() => subjects.refetch()}
                   rowKey={(s) => s.id}
                   emptyTitle={
-                    search.q ? "Sin resultados para la búsqueda" : "Este semestre no tiene materias"
+                    search.q
+                      ? "Sin resultados para la búsqueda"
+                      : `Este ${period} no tiene materias`
                   }
                   page={subjects.data}
                   onPageChange={(offset) => navigate({ search: (prev) => ({ ...prev, offset }) })}

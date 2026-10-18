@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, stripSearchParams } from "@tanstack/react-router";
 import * as v from "valibot";
 import { PAGE_SIZE } from "@/api/queries/admin";
-import { type SubjectGrades, subjectGradesQuery, TERMS } from "@/api/queries/teacher";
+import { useAcademicSettings } from "@/api/queries/settings";
+import { type SubjectGrades, subjectGradesQuery } from "@/api/queries/teacher";
 import { BackLink } from "@/components/admin/common";
 import {
   FinalGrade,
@@ -19,6 +20,7 @@ import { Pagination } from "@/components/ui/data-table";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
+import { isTerm, scaleText, termName, termNumbers } from "@/lib/grades";
 
 const SHOW_OPTIONS: { value: "all" | Standing; label: string }[] = [
   { value: "all", label: "Mostrar: Todos" },
@@ -40,12 +42,20 @@ export const Route = createFileRoute("/_app/teacher/subjects/$subjectId")({
       v.fallback(v.picklist(["all", "passed", "failed", "in_progress"]), "all"),
       "all",
     ),
-    // Lapso visible en móvil (en escritorio se ven los tres)
-    term: v.optional(v.fallback(v.picklist([1, 2, 3]), 1), 1),
+    // Lapso visible en móvil (en escritorio se ven todos). El máximo depende de la
+    // configuración académica: uno fuera de rango se trata como el primero
+    term: v.optional(
+      v.fallback(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(10)), 1),
+      1,
+    ),
     offset: v.optional(v.fallback(v.pipe(v.number(), v.integer(), v.minValue(0)), 0), 0),
   }),
   search: { middlewares: [stripSearchParams({ q: "", show: "all", term: 1, offset: 0 })] },
-  staticData: { title: "Planilla de notas", description: "3 lapsos · se aprueba con 10" },
+  staticData: {
+    title: "Planilla de notas",
+    description: (s) =>
+      `${s.terms_count} ${(s.terms_count === 1 ? s.term_label : s.term_label_plural).toLowerCase()} · se aprueba con ${scaleText(s.passing_grade)}`,
+  },
   component: GradebookPage,
 });
 
@@ -80,6 +90,9 @@ function GradebookPage() {
 function Gradebook({ data }: { data: SubjectGrades }) {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const settings = useAcademicSettings();
+  const terms = termNumbers(settings);
+  const currentTerm = isTerm(search.term, settings) ? search.term : 1;
   const { subject, students } = data;
   const drafts = useGradeDrafts(data);
   const save = useSaveGrades(subject.id, drafts);
@@ -122,7 +135,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
     <>
       <PageHeader
         title={`${subject.code} · ${subject.name}`}
-        description={`Semestre ${subject.semester.name} · ${students.length} estudiantes`}
+        description={`${settings.period_label} ${subject.semester.name} · ${students.length} estudiantes`}
         actions={actions}
       />
       <PageBody>
@@ -178,19 +191,25 @@ function Gradebook({ data }: { data: SubjectGrades }) {
               <>
                 {/* Móvil: un lapso a la vez, una tarjeta por estudiante */}
                 <div className="flex flex-col gap-3 lg:hidden">
-                  <div role="tablist" className="grid grid-cols-3 gap-2">
-                    {TERMS.map((term) => (
+                  <div
+                    role="tablist"
+                    className="grid gap-2"
+                    style={{
+                      gridTemplateColumns: `repeat(${Math.min(terms.length, 3)}, minmax(0, 1fr))`,
+                    }}
+                  >
+                    {terms.map((term) => (
                       <button
                         key={term}
                         type="button"
                         role="tab"
-                        aria-selected={search.term === term}
-                        className={`btn btn-sm rounded-full ${search.term === term ? "btn-primary" : "btn-outline btn-primary"}`}
+                        aria-selected={currentTerm === term}
+                        className={`btn btn-sm rounded-full ${currentTerm === term ? "btn-primary" : "btn-outline btn-primary"}`}
                         onClick={() =>
                           navigate({ search: (prev) => ({ ...prev, term }), replace: true })
                         }
                       >
-                        Lapso {term}
+                        {termName(settings, term)}
                       </button>
                     ))}
                   </div>
@@ -205,11 +224,11 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                         </div>
                         <GradeCell
                           className="input-md w-24"
-                          label={`${row.student.full_name} · Lapso ${search.term}`}
-                          value={drafts.text(row, search.term)}
-                          edited={drafts.isEdited(row, search.term)}
-                          invalid={drafts.isInvalid(row, search.term)}
-                          onChange={(value) => drafts.set(row, search.term, value)}
+                          label={`${row.student.full_name} · ${termName(settings, currentTerm)}`}
+                          value={drafts.text(row, currentTerm)}
+                          edited={drafts.isEdited(row, currentTerm)}
+                          invalid={drafts.isInvalid(row, currentTerm)}
+                          onChange={(value) => drafts.set(row, currentTerm, value)}
                           disabled={save.isPending}
                         />
                       </li>
@@ -217,15 +236,15 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                   </ul>
                 </div>
 
-                {/* Escritorio: los tres lapsos y la definitiva */}
+                {/* Escritorio: todos los lapsos configurados y la definitiva */}
                 <div className="hidden overflow-x-auto rounded-box border border-base-300 bg-base-100 lg:block">
                   <table className="table-zebra table">
                     <thead>
                       <tr>
                         <th>Estudiante</th>
-                        {TERMS.map((term) => (
+                        {terms.map((term) => (
                           <th key={term} className="w-32">
-                            Lapso {term}
+                            {termName(settings, term)}
                           </th>
                         ))}
                         <th className="w-32">Definitiva</th>
@@ -243,10 +262,10 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                               </span>
                             )}
                           </td>
-                          {TERMS.map((term) => (
+                          {terms.map((term) => (
                             <td key={term}>
                               <GradeCell
-                                label={`${row.student.full_name} · Lapso ${term}`}
+                                label={`${row.student.full_name} · ${termName(settings, term)}`}
                                 value={drafts.text(row, term)}
                                 edited={drafts.isEdited(row, term)}
                                 invalid={drafts.isInvalid(row, term)}
@@ -265,8 +284,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                 </div>
 
                 <p className="text-base-content/70 text-xs">
-                  Los 3 lapsos pesan igual · Definitiva = promedio · Se aprueba con 10 · Deja una
-                  celda vacía para borrar la nota.
+                  {settings.summary}. Deja una celda vacía para borrar la nota.
                 </p>
 
                 {filtered.length > PAGE_SIZE && (

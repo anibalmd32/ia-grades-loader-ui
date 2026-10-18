@@ -2,31 +2,28 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
 import { CircleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useAcademicSettings } from "@/api/queries/settings";
 import {
-  finalGrade,
   type GradeEntry,
   gradeOf,
   type StudentGrades,
   type SubjectGrades,
   saveGrades,
-  TERMS,
   type Term,
   teacherKeys,
 } from "@/api/queries/teacher";
 import { confirm } from "@/components/ui/confirm";
-import { formatGrade, PASSING_GRADE } from "@/components/ui/grade-badge";
 import { toast } from "@/components/ui/toast";
-import { GRADE_RULE, gradeText, parseGrade } from "@/lib/grades";
+import { formatGrade, gradeRule, gradeText, parseGrade, termName, termNumbers } from "@/lib/grades";
 
 const cellKey = (studentId: number, term: Term) => `${studentId}:${term}`;
 
 export type Standing = "passed" | "failed" | "in_progress";
 
-/** Situación del estudiante según la definitiva que devuelve la API */
+/** Situación del estudiante según la definitiva y el aprobado que devuelve la API */
 export function standingOf(row: StudentGrades): Standing {
-  const final = finalGrade(row);
-  if (final == null) return "in_progress";
-  return final >= PASSING_GRADE ? "passed" : "failed";
+  if (row.final_grade == null || row.passed == null) return "in_progress";
+  return row.passed ? "passed" : "failed";
 }
 
 type InvalidCell = { student: StudentGrades; term: Term };
@@ -36,20 +33,21 @@ type InvalidCell = { student: StudentGrades; term: Term };
  * del servidor. Expone los cambios válidos (para el PUT) y las celdas inválidas.
  */
 export function useGradeDrafts(data: SubjectGrades) {
+  const settings = useAcademicSettings();
   const [drafts, setDrafts] = useState<Map<string, string>>(new Map());
 
   const text = (row: StudentGrades, term: Term) =>
-    drafts.get(cellKey(row.student.id, term)) ?? gradeText(gradeOf(row, term));
+    drafts.get(cellKey(row.student.id, term)) ?? gradeText(gradeOf(row, term), settings);
 
   const changes: GradeEntry[] = [];
   const invalid: InvalidCell[] = [];
   const edited = new Set<string>();
   for (const row of data.students) {
-    for (const term of TERMS) {
+    for (const term of termNumbers(settings)) {
       const key = cellKey(row.student.id, term);
       const draft = drafts.get(key);
       if (draft === undefined) continue;
-      const parsed = parseGrade(draft);
+      const parsed = parseGrade(draft, settings);
       if (!parsed.valid) {
         invalid.push({ student: row, term });
         edited.add(key);
@@ -119,6 +117,7 @@ export function useUnsavedChangesGuard(pending: number) {
 
 /** Aviso con la primera celda inválida (en el formato del diseño) */
 export function InvalidCellAlert({ invalid }: { invalid: InvalidCell[] }) {
+  const settings = useAcademicSettings();
   const first = invalid[0];
   if (!first) return null;
   const more = invalid.length - 1;
@@ -126,7 +125,7 @@ export function InvalidCellAlert({ invalid }: { invalid: InvalidCell[] }) {
     <div role="alert" className="alert alert-error alert-soft">
       <CircleAlert className="size-5 shrink-0" />
       <span>
-        {first.student.student.full_name} · Lapso {first.term}: {GRADE_RULE}.
+        {first.student.student.full_name} · {termName(settings, first.term)}: {gradeRule(settings)}.
         {more > 0 && ` Hay ${more} ${more === 1 ? "celda más" : "celdas más"} por corregir.`}
       </span>
     </div>
@@ -172,15 +171,15 @@ export function GradeCell({
   );
 }
 
-/** Definitiva (de la API) o "En curso" si faltan lapsos; en rojo si reprueba */
+/** Definitiva y aprobado (de la API) o "En curso" si faltan lapsos; en rojo si reprueba */
 export function FinalGrade({ row }: { row: StudentGrades }) {
-  const final = finalGrade(row);
-  if (final == null) return <span className="font-semibold text-base-content/60">En curso</span>;
+  const settings = useAcademicSettings();
+  if (row.final_grade == null) {
+    return <span className="font-semibold text-base-content/60">En curso</span>;
+  }
   return (
-    <span
-      className={`font-bold tabular-nums ${final >= PASSING_GRADE ? "text-success" : "text-error"}`}
-    >
-      {formatGrade(final)}
+    <span className={`font-bold tabular-nums ${row.passed ? "text-success" : "text-error"}`}>
+      {formatGrade(row.final_grade, settings)}
     </span>
   );
 }

@@ -6,9 +6,11 @@ import {
   MessageCircle,
   NotebookPen,
   Send,
+  Settings,
   ShieldCheck,
   Users,
 } from "lucide-react";
+import type { AcademicSettings } from "@/api/queries/settings";
 import type { Role, User } from "@/stores/session";
 
 export const ROLE_LABEL: Record<Role, string> = {
@@ -18,18 +20,33 @@ export const ROLE_LABEL: Record<Role, string> = {
   student: "Estudiante",
 };
 
-export type NavItem = { to: string; label: string; icon: LucideIcon };
+/** Entrada del menú; la etiqueta puede depender de la configuración académica */
+export type NavEntry = {
+  to: string;
+  label: string | ((settings: AcademicSettings) => string);
+  icon: LucideIcon;
+  /** false: solo en el menú lateral, no en la barra inferior del móvil (que tiene poco sitio) */
+  dock?: boolean;
+};
+/** Entrada del menú lista para mostrar */
+export type NavItem = Omit<NavEntry, "label"> & { label: string };
 
-const ADMIN_NAV: NavItem[] = [
+const ADMIN_NAV: NavEntry[] = [
   { to: "/admin/teachers", label: "Profesores", icon: Users },
   { to: "/admin/students", label: "Estudiantes", icon: GraduationCap },
-  { to: "/admin/academic", label: "Semestres y materias", icon: BookOpen },
+  {
+    to: "/admin/academic",
+    label: (settings) => `${settings.period_label_plural} y materias`,
+    icon: BookOpen,
+  },
 ];
 
-export const NAV: Record<Role, NavItem[]> = {
+export const NAV: Record<Role, NavEntry[]> = {
   super_admin: [
     { to: "/admin/coordinators", label: "Coordinadores", icon: ShieldCheck },
     ...ADMIN_NAV,
+    // Solo el super admin: reglas académicas (periodos, lapsos y escala de notas)
+    { to: "/admin/settings", label: "Configuración", icon: Settings, dock: false },
   ],
   coordinator: ADMIN_NAV,
   teacher: [
@@ -43,14 +60,32 @@ export const NAV: Record<Role, NavItem[]> = {
   ],
 };
 
-/** Pantalla de inicio de cada rol (tras el login) */
-export function homePath(role: Role): string {
-  return NAV[role][0].to;
+/** Resuelve la etiqueta de una entrada del menú con la configuración académica */
+export function navItem(entry: NavEntry, settings: AcademicSettings): NavItem {
+  return {
+    ...entry,
+    label: typeof entry.label === "function" ? entry.label(settings) : entry.label,
+  };
 }
 
-/** "Carmen Rojas" → "CR" */
-export function initials(name: string): string {
-  return name
+/** Pantalla de inicio de cada rol (tras el login) */
+export function homePath(role: Role): string {
+  return (NAV[role][0] as NavEntry).to;
+}
+
+/**
+ * Iniciales para el avatar: primera letra del nombre y del apellido si vienen por separado
+ * ("Carmen" + "Rojas" → "CR"); si no, de las dos primeras palabras del nombre completo.
+ */
+export function initials(person: {
+  full_name: string;
+  first_name?: string;
+  last_name?: string;
+}): string {
+  const first = person.first_name?.trim();
+  const last = person.last_name?.trim();
+  if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+  return person.full_name
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)

@@ -63,6 +63,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/academic": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reglas académicas vigentes
+         * @description Pública (sin sesión): la app la usa para mostrar los nombres de periodos y lapsos y
+         *     la escala de notas en todas las pantallas, incluido el login.
+         */
+        get: operations["get_academic_settings_api_v1_settings_academic_get"];
+        /**
+         * Cambiar las reglas académicas (solo super admin)
+         * @description Reemplaza la configuración completa. Afecta a la carga de notas, la consulta de los
+         *     estudiantes, la importación con IA y el asistente.
+         *
+         *     Responde **409** si alguna nota ya cargada dejaría de ser válida (p. ej. reducir el
+         *     número de lapsos cuando ya hay notas en el último, o cambiar la escala dejando notas
+         *     fuera de ella).
+         */
+        put: operations["update_academic_settings_api_v1_settings_academic_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login/staff": {
         parameters: {
             query?: never;
@@ -583,7 +613,8 @@ export interface paths {
          * Cargar o corregir notas
          * @description Envía solo las notas que cambian. `value: null` borra la nota de ese lapso.
          *
-         *     Es todo o nada: si algún estudiante no está matriculado no se guarda ninguna.
+         *     Es todo o nada: si algún estudiante no está matriculado (404) o alguna nota o lapso no
+         *     cumple la configuración académica (422) no se guarda ninguna.
          *
          *     Si las notas salen de una importación, envía su `import_job_id` para marcarla como
          *     confirmada (debe ser de esta materia y estar en `done`; si no, 409).
@@ -827,6 +858,156 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AcademicSettingsRead */
+        AcademicSettingsRead: {
+            /**
+             * Institution Name
+             * @description Nombre de la institución
+             * @example UNEFA
+             */
+            institution_name: string;
+            /** @description Cómo se organiza el año académico: semester (semestres), trimester (trimestres), quadrimester (cuatrimestres) o annual (años) */
+            period_type: components["schemas"]["PeriodType"];
+            /**
+             * Terms Count
+             * @description Evaluaciones (lapsos) en que se divide cada periodo
+             */
+            terms_count: number;
+            /**
+             * Term Label
+             * @description Nombre de cada evaluación del periodo
+             * @example Lapso
+             * @example Corte
+             * @example Parcial
+             */
+            term_label: string;
+            /**
+             * Term Weights
+             * @description Porcentaje de cada lapso, en orden; deben sumar 100. null = todos pesan igual (promedio simple)
+             * @example null
+             * @example [
+             *       30,
+             *       30,
+             *       40
+             *     ]
+             */
+            term_weights: number[] | null;
+            /**
+             * Min Grade
+             * @description Nota mínima de la escala
+             */
+            min_grade: number;
+            /**
+             * Max Grade
+             * @description Nota máxima de la escala (hasta 100)
+             */
+            max_grade: number;
+            /**
+             * Passing Grade
+             * @description Nota mínima para aprobar
+             */
+            passing_grade: number;
+            /**
+             * Grade Decimals
+             * @description Decimales admitidos en las notas
+             */
+            grade_decimals: number;
+            /**
+             * Round Final Grade
+             * @description true: la definitiva se redondea al entero (9.5 → 10) antes de decidir si aprueba
+             */
+            round_final_grade: boolean;
+            /**
+             * Period Label
+             * @description Nombre del periodo en singular
+             * @example Semestre
+             */
+            period_label: string;
+            /**
+             * Period Label Plural
+             * @example Semestres
+             */
+            period_label_plural: string;
+            /**
+             * Term Label Plural
+             * @example Lapsos
+             */
+            term_label_plural: string;
+            /**
+             * Term Percentages
+             * @description Porcentaje efectivo de cada lapso (con pesos iguales, 100 / lapsos redondeado a 2 decimales)
+             */
+            term_percentages: number[];
+            /**
+             * Summary
+             * @description Regla de la definitiva en una frase, lista para mostrar
+             * @example La definitiva es el promedio simple de los 3 lapsos y se aprueba con 10 o más
+             */
+            summary: string;
+        };
+        /**
+         * AcademicSettingsUpdate
+         * @description Reemplaza la configuración completa.
+         */
+        AcademicSettingsUpdate: {
+            /**
+             * Institution Name
+             * @description Nombre de la institución
+             * @example UNEFA
+             */
+            institution_name: string;
+            /** @description Cómo se organiza el año académico: semester (semestres), trimester (trimestres), quadrimester (cuatrimestres) o annual (años) */
+            period_type: components["schemas"]["PeriodType"];
+            /**
+             * Terms Count
+             * @description Evaluaciones (lapsos) en que se divide cada periodo
+             */
+            terms_count: number;
+            /**
+             * Term Label
+             * @description Nombre de cada evaluación del periodo
+             * @example Lapso
+             * @example Corte
+             * @example Parcial
+             */
+            term_label: string;
+            /**
+             * Term Weights
+             * @description Porcentaje de cada lapso, en orden; deben sumar 100. null = todos pesan igual (promedio simple)
+             * @example null
+             * @example [
+             *       30,
+             *       30,
+             *       40
+             *     ]
+             */
+            term_weights: (number | string)[] | null;
+            /**
+             * Min Grade
+             * @description Nota mínima de la escala
+             */
+            min_grade: number | string;
+            /**
+             * Max Grade
+             * @description Nota máxima de la escala (hasta 100)
+             */
+            max_grade: number | string;
+            /**
+             * Passing Grade
+             * @description Nota mínima para aprobar
+             */
+            passing_grade: number | string;
+            /**
+             * Grade Decimals
+             * @description Decimales admitidos en las notas
+             */
+            grade_decimals: number;
+            /**
+             * Round Final Grade
+             * @description true: la definitiva se redondea al entero (9.5 → 10) antes de decidir si aprueba
+             */
+            round_final_grade: boolean;
+        };
         /** Body_enqueue_grades_import_api_v1_teacher_subjects__subject_id__grades_import_post */
         Body_enqueue_grades_import_api_v1_teacher_subjects__subject_id__grades_import_post: {
             /**
@@ -968,7 +1149,7 @@ export interface components {
             student_id: number;
             /**
              * Term
-             * @description Lapso (1 a 3)
+             * @description Lapso (de 1 al número de lapsos configurado)
              */
             term: number;
             /**
@@ -1112,7 +1293,7 @@ export interface components {
             term: number | null;
             /**
              * Value
-             * @description Nota a guardar (1-20) si es válida
+             * @description Nota a guardar si es válida
              */
             value: number | null;
             /**
@@ -1206,6 +1387,11 @@ export interface components {
             generated_password: string;
         };
         /**
+         * PeriodType
+         * @enum {string}
+         */
+        PeriodType: "semester" | "trimester" | "quadrimester" | "annual";
+        /**
          * Role
          * @enum {string}
          */
@@ -1225,12 +1411,12 @@ export interface components {
             subjects_count: number;
             /**
              * Passed Count
-             * @description Materias aprobadas (los 3 lapsos cargados)
+             * @description Materias aprobadas (todos los lapsos cargados)
              */
             passed_count: number;
             /**
              * Failed Count
-             * @description Materias reprobadas (los 3 lapsos cargados)
+             * @description Materias reprobadas (todos los lapsos cargados)
              */
             failed_count: number;
         };
@@ -1261,8 +1447,18 @@ export interface components {
         };
         /** SetupRequest */
         SetupRequest: {
-            /** Full Name */
-            full_name: string;
+            /**
+             * First Name
+             * @description Nombre(s)
+             * @example Ana María
+             */
+            first_name: string;
+            /**
+             * Last Name
+             * @description Apellido(s)
+             * @example Pérez Gómez
+             */
+            last_name: string;
             /**
              * Email
              * Format: email
@@ -1284,8 +1480,18 @@ export interface components {
          * @description Alta de coordinador o profesor.
          */
         StaffCreate: {
-            /** Full Name */
-            full_name: string;
+            /**
+             * First Name
+             * @description Nombre(s)
+             * @example Ana María
+             */
+            first_name: string;
+            /**
+             * Last Name
+             * @description Apellido(s)
+             * @example Pérez Gómez
+             */
+            last_name: string;
             /**
              * Email
              * Format: email
@@ -1307,8 +1513,10 @@ export interface components {
         };
         /** StaffUpdate */
         StaffUpdate: {
-            /** Full Name */
-            full_name?: string | null;
+            /** First Name */
+            first_name?: string | null;
+            /** Last Name */
+            last_name?: string | null;
             /** Email */
             email?: string | null;
             /** Is Active */
@@ -1321,8 +1529,18 @@ export interface components {
         Standing: "passed" | "failed" | "secured" | "in_progress" | "impossible";
         /** StudentCreate */
         StudentCreate: {
-            /** Full Name */
-            full_name: string;
+            /**
+             * First Name
+             * @description Nombre(s)
+             * @example Ana María
+             */
+            first_name: string;
+            /**
+             * Last Name
+             * @description Apellido(s)
+             * @example Pérez Gómez
+             */
+            last_name: string;
             /** @description V = venezolano, E = extranjero */
             nationality: components["schemas"]["Nationality"];
             /**
@@ -1342,9 +1560,19 @@ export interface components {
             grades: components["schemas"]["TermGrade"][];
             /**
              * Average
-             * @description Promedio de las notas cargadas (2 decimales, redondeo hacia arriba en .005)
+             * @description Promedio (ponderado si los lapsos tienen pesos) de las notas cargadas
              */
             average: number | null;
+            /**
+             * Final Grade
+             * @description Definitiva: solo con todos los lapsos cargados (calculada por la API)
+             */
+            final_grade: number | null;
+            /**
+             * Passed
+             * @description Si aprueba con la definitiva; null si faltan lapsos
+             */
+            passed: boolean | null;
         };
         /**
          * StudentLogin
@@ -1401,6 +1629,10 @@ export interface components {
         StudentSummary: {
             /** Id */
             id: number;
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string;
             /** Full Name */
             full_name: string;
             /** Cedula Display */
@@ -1408,8 +1640,10 @@ export interface components {
         };
         /** StudentUpdate */
         StudentUpdate: {
-            /** Full Name */
-            full_name?: string | null;
+            /** First Name */
+            first_name?: string | null;
+            /** Last Name */
+            last_name?: string | null;
             nationality?: components["schemas"]["Nationality"] | null;
             /** Cedula */
             cedula?: number | null;
@@ -1439,14 +1673,14 @@ export interface components {
         };
         /**
          * SubjectProjection
-         * @description Situación de la materia: definitiva = promedio simple de los 3 lapsos.
+         * @description Situación de la materia según la configuración académica.
          */
         SubjectProjection: {
             /** @description passed / failed = materia cerrada; secured = aprueba aunque saque la nota mínima en lo que falta; in_progress = aún depende de los lapsos pendientes; impossible = ni con la nota máxima llega a la aprobatoria */
             standing: components["schemas"]["Standing"];
             /**
              * Final Grade
-             * @description Definitiva (solo con los 3 lapsos)
+             * @description Definitiva (solo con todos los lapsos)
              */
             final_grade: number | null;
             /**
@@ -1507,7 +1741,7 @@ export interface components {
             students_count: number;
             /**
              * Grades Count
-             * @description Notas cargadas en cada lapso (claves 1, 2 y 3; siempre las tres)
+             * @description Notas cargadas en cada lapso (siempre todos los lapsos configurados)
              * @example {
              *       "1": 30,
              *       "2": 12,
@@ -1558,7 +1792,7 @@ export interface components {
         TermGrade: {
             /**
              * Term
-             * @description Lapso (1 a 3)
+             * @description Lapso (de 1 al número de lapsos configurado)
              */
             term: number;
             /**
@@ -1602,7 +1836,14 @@ export interface components {
             /** Id */
             id: number;
             role: components["schemas"]["Role"];
-            /** Full Name */
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string;
+            /**
+             * Full Name
+             * @description Nombre y apellido
+             */
             full_name: string;
             /** Email */
             email: string | null;
@@ -1716,6 +1957,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_academic_settings_api_v1_settings_academic_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcademicSettingsRead"];
+                };
+            };
+        };
+    };
+    update_academic_settings_api_v1_settings_academic_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcademicSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcademicSettingsRead"];
+                };
             };
             /** @description Validation Error */
             422: {

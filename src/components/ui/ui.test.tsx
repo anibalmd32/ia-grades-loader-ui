@@ -2,6 +2,9 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/errors";
+import { makeSettings, settingsHandler } from "@/test/handlers";
+import { renderWithQuery } from "@/test/render";
+import { server } from "@/test/server";
 import { ConfirmDialog, confirm } from "./confirm";
 import { DataTable, Pagination } from "./data-table";
 import { formatGrade, GradeBadge } from "./grade-badge";
@@ -9,12 +12,20 @@ import { ErrorState } from "./states";
 import { Toaster, toast } from "./toast";
 
 describe("GradeBadge", () => {
-  it("formatea con 2 decimales y colorea según aprueba o no", () => {
-    const { rerender } = render(<GradeBadge value={9.99} />);
-    expect(screen.getByText("9.99")).toHaveClass("badge-error");
-    rerender(<GradeBadge value={10} />);
-    expect(screen.getByText("10.00")).toHaveClass("badge-success");
+  it("formatea con los decimales configurados y colorea según la nota aprobatoria", async () => {
+    renderWithQuery(<GradeBadge value={9.99} />);
+    expect(await screen.findByText("9.99")).toHaveClass("badge-error");
+    renderWithQuery(<GradeBadge value={10} />);
+    expect(await screen.findByText("10.00")).toHaveClass("badge-success");
     expect(formatGrade(null)).toBe("—");
+  });
+
+  it("usa la aprobatoria y los decimales de la configuración", async () => {
+    server.use(
+      settingsHandler(makeSettings({ passing_grade: 60, max_grade: 100, grade_decimals: 0 })),
+    );
+    renderWithQuery(<GradeBadge value={59} />);
+    expect(await screen.findByText("59")).toHaveClass("badge-error");
   });
 });
 

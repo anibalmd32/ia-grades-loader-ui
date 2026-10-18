@@ -12,6 +12,7 @@ import type {
 import { API_URL } from "@/lib/config";
 import { useImportReviews } from "@/stores/import-reviews";
 import { makeUser, renderApp, signedInAs } from "./app";
+import { personName } from "./handlers";
 import { server } from "./server";
 
 // uploadImport simulado sin vi.fn: Vitest da por fallido el test si un vi.fn rechaza
@@ -36,9 +37,9 @@ const mat: TeacherSubject = {
   students_count: 3,
   grades_count: { "1": 3, "2": 0, "3": 0 },
 };
-const maria = { id: 7, full_name: "María Pérez", cedula_display: "V-28456123" };
-const carlos = { id: 8, full_name: "Carlos Gómez", cedula_display: "V-27118904" };
-const sofia = { id: 9, full_name: "Sofía Linares", cedula_display: "V-28990034" };
+const maria = { id: 7, ...personName("María Pérez"), cedula_display: "V-28456123" };
+const carlos = { id: 8, ...personName("Carlos Gómez"), cedula_display: "V-27118904" };
+const sofia = { id: 9, ...personName("Sofía Linares"), cedula_display: "V-28990034" };
 
 const summary = {
   id: "job-1",
@@ -258,7 +259,7 @@ describe("seguimiento y revisión", () => {
     renderApp("/teacher/imports/job-1");
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "María Pérez tiene dos notas para el lapso 2",
+      "María Pérez tiene dos notas en Lapso 2",
     );
     expect(screen.getAllByRole("button", { name: /Confirmar y guardar/ })[0]).toBeDisabled();
 

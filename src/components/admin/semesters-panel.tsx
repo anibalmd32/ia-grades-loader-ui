@@ -4,6 +4,7 @@ import { useState } from "react";
 import * as v from "valibot";
 import { api, unwrap } from "@/api/client";
 import { adminKeys, type SemesterRead, semestersQuery } from "@/api/queries/admin";
+import { useAcademicSettings } from "@/api/queries/settings";
 import { applyApiErrors } from "@/components/form/api-errors";
 import { FormError, useAppForm } from "@/components/form/form";
 import { confirm } from "@/components/ui/confirm";
@@ -15,12 +16,12 @@ const NameSchema = v.object({
   name: v.pipe(
     v.string(),
     v.trim(),
-    v.minLength(1, "Escribe el nombre del semestre."),
+    v.minLength(1, "Escribe el nombre."),
     v.maxLength(50, "Máximo 50 caracteres."),
   ),
 });
 
-/** Lista de semestres (selección, renombrar, eliminar) y alta de semestre */
+/** Lista de periodos (semestres, trimestres…): selección, renombrar, eliminar y alta */
 export function SemestersPanel({
   selectedId,
   onSelect,
@@ -30,6 +31,8 @@ export function SemestersPanel({
 }) {
   const queryClient = useQueryClient();
   const semesters = useQuery(semestersQuery);
+  const settings = useAcademicSettings();
+  const period = settings.period_label.toLowerCase();
   const [renaming, setRenaming] = useState<SemesterRead | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -44,7 +47,7 @@ export function SemestersPanel({
         );
         await queryClient.invalidateQueries({ queryKey: adminKeys.semesters });
         formApi.reset();
-        toast.success(`Semestre ${created.name} creado.`);
+        toast.success(`${settings.period_label} ${created.name} creado.`);
         onSelect(created.id);
       } catch (error) {
         setFormError(applyApiErrors(createForm, error));
@@ -61,7 +64,7 @@ export function SemestersPanel({
       ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: adminKeys.semesters });
-      toast.success("Semestre eliminado.");
+      toast.success(`${settings.period_label} eliminado.`);
     },
     // 409: tiene materias
     onError: (error) => toast.error(error.message),
@@ -69,7 +72,7 @@ export function SemestersPanel({
 
   const handleRemove = async (semester: SemesterRead) => {
     const ok = await confirm({
-      title: `¿Eliminar el semestre ${semester.name}?`,
+      title: `¿Eliminar el ${period} ${semester.name}?`,
       message: "Solo se puede eliminar si no tiene materias.",
       confirmLabel: "Eliminar",
       danger: true,
@@ -80,13 +83,13 @@ export function SemestersPanel({
   return (
     <section className="card card-border bg-base-100">
       <div className="card-body gap-3">
-        <h2 className="card-title">Semestres</h2>
+        <h2 className="card-title">{settings.period_label_plural}</h2>
         {semesters.error ? (
           <ErrorState error={semesters.error} onRetry={() => semesters.refetch()} />
         ) : !semesters.data ? (
           <LoadingState rows={2} />
         ) : semesters.data.length === 0 ? (
-          <p className="text-base-content/70 text-sm">Crea el primer semestre para empezar.</p>
+          <p className="text-base-content/70 text-sm">Crea el primer {period} para empezar.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {semesters.data.map((semester) => {
@@ -143,10 +146,10 @@ export function SemestersPanel({
         >
           <FormError message={formError} />
           <createForm.AppField name="name">
-            {(field) => <field.TextField label="Nuevo semestre" placeholder="Ej. 2027-I" />}
+            {(field) => <field.TextField label={`Nuevo ${period}`} placeholder="Ej. 2027-I" />}
           </createForm.AppField>
           <createForm.AppForm>
-            <createForm.SubmitButton label="Crear semestre" className="btn-outline" />
+            <createForm.SubmitButton label={`Crear ${period}`} className="btn-outline" />
           </createForm.AppForm>
         </form>
       </div>
@@ -157,6 +160,7 @@ export function SemestersPanel({
 
 function RenameModal({ semester, onClose }: { semester: SemesterRead; onClose: () => void }) {
   const queryClient = useQueryClient();
+  const settings = useAcademicSettings();
   const [formError, setFormError] = useState<string | null>(null);
   const form = useAppForm({
     defaultValues: { name: semester.name },
@@ -171,7 +175,7 @@ function RenameModal({ semester, onClose }: { semester: SemesterRead; onClose: (
         );
         await queryClient.invalidateQueries({ queryKey: adminKeys.semesters });
         await queryClient.invalidateQueries({ queryKey: adminKeys.subjects });
-        toast.success("Semestre renombrado.");
+        toast.success(`${settings.period_label} renombrado.`);
         onClose();
       } catch (error) {
         setFormError(applyApiErrors(form, error));
@@ -180,7 +184,7 @@ function RenameModal({ semester, onClose }: { semester: SemesterRead; onClose: (
   });
 
   return (
-    <Modal open title="Renombrar semestre" onClose={onClose}>
+    <Modal open title={`Renombrar ${settings.period_label.toLowerCase()}`} onClose={onClose}>
       <form
         noValidate
         className="flex flex-col gap-2"

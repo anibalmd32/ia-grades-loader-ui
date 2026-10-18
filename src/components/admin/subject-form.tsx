@@ -11,13 +11,14 @@ import {
   setTeacherSubjects,
   teacherSubjectsQuery,
 } from "@/api/queries/admin";
+import { useAcademicSettings } from "@/api/queries/settings";
 import { applyApiErrors } from "@/components/form/api-errors";
 import { FormError, useAppForm } from "@/components/form/form";
 import { Modal } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 
 const SubjectSchema = v.object({
-  semester_id: v.pipe(v.string(), v.minLength(1, "Elige un semestre.")),
+  semester_id: v.pipe(v.string(), v.minLength(1, "Elige uno de la lista.")),
   code: v.pipe(
     v.string(),
     v.trim(),
@@ -33,10 +34,12 @@ const SubjectSchema = v.object({
   teacher_id: v.string(),
 });
 
+/** Opciones del selector de periodo (semestre, trimestre…) */
 function useSemesterOptions() {
   const semesters = useQuery(semestersQuery);
+  const settings = useAcademicSettings();
   return [
-    { value: "", label: "Selecciona un semestre…" },
+    { value: "", label: `Selecciona un ${settings.period_label.toLowerCase()}…` },
     ...(semesters.data ?? []).map((s) => ({ value: String(s.id), label: s.name })),
   ];
 }
@@ -53,10 +56,11 @@ export async function addSubjectToTeacher(
   await setTeacherSubjects(teacherId, [...ids]);
 }
 
-/** Alta de materia: semestre, código, nombre y profesor opcional */
+/** Alta de materia: periodo (semestre…), código, nombre y profesor opcional */
 export function SubjectCreateForm({ defaultSemesterId }: { defaultSemesterId?: number }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const settings = useAcademicSettings();
   const semesterOptions = useSemesterOptions();
   const teachers = useQuery(activeTeachersQuery);
   const [formError, setFormError] = useState<string | null>(null);
@@ -113,7 +117,7 @@ export function SubjectCreateForm({ defaultSemesterId }: { defaultSemesterId?: n
       <div className="card-body gap-2">
         <FormError message={formError} />
         <form.AppField name="semester_id">
-          {(field) => <field.SelectField label="Semestre" options={semesterOptions} />}
+          {(field) => <field.SelectField label={settings.period_label} options={semesterOptions} />}
         </form.AppField>
         <div className="grid gap-x-3 sm:grid-cols-[10rem_1fr]">
           <form.AppField name="code">
@@ -155,7 +159,7 @@ export function SubjectCreateForm({ defaultSemesterId }: { defaultSemesterId?: n
   );
 }
 
-/** Edición de materia (semestre, código y nombre) */
+/** Edición de materia (periodo, código y nombre) */
 export function EditSubjectModal({
   subject,
   onClose,
@@ -163,6 +167,7 @@ export function EditSubjectModal({
   subject: SubjectRead;
   onClose: () => void;
 }) {
+  const settings = useAcademicSettings();
   const queryClient = useQueryClient();
   const semesterOptions = useSemesterOptions();
   const [formError, setFormError] = useState<string | null>(null);
@@ -209,7 +214,7 @@ export function EditSubjectModal({
       >
         <FormError message={formError} />
         <form.AppField name="semester_id">
-          {(field) => <field.SelectField label="Semestre" options={semesterOptions} />}
+          {(field) => <field.SelectField label={settings.period_label} options={semesterOptions} />}
         </form.AppField>
         <form.AppField name="code">{(field) => <field.TextField label="Código" />}</form.AppField>
         <form.AppField name="name">{(field) => <field.TextField label="Nombre" />}</form.AppField>

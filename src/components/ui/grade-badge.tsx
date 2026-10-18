@@ -1,17 +1,16 @@
-export const PASSING_GRADE = 10;
+import { useAcademicSettings } from "@/api/queries/settings";
+import { formatGrade, isPassing } from "@/lib/grades";
 
-/** 15.5 → "15.50"; null → "—" */
-export function formatGrade(value: number | null | undefined): string {
-  return value == null ? "—" : value.toFixed(2);
-}
+export { formatGrade };
 
-/** Nota con color: rojo si es menor que 10, verde si aprueba */
+/** Nota con color: rojo si no llega a la aprobatoria configurada, verde si la alcanza */
 export function GradeBadge({ value }: { value: number | null | undefined }) {
+  const settings = useAcademicSettings();
   const color =
-    value == null ? "badge-ghost" : value >= PASSING_GRADE ? "badge-success" : "badge-error";
+    value == null ? "badge-ghost" : isPassing(value, settings) ? "badge-success" : "badge-error";
   return (
     <span className={`badge badge-soft font-semibold tabular-nums ${color}`}>
-      {formatGrade(value)}
+      {formatGrade(value, settings)}
     </span>
   );
 }

@@ -1,11 +1,6 @@
+import type { AcademicSettings } from "@/api/queries/settings";
 import type { Standing, StudentSubjectGrades, SubjectProjection } from "@/api/queries/student";
-import { formatGrade } from "@/components/ui/grade-badge";
-
-/** "Lapso 3", "los lapsos 2 y 3", "los lapsos 1, 2 y 3" */
-export function termsText(terms: number[]): string {
-  if (terms.length === 1) return `el Lapso ${terms[0]}`;
-  return `los lapsos ${terms.slice(0, -1).join(", ")} y ${terms.at(-1)}`;
-}
+import { formatGrade, scaleText, termsText } from "@/lib/grades";
 
 const BADGE_CLASS: Record<Standing, string> = {
   passed: "badge-success",
@@ -16,7 +11,7 @@ const BADGE_CLASS: Record<Standing, string> = {
 };
 
 /** Texto corto del estado (lo calcula la API; aquí solo se presenta) */
-export function standingLabel(projection: SubjectProjection): string {
+export function standingLabel(projection: SubjectProjection, settings: AcademicSettings): string {
   switch (projection.standing) {
     case "passed":
       return "Aprobada";
@@ -28,35 +23,45 @@ export function standingLabel(projection: SubjectProjection): string {
       return "Ya no es posible aprobar";
     case "in_progress":
       return projection.needed_average != null
-        ? `Necesitas ${formatGrade(projection.needed_average)}`
+        ? `Necesitas ${formatGrade(projection.needed_average, settings)}`
         : "En curso";
   }
 }
 
-/** Frase que explica la situación de la materia */
-export function standingSentence(projection: SubjectProjection): string {
+/** Frase que explica la situación de la materia, con la escala y los lapsos configurados */
+export function standingSentence(
+  projection: SubjectProjection,
+  settings: AcademicSettings,
+): string {
   const pending = projection.pending_terms;
+  const needed = formatGrade(projection.needed_average, settings);
   switch (projection.standing) {
     case "passed":
     case "failed":
-      return `Nota definitiva: ${formatGrade(projection.final_grade)}.`;
+      return `Nota definitiva: ${formatGrade(projection.final_grade, settings)}.`;
     case "secured":
-      return `Ya aprobaste aunque saques 1 en ${termsText(pending)}.`;
+      return `Ya aprobaste aunque saques ${scaleText(settings.min_grade)} en ${termsText(settings, pending)}.`;
     case "impossible":
-      return "Aunque saques 20 en lo que falta no llegarías a 10.";
+      return `Aunque saques ${scaleText(settings.max_grade)} en ${termsText(settings, pending)} no llegarías a ${scaleText(settings.passing_grade)}.`;
     case "in_progress":
       return pending.length === 1
-        ? `Necesitas al menos ${formatGrade(projection.needed_average)} en ${termsText(pending)} para aprobar.`
-        : `Necesitas un promedio de al menos ${formatGrade(projection.needed_average)} en ${termsText(pending)} para aprobar.`;
+        ? `Necesitas al menos ${needed} en ${termsText(settings, pending)} para aprobar.`
+        : `Necesitas un promedio de al menos ${needed} en ${termsText(settings, pending)} para aprobar.`;
   }
 }
 
-export function StandingBadge({ projection }: { projection: SubjectProjection }) {
+export function StandingBadge({
+  projection,
+  settings,
+}: {
+  projection: SubjectProjection;
+  settings: AcademicSettings;
+}) {
   return (
     <span
       className={`badge badge-soft badge-sm shrink-0 font-semibold ${BADGE_CLASS[projection.standing]}`}
     >
-      {standingLabel(projection)}
+      {standingLabel(projection, settings)}
     </span>
   );
 }

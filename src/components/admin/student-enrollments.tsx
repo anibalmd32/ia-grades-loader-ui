@@ -9,6 +9,7 @@ import {
   studentSubjectsQuery,
   subjectLabel,
 } from "@/api/queries/admin";
+import { useAcademicSettings } from "@/api/queries/settings";
 import { confirm } from "@/components/ui/confirm";
 import { DataTable } from "@/components/ui/data-table";
 import { toast } from "@/components/ui/toast";
@@ -16,6 +17,7 @@ import { Section } from "./common";
 
 /** Materias del estudiante: matricular una a una y retirar (si no tiene notas) */
 export function StudentEnrollments({ studentId, name }: { studentId: number; name: string }) {
+  const settings = useAcademicSettings();
   const queryClient = useQueryClient();
   const enrolled = useQuery(studentSubjectsQuery(studentId));
   const subjects = useQuery(allSubjectsQuery);
@@ -103,7 +105,7 @@ export function StudentEnrollments({ studentId, name }: { studentId: number; nam
         columns={[
           { header: "Código", cell: (s) => s.code },
           { header: "Materia", cell: (s) => s.name },
-          { header: "Semestre", cell: (s) => s.semester.name },
+          { header: settings.period_label, cell: (s) => s.semester.name },
           {
             header: "Acciones",
             cell: (s) => (
@@ -121,7 +123,9 @@ export function StudentEnrollments({ studentId, name }: { studentId: number; nam
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate font-bold">{subjectLabel(s)}</p>
-              <p className="text-base-content/70 text-sm">Semestre {s.semester.name}</p>
+              <p className="text-base-content/70 text-sm">
+                {settings.period_label} {s.semester.name}
+              </p>
             </div>
             <button
               type="button"
