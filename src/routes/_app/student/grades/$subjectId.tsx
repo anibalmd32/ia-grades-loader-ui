@@ -1,13 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import * as v from "valibot";
-import { useAcademicSettings, useSubjectRules } from "@/api/queries/settings";
+import { percentText } from "@/api/queries/evaluations";
+import {
+  type AcademicSettings,
+  useAcademicSettings,
+  useSubjectRules,
+} from "@/api/queries/settings";
 import { type StudentSubjectGrades, studentSubjectQuery } from "@/api/queries/student";
 import { BackLink } from "@/components/admin/common";
 import { StandingBadge, standingSentence } from "@/components/student/projection";
 import { gradeColor } from "@/components/student/subject-grades-card";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { ErrorState, LoadingState } from "@/components/ui/states";
+import { dueDateText } from "@/lib/dates";
 import { formatGrade, termName, termsText } from "@/lib/grades";
 
 export const Route = createFileRoute("/_app/student/grades/$subjectId")({
@@ -106,6 +112,8 @@ function SubjectDetail({ item }: { item: StudentSubjectGrades }) {
         </div>
       </div>
 
+      {(item.evaluations ?? []).length > 0 && <EvaluationPlan item={item} settings={settings} />}
+
       <section className="card card-border bg-base-100">
         <div className="card-body gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -148,5 +156,65 @@ function SubjectDetail({ item }: { item: StudentSubjectGrades }) {
         </section>
       )}
     </>
+  );
+}
+
+/** Evaluaciones de cada lapso que las tiene, con su porcentaje, fecha y la nota obtenida */
+function EvaluationPlan({
+  item,
+  settings,
+}: {
+  item: StudentSubjectGrades;
+  settings: AcademicSettings;
+}) {
+  const evaluations = item.evaluations ?? [];
+  const terms = [...new Set(evaluations.map((e) => e.term))].sort((a, b) => a - b);
+  return (
+    <section className="card card-border bg-base-100">
+      <div className="card-body gap-3">
+        <h2 className="card-title">Plan de evaluación</h2>
+        <p className="text-base-content/70 text-sm">
+          La nota de {terms.length === 1 ? "este" : "estos"}{" "}
+          {(terms.length === 1 ? settings.term_label : settings.term_label_plural).toLowerCase()} es
+          la suma de cada evaluación por su porcentaje. Aparece cuando todas tienen nota.
+        </p>
+        {terms.map((term) => (
+          <div key={term} className="flex flex-col gap-1">
+            <h3 className="font-bold">{termName(settings, term)}</h3>
+            <ul className="divide-y divide-base-300">
+              {evaluations
+                .filter((e) => e.term === term)
+                .map((evaluation) => (
+                  <li
+                    key={`${evaluation.term}-${evaluation.name}`}
+                    className="flex items-center gap-3 py-2"
+                  >
+                    <span className="badge badge-primary badge-soft w-16 shrink-0 font-bold tabular-nums">
+                      {percentText(evaluation.weight)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold">{evaluation.name}</p>
+                      {evaluation.due_date && (
+                        <p className="text-base-content/70 text-xs">
+                          {dueDateText(evaluation.due_date)}
+                        </p>
+                      )}
+                    </div>
+                    {evaluation.value == null ? (
+                      <span className="font-semibold text-base-content/60 text-sm">Pendiente</span>
+                    ) : (
+                      <span
+                        className={`font-bold tabular-nums ${gradeColor(evaluation.value, settings)}`}
+                      >
+                        {formatGrade(evaluation.value, settings)}
+                      </span>
+                    )}
+                  </li>
+                ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

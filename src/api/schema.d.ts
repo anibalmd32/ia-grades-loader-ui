@@ -720,6 +720,8 @@ export interface paths {
          *     cumple la configuración académica (422) no se guarda ninguna. Si el periodo de la
          *     materia está cerrado responde 409.
          *
+         *     Cada estudiante con notas nuevas o corregidas recibe un aviso (`/student/notifications`).
+         *
          *     Si las notas salen de una importación, envía su `import_job_id` para marcarla como
          *     confirmada (debe ser de esta materia y estar en `done`; si no, 409).
          */
@@ -811,6 +813,81 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/teacher/subjects/{subject_id}/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Plan de evaluación de la materia
+         * @description Evaluaciones de cada lapso con su porcentaje. Un lapso con evaluaciones calcula su
+         *     nota a partir de ellas cuando sus porcentajes suman 100 %.
+         */
+        get: operations["evaluation_plan_api_v1_teacher_subjects__subject_id__evaluations_get"];
+        put?: never;
+        /**
+         * Añadir una evaluación
+         * @description Los porcentajes de un lapso no pueden pasar del 100 % (422). La primera evaluación
+         *     de un lapso exige que no tenga notas cargadas directamente (409).
+         */
+        post: operations["create_evaluation_api_v1_teacher_subjects__subject_id__evaluations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teacher/subjects/{subject_id}/evaluations/{evaluation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Eliminar una evaluación y sus notas
+         * @description Borra también sus notas y recalcula la nota del lapso. Si era la última del lapso,
+         *     este vuelve a cargarse directamente (queda sin notas).
+         */
+        delete: operations["delete_evaluation_api_v1_teacher_subjects__subject_id__evaluations__evaluation_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Modificar una evaluación
+         * @description Cambiar el porcentaje recalcula la nota del lapso de todos los estudiantes.
+         */
+        patch: operations["update_evaluation_api_v1_teacher_subjects__subject_id__evaluations__evaluation_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/teacher/subjects/{subject_id}/terms/{term}/evaluation-grades": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Notas de las evaluaciones de un lapso */
+        get: operations["term_evaluation_grades_api_v1_teacher_subjects__subject_id__terms__term__evaluation_grades_get"];
+        /**
+         * Calificar evaluaciones de un lapso
+         * @description Envía solo las notas que cambian (`value: null` borra). Todo o nada: 404 si una
+         *     evaluación no es de ese lapso o un estudiante no está matriculado, 422 si una nota no
+         *     cumple la escala y 409 si el periodo está cerrado. La nota del lapso se recalcula y cada
+         *     estudiante con notas nuevas recibe un aviso.
+         */
+        put: operations["save_term_evaluation_grades_api_v1_teacher_subjects__subject_id__terms__term__evaluation_grades_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/student/subjects": {
         parameters: {
             query?: never;
@@ -844,6 +921,48 @@ export interface paths {
         get: operations["my_subject_api_v1_student_subjects__subject_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/student/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mis avisos
+         * @description Avisos de notas nuevas o corregidas en tus materias, del más reciente al más
+         *     antiguo. La app los consulta cada cierto tiempo y muestra como notificación del sistema
+         *     los que tienen un `id` mayor que el último que mostró.
+         */
+        get: operations["my_notifications_api_v1_student_notifications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/student/notifications/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Marcar avisos como leídos
+         * @description Sin `ids` marca todos. Devuelve cuántos quedan sin leer.
+         */
+        post: operations["read_notifications_api_v1_student_notifications_read_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1239,7 +1358,7 @@ export interface components {
          * ChangeSource
          * @enum {string}
          */
-        ChangeSource: "manual" | "import";
+        ChangeSource: "manual" | "import" | "evaluations";
         /** ChatRequest */
         ChatRequest: {
             /**
@@ -1359,6 +1478,104 @@ export interface components {
              */
             already_enrolled: number;
         };
+        /** EvaluationCreate */
+        EvaluationCreate: {
+            /**
+             * Term
+             * @description Lapso (de 1 al número de lapsos configurado)
+             */
+            term: number;
+            /**
+             * Name
+             * @example Parcial 1
+             */
+            name: string;
+            /**
+             * Weight
+             * @description Porcentaje de la nota del lapso
+             * @example 25
+             */
+            weight: number | string;
+            /**
+             * Due Date
+             * @description Fecha prevista (opcional)
+             */
+            due_date?: string | null;
+        };
+        /** EvaluationGradeEntry */
+        EvaluationGradeEntry: {
+            /** Student Id */
+            student_id: number;
+            /** Evaluation Id */
+            evaluation_id: number;
+            /**
+             * Value
+             * @description null borra la nota
+             */
+            value: (number | string) | null;
+        };
+        /** EvaluationGradesUpdate */
+        EvaluationGradesUpdate: {
+            /** Grades */
+            grades: components["schemas"]["EvaluationGradeEntry"][];
+        };
+        /** EvaluationPlan */
+        EvaluationPlan: {
+            subject: components["schemas"]["SubjectRead"];
+            /**
+             * Terms
+             * @description Un elemento por lapso. Los lapsos sin evaluaciones se cargan directamente
+             */
+            terms: components["schemas"]["TermPlan"][];
+            /**
+             * Evaluations
+             * @description Por lapso y en orden de creación
+             */
+            evaluations: components["schemas"]["EvaluationRead"][];
+        };
+        /** EvaluationRead */
+        EvaluationRead: {
+            /** Id */
+            id: number;
+            /** Term */
+            term: number;
+            /** Name */
+            name: string;
+            /**
+             * Weight
+             * @description Porcentaje de la nota del lapso
+             */
+            weight: number;
+            /** Due Date */
+            due_date: string | null;
+            /**
+             * Graded Count
+             * @description Estudiantes ya calificados en la evaluación
+             */
+            graded_count: number;
+        };
+        /**
+         * EvaluationUpdate
+         * @description Solo los campos enviados; `due_date: null` quita la fecha. El lapso no se cambia.
+         */
+        EvaluationUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Weight */
+            weight?: (number | string) | null;
+            /** Due Date */
+            due_date?: string | null;
+        };
+        /** EvaluationValue */
+        EvaluationValue: {
+            /** Evaluation Id */
+            evaluation_id: number;
+            /**
+             * Value
+             * @description null si aún no se ha calificado
+             */
+            value: number | null;
+        };
         /**
          * GradeChangeRead
          * @description Un cambio en el historial de notas.
@@ -1369,6 +1586,11 @@ export interface components {
             student: components["schemas"]["StudentSummary"];
             /** Term */
             term: number;
+            /**
+             * Evaluation Name
+             * @description Evaluación cuya nota cambió; null = la nota del lapso
+             */
+            evaluation_name: string | null;
             /**
              * Old Value
              * @description Nota anterior; null = no tenía nota
@@ -1384,7 +1606,7 @@ export interface components {
              * @description Quién hizo el cambio (null si ya no existe)
              */
             changed_by: string | null;
-            /** @description manual = en la planilla; import = desde un Excel */
+            /** @description manual = en la planilla; import = desde un Excel; evaluations = nota del lapso calculada con sus evaluaciones */
             source: components["schemas"]["ChangeSource"];
             /** Import Job Id */
             import_job_id: string | null;
@@ -1619,6 +1841,57 @@ export interface components {
          * @enum {string}
          */
         MessageRole: "user" | "assistant";
+        /** NotificationPage */
+        NotificationPage: {
+            /** Items */
+            items: components["schemas"]["NotificationRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /**
+             * Unread
+             * @description Avisos sin leer en total
+             */
+            unread: number;
+        };
+        /** NotificationRead */
+        NotificationRead: {
+            /**
+             * Id
+             * @description Creciente: sirve para saber cuáles son nuevas
+             */
+            id: number;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /**
+             * Subject Id
+             * @description Materia a la que se refiere
+             */
+            subject_id: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Read At
+             * @description null = sin leer
+             */
+            read_at: string | null;
+        };
+        /** NotificationsRead */
+        NotificationsRead: {
+            /**
+             * Ids
+             * @description Avisos a marcar como leídos; sin enviar = todos
+             */
+            ids?: number[] | null;
+        };
         /** Page[ConversationSummary] */
         Page_ConversationSummary_: {
             /** Items */
@@ -1848,6 +2121,47 @@ export interface components {
              */
             cedula: number;
         };
+        /**
+         * StudentEvaluation
+         * @description Una evaluación vista por el estudiante, con su nota.
+         */
+        StudentEvaluation: {
+            /** Term */
+            term: number;
+            /** Name */
+            name: string;
+            /**
+             * Weight
+             * @description Porcentaje de la nota del lapso
+             */
+            weight: number;
+            /** Due Date */
+            due_date: string | null;
+            /**
+             * Value
+             * @description null si aún no se ha calificado
+             */
+            value: number | null;
+        };
+        /** StudentEvaluationGrades */
+        StudentEvaluationGrades: {
+            student: components["schemas"]["StudentSummary"];
+            /**
+             * Grades
+             * @description Una por evaluación del lapso, en orden
+             */
+            grades: components["schemas"]["EvaluationValue"][];
+            /**
+             * Accumulated
+             * @description Puntos acumulados en el lapso: suma de cada nota por su porcentaje
+             */
+            accumulated: number | null;
+            /**
+             * Term Grade
+             * @description Nota del lapso: solo con el plan al 100 % y todo calificado
+             */
+            term_grade: number | null;
+        };
         /** StudentGrades */
         StudentGrades: {
             student: components["schemas"]["StudentSummary"];
@@ -1974,6 +2288,11 @@ export interface components {
              */
             grades: components["schemas"]["TermGrade"][];
             /**
+             * Evaluations
+             * @description Plan de evaluación de la materia (por lapso) con la nota de cada una. Los lapsos con evaluaciones calculan su nota a partir de ellas
+             */
+            evaluations?: components["schemas"]["StudentEvaluation"][];
+            /**
              * Average
              * @description Promedio de las notas cargadas
              */
@@ -2024,6 +2343,11 @@ export interface components {
         /** SubjectGrades */
         SubjectGrades: {
             subject: components["schemas"]["SubjectRead"];
+            /**
+             * Computed Terms
+             * @description Lapsos con plan de evaluación: su nota se calcula con las evaluaciones y no se carga directamente (PUT /grades responde 422)
+             */
+            computed_terms?: number[];
             /** Students */
             students: components["schemas"]["StudentGrades"][];
         };
@@ -2144,6 +2468,15 @@ export interface components {
             /** Bot Username */
             bot_username: string | null;
         };
+        /** TermEvaluationGrades */
+        TermEvaluationGrades: {
+            subject: components["schemas"]["SubjectRead"];
+            plan: components["schemas"]["TermPlan"];
+            /** Evaluations */
+            evaluations: components["schemas"]["EvaluationRead"][];
+            /** Students */
+            students: components["schemas"]["StudentEvaluationGrades"][];
+        };
         /** TermGrade */
         TermGrade: {
             /**
@@ -2156,6 +2489,23 @@ export interface components {
              * @description null si aún no se ha cargado
              */
             value: number | null;
+        };
+        /** TermPlan */
+        TermPlan: {
+            /** Term */
+            term: number;
+            /**
+             * Weights Total
+             * @description Suma de los porcentajes del lapso
+             */
+            weights_total: number;
+            /** Evaluations Count */
+            evaluations_count: number;
+            /**
+             * Complete
+             * @description El plan suma 100 %: la nota del lapso se calcula con las evaluaciones
+             */
+            complete: boolean;
         };
         /** TokenResponse */
         TokenResponse: {
@@ -2177,6 +2527,11 @@ export interface components {
              * @description True si el usuario aún usa la contraseña generada por el sistema
              */
             must_change_password: boolean;
+        };
+        /** UnreadCount */
+        UnreadCount: {
+            /** Unread */
+            unread: number;
         };
         /** UserCreated */
         UserCreated: {
@@ -3986,6 +4341,208 @@ export interface operations {
             };
         };
     };
+    evaluation_plan_api_v1_teacher_subjects__subject_id__evaluations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluationPlan"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_evaluation_api_v1_teacher_subjects__subject_id__evaluations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_evaluation_api_v1_teacher_subjects__subject_id__evaluations__evaluation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject_id: number;
+                evaluation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_evaluation_api_v1_teacher_subjects__subject_id__evaluations__evaluation_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject_id: number;
+                evaluation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    term_evaluation_grades_api_v1_teacher_subjects__subject_id__terms__term__evaluation_grades_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject_id: number;
+                /** @description Lapso */
+                term: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TermEvaluationGrades"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_term_evaluation_grades_api_v1_teacher_subjects__subject_id__terms__term__evaluation_grades_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject_id: number;
+                /** @description Lapso */
+                term: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationGradesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TermEvaluationGrades"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     my_subjects_api_v1_student_subjects_get: {
         parameters: {
             query?: never;
@@ -4024,6 +4581,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentSubjectGrades"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_notifications_api_v1_student_notifications_get: {
+        parameters: {
+            query?: {
+                /** @description Solo los no leídos */
+                unread_only?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_notifications_api_v1_student_notifications_read_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationsRead"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnreadCount"];
                 };
             };
             /** @description Validation Error */

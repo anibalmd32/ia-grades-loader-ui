@@ -2,7 +2,10 @@ import { Link, type LinkProps } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
 
 /** "‹ Profesores": vuelve a la pantalla anterior de la sección */
-export function BackLink({ label, ...link }: { label: string } & Pick<LinkProps, "to" | "search">) {
+export function BackLink({
+  label,
+  ...link
+}: { label: string } & Pick<LinkProps, "to" | "search" | "params">) {
   return (
     <Link
       {...link}

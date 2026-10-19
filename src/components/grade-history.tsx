@@ -27,6 +27,7 @@ export function changeText(change: GradeChange, rules: AcademicSettings): string
 const SOURCE_LABEL: Record<GradeChange["source"], string> = {
   manual: "A mano",
   import: "Importación",
+  evaluations: "Calculada con las evaluaciones",
 };
 
 function HistoryEntry({
@@ -43,6 +44,7 @@ function HistoryEntry({
       {showStudent && <p className="font-semibold text-sm">{change.student.full_name}</p>}
       <p className="font-bold tabular-nums">{changeText(change, rules)}</p>
       <p className="text-base-content/70 text-xs">
+        {change.evaluation_name && `${change.evaluation_name} · `}
         {termName(rules, change.term)} · {change.changed_by ?? "Usuario eliminado"} ·{" "}
         <time dateTime={change.created_at} title={fullDate.format(new Date(change.created_at))}>
           {timeAgo(change.created_at)}

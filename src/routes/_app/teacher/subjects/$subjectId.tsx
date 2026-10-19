@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, stripSearchParams } from "@tanstack/react-router";
-import { History } from "lucide-react";
+import { ClipboardList, History } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 import { PAGE_SIZE } from "@/api/queries/admin";
@@ -24,7 +24,7 @@ import { Pagination } from "@/components/ui/data-table";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
-import { isTerm, termName, termNumbers } from "@/lib/grades";
+import { isTerm, termName, termNumbers, termsText } from "@/lib/grades";
 
 const SHOW_OPTIONS: { value: "all" | Standing; label: string }[] = [
   { value: "all", label: "Mostrar: Todos" },
@@ -102,6 +102,8 @@ function Gradebook({ data }: { data: SubjectGrades }) {
   const currentTerm = isTerm(search.term, settings) ? search.term : 1;
   // Periodo cerrado: la planilla es de solo lectura (la API rechazaría los cambios con un 409)
   const closed = subject.semester.is_closed;
+  // Lapsos con plan de evaluación: su nota la calcula la API a partir de las evaluaciones
+  const computed = new Set(data.computed_terms ?? []);
   const drafts = useGradeDrafts(data);
   const save = useSaveGrades(subject.id, drafts);
   useUnsavedChangesGuard(drafts.pending);
@@ -126,11 +128,26 @@ function Gradebook({ data }: { data: SubjectGrades }) {
       Historial
     </button>
   );
+  const evaluationsLink = (
+    <Link
+      to="/teacher/evaluations/$subjectId"
+      params={{ subjectId: subject.id }}
+      search={computed.size > 0 ? { term: Math.min(...computed) } : {}}
+      className="btn btn-outline btn-primary"
+    >
+      <ClipboardList className="size-4" />
+      Evaluaciones
+    </Link>
+  );
   const actions = closed ? (
-    historyButton
+    <>
+      {historyButton}
+      {evaluationsLink}
+    </>
   ) : (
     <>
       {historyButton}
+      {evaluationsLink}
       <Link
         to="/teacher/imports"
         search={{ subject: subject.id }}
@@ -238,6 +255,12 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                       </button>
                     ))}
                   </div>
+                  {computed.has(currentTerm) && (
+                    <p className="text-base-content/70 text-sm">
+                      La nota del {termName(settings, currentTerm).toLowerCase()} se calcula con su
+                      plan de evaluación: califícala en Evaluaciones.
+                    </p>
+                  )}
                   <ul className="card card-border divide-y divide-base-300 bg-base-100">
                     {rows.map((row) => (
                       <li key={row.student.id} className="flex items-center gap-3 p-4">
@@ -254,7 +277,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                           edited={drafts.isEdited(row, currentTerm)}
                           invalid={drafts.isInvalid(row, currentTerm)}
                           onChange={(value) => drafts.set(row, currentTerm, value)}
-                          disabled={closed || save.isPending}
+                          disabled={closed || save.isPending || computed.has(currentTerm)}
                         />
                         <HistoryButton
                           name={row.student.full_name}
@@ -274,6 +297,11 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                         {terms.map((term) => (
                           <th key={term} className="w-32">
                             {termName(settings, term)}
+                            {computed.has(term) && (
+                              <span className="block font-normal text-base-content/60">
+                                Por evaluaciones
+                              </span>
+                            )}
                           </th>
                         ))}
                         <th className="w-32">Definitiva</th>
@@ -307,7 +335,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                                 edited={drafts.isEdited(row, term)}
                                 invalid={drafts.isInvalid(row, term)}
                                 onChange={(value) => drafts.set(row, term, value)}
-                                disabled={closed || save.isPending}
+                                disabled={closed || save.isPending || computed.has(term)}
                               />
                             </td>
                           ))}
@@ -322,6 +350,8 @@ function Gradebook({ data }: { data: SubjectGrades }) {
 
                 <p className="text-base-content/70 text-xs">
                   {settings.summary}.{!closed && " Deja una celda vacía para borrar la nota."}
+                  {computed.size > 0 &&
+                    ` ${termsText(settings, [...computed].sort())}: la nota se calcula con su plan de evaluación (se califica en Evaluaciones).`}
                 </p>
 
                 {filtered.length > PAGE_SIZE && (

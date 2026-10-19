@@ -26,3 +26,9 @@ export function timeAgo(iso: string, now = Date.now()): string {
   }
   return "ahora";
 }
+
+/** Fecha sin hora de la API: "2026-11-02" → "2 nov" (se lee en la zona local, sin desfase) */
+export function dueDateText(date: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+  return dayFormat.format(new Date(year ?? 0, (month ?? 1) - 1, day ?? 1)).replace(".", "");
+}
