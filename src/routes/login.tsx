@@ -175,7 +175,9 @@ function StudentForm() {
       }}
     >
       <FormError message={formError} />
-      <div className="grid grid-cols-[6rem_1fr] items-end gap-3">
+      {/* items-start: alineados por arriba, para que el mensaje de error de un campo no
+          desplace al otro (con items-end el campo con error subía) */}
+      <div className="grid grid-cols-[6rem_1fr] items-start gap-3">
         <form.AppField name="nationality">
           {(field) => <field.SelectField {...documentFields.nationality} />}
         </form.AppField>

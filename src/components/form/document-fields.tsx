@@ -73,7 +73,9 @@ export function DocumentRow({
   const [a, b] = settings.document_types;
   return (
     <>
-      <div className="grid grid-cols-[6rem_1fr] items-end gap-3">
+      {/* items-start: alineados por arriba, para que el mensaje de error de un campo no
+          desplace al otro (con items-end el campo con error subía) */}
+      <div className="grid grid-cols-[6rem_1fr] items-start gap-3">
         {nationality}
         {cedula}
       </div>

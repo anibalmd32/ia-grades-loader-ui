@@ -4,6 +4,9 @@ import { type ComponentProps, type ReactNode, useState } from "react";
 export const { fieldContext, formContext, useFieldContext, useFormContext } =
   createFormHookContexts();
 
+/** Espacio que no se colapsa: da altura a una etiqueta sin texto */
+const NO_BREAK_SPACE = String.fromCharCode(160);
+
 /** Mensajes de error del campo: issues de Valibot (Standard Schema) o textos de la API */
 function errorMessages(errors: unknown[]): string[] {
   return errors
@@ -30,7 +33,9 @@ function FieldShell({
   return (
     <div className="fieldset">
       <label htmlFor={field.name} className="fieldset-legend text-sm">
-        {label}
+        {/* Sin texto (campo que comparte etiqueta con el de al lado): un espacio fijo para que
+            mida lo mismo que una etiqueta y los campos de la fila queden alineados */}
+        {label.trim() ? label : NO_BREAK_SPACE}
       </label>
       {children}
       {error ? (

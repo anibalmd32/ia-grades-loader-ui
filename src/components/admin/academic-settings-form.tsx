@@ -555,7 +555,7 @@ export function AcademicSettingsForm({ settings }: { settings: AcademicSettings 
                     {types.map((_, index) => (
                       // Las filas solo se añaden al final o se quitan: el índice basta como clave
                       // biome-ignore lint/suspicious/noArrayIndexKey: filas de un formulario
-                      <li key={index} className="grid grid-cols-[6rem_1fr_auto] items-end gap-2">
+                      <li key={index} className="grid grid-cols-[6rem_1fr_auto] items-start gap-2">
                         <form.AppField
                           name={`document_types[${index}].code`}
                           listeners={{ onChange: clearDocumentTypesError }}
@@ -578,18 +578,25 @@ export function AcademicSettingsForm({ settings }: { settings: AcademicSettings 
                             />
                           )}
                         </form.AppField>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-square mb-1 text-error"
-                          aria-label={`Quitar el tipo ${index + 1}`}
-                          disabled={types.length <= 1}
-                          onClick={() => {
-                            clearDocumentTypesError();
-                            field.removeValue(index);
-                          }}
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
+                        {/* Misma estructura que un campo (etiqueta invisible): el botón queda a
+                            la altura de los inputs aunque alguno muestre un error debajo */}
+                        <div className="fieldset">
+                          <span className="fieldset-legend invisible text-sm" aria-hidden="true">
+                            ·
+                          </span>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-square text-error"
+                            aria-label={`Quitar el tipo ${index + 1}`}
+                            disabled={types.length <= 1}
+                            onClick={() => {
+                              clearDocumentTypesError();
+                              field.removeValue(index);
+                            }}
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>
