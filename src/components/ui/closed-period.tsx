@@ -2,10 +2,16 @@ import { Lock } from "lucide-react";
 import type { SemesterRead } from "@/api/queries/admin";
 import { useAcademicSettings } from "@/api/queries/settings";
 
-/** Etiqueta "Cerrado" de un periodo cuyas notas, matrículas y materias ya no se modifican */
+/**
+ * Etiqueta "Cerrado" de un periodo cuyas notas, matrículas y materias ya no se modifican.
+ * Con colores de base-content (no `neutral`, que en el tema oscuro es más oscuro que las
+ * tarjetas y casi no se ve) y sin encogerse ni partirse en filas estrechas.
+ */
 export function ClosedBadge({ className = "" }: { className?: string }) {
   return (
-    <span className={`badge badge-soft badge-neutral badge-sm gap-1 font-semibold ${className}`}>
+    <span
+      className={`badge badge-sm shrink-0 gap-1 whitespace-nowrap border-base-content/25 bg-base-content/10 font-semibold text-base-content/80 ${className}`}
+    >
       <Lock className="size-3" />
       Cerrado
     </span>

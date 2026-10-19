@@ -183,7 +183,7 @@ export function AccountsList({
               <Link
                 to={detailPath}
                 params={{ userId: user.id }}
-                className="link link-primary font-bold no-underline"
+                className="link link-primary whitespace-nowrap font-bold no-underline"
               >
                 Ver detalle
               </Link>

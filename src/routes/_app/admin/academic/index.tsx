@@ -58,7 +58,7 @@ function AcademicPage() {
         actions={newSubject}
       />
       <PageBody>
-        <div className="grid items-start gap-4 lg:grid-cols-[18rem_1fr]">
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
           <SemestersPanel
             selectedId={semester?.id}
             onSelect={(id) => navigate({ search: { semester: id, q: "", offset: 0 } })}
@@ -115,7 +115,7 @@ function AcademicPage() {
                   columns={[
                     {
                       header: "Código",
-                      cell: (s) => <span className="font-medium">{s.code}</span>,
+                      cell: (s) => <span className="whitespace-nowrap font-medium">{s.code}</span>,
                     },
                     { header: "Materia", cell: (s) => s.name },
                     {
@@ -129,7 +129,7 @@ function AcademicPage() {
                         <Link
                           to="/admin/academic/subjects/$subjectId"
                           params={{ subjectId: s.id }}
-                          className="link link-primary font-bold no-underline"
+                          className="link link-primary whitespace-nowrap font-bold no-underline"
                         >
                           Ver detalle
                         </Link>

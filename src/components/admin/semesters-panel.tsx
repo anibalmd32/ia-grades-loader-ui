@@ -141,19 +141,18 @@ export function SemestersPanel({
                     className={`flex min-w-0 flex-1 flex-col gap-1 px-3 py-2 text-left ${active ? "text-primary" : ""}`}
                     onClick={() => onSelect(semester.id)}
                   >
-                    <span className="flex items-center justify-between gap-2 font-bold">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="truncate">{semester.name}</span>
-                        {semester.is_closed && <ClosedBadge />}
-                      </span>
+                    <span className="flex items-start justify-between gap-2 font-bold">
+                      <span className="min-w-0 break-words">{semester.name}</span>
                       {semester.subjects_count != null && (
-                        <span className="shrink-0 font-normal text-base-content/60 text-xs">
+                        <span className="shrink-0 whitespace-nowrap font-normal text-base-content/60 text-xs leading-6">
                           {semester.subjects_count === 1
                             ? "1 materia"
                             : `${semester.subjects_count} materias`}
                         </span>
                       )}
                     </span>
+                    {/* En su propia línea: en la columna estrecha no tapa el nombre */}
+                    {semester.is_closed && <ClosedBadge className="self-start" />}
                     {semester.rules && (
                       <span className="text-base-content/70 text-xs">
                         {semester.is_closed
