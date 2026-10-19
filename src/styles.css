@@ -79,3 +79,44 @@
     @apply bg-base-200 text-base-content antialiased;
   }
 }
+
+/*
+ * Lista desplegable de los <select> (Chrome y Edge la dibujan con appearance: base-select).
+ * daisyUI la pinta del mismo color que la tarjeta y con un borde base-200, que en el tema
+ * oscuro casi no se distingue: borde y sombra visibles y la opción activa y la elegida
+ * resaltadas, en los dos temas.
+ */
+select.select::picker(select),
+.select select::picker(select) {
+  background-color: var(--color-base-100);
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 22%, transparent);
+  box-shadow:
+    0 16px 36px -10px rgb(0 0 0 / 0.45),
+    0 0 0 1px rgb(0 0 0 / 0.04);
+  padding: 0.35rem;
+}
+
+select.select option,
+.select select option {
+  border-radius: calc(var(--radius-field) * 0.75);
+  padding: 0.5rem 0.75rem;
+}
+
+select.select option:hover,
+select.select option:focus-visible,
+.select select option:hover,
+.select select option:focus-visible {
+  background-color: color-mix(in oklab, var(--color-base-content) 10%, transparent);
+}
+
+select.select option:checked,
+.select select option:checked {
+  background-color: color-mix(in oklab, var(--color-primary) 18%, transparent);
+  color: var(--color-base-content);
+  font-weight: 600;
+}
+
+select.select option:disabled,
+.select select option:disabled {
+  opacity: 0.5;
+}
