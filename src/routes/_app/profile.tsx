@@ -1,10 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Download, KeyRound, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useAcademicSettings } from "@/api/queries/settings";
 import { AppVersion } from "@/components/app-version";
+import { BiometricLockSetting } from "@/components/layout/biometric-lock";
 import { DeviceNotificationsSetting } from "@/components/student/notifications";
 import { Avatar } from "@/components/ui/avatar";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
+import { biometricAvailable } from "@/lib/biometric";
 import { API_URL, RELEASES_URL } from "@/lib/config";
 import { openExternal } from "@/lib/open-url";
 import { ROLE_LABEL } from "@/lib/roles";
@@ -42,6 +45,11 @@ function ProfilePage() {
   const signOut = useSession((s) => s.signOut);
   const navigate = useNavigate();
   const { theme, setTheme } = usePreferences();
+  // Solo en la app del móvil con huella o cara configurada
+  const [biometrics, setBiometrics] = useState(false);
+  useEffect(() => {
+    void biometricAvailable().then(setBiometrics);
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -102,6 +110,8 @@ function ProfilePage() {
               </div>
             </section>
           )}
+
+          <BiometricLockSetting available={biometrics} />
 
           <section className="card card-border bg-base-100">
             <div className="card-body gap-3">

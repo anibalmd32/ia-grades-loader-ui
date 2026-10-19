@@ -14,10 +14,13 @@ type PreferencesState = {
   systemNotifications: boolean;
   /** Último aviso ya notificado de cada usuario (id del aviso), para no repetirlos */
   lastNotified: Record<string, number>;
+  /** Pedir huella o cara al abrir la app (solo móvil) */
+  biometricLock: boolean;
   setTheme: (theme: Theme) => void;
   setLoginTab: (tab: LoginTab) => void;
   setSystemNotifications: (enabled: boolean) => void;
   setLastNotified: (userId: number, notificationId: number) => void;
+  setBiometricLock: (enabled: boolean) => void;
 };
 
 export const usePreferences = create<PreferencesState>()(
@@ -27,11 +30,13 @@ export const usePreferences = create<PreferencesState>()(
       loginTab: "staff",
       systemNotifications: false,
       lastNotified: {},
+      biometricLock: false,
       setTheme: (theme) => set({ theme }),
       setLoginTab: (loginTab) => set({ loginTab }),
       setSystemNotifications: (systemNotifications) => set({ systemNotifications }),
       setLastNotified: (userId, notificationId) =>
         set((state) => ({ lastNotified: { ...state.lastNotified, [userId]: notificationId } })),
+      setBiometricLock: (biometricLock) => set({ biometricLock }),
     }),
     {
       name: "preferences",

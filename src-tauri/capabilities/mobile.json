@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile",
+  "description": "Permisos solo del móvil: desbloqueo con huella o cara",
+  "windows": ["main"],
+  "platforms": ["android", "iOS"],
+  "permissions": ["biometric:default"]
+}

@@ -48,7 +48,7 @@ let current: Notification[] = [];
 
 beforeEach(() => {
   localStorage.clear();
-  usePreferences.setState({ systemNotifications: false, lastNotified: {} });
+  usePreferences.setState({ systemNotifications: false, lastNotified: {}, biometricLock: false });
   system.access = "default";
   system.shown = [];
   current = [

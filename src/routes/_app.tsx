@@ -1,5 +1,6 @@
 import { createFileRoute, Navigate, Outlet } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layout/app-layout";
+import { BiometricGate } from "@/components/layout/biometric-lock";
 import { requireUser } from "@/lib/guards";
 import { useSession } from "@/stores/session";
 
@@ -14,8 +15,11 @@ function AppRoute() {
   // Si la sesión caduca (401) o se cierra mientras se usa la app, volver al login
   if (!user) return <Navigate to="/login" />;
   return (
-    <AppLayout user={user}>
-      <Outlet />
-    </AppLayout>
+    // En el móvil, si se activó, la app pide la huella antes de mostrar nada
+    <BiometricGate>
+      <AppLayout user={user}>
+        <Outlet />
+      </AppLayout>
+    </BiometricGate>
   );
 }
