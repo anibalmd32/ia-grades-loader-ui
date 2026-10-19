@@ -27,7 +27,25 @@ export function PageHeader({
   );
 }
 
-/** Contenido de una página con el margen del diseño */
-export function PageBody({ children }: { children: ReactNode }) {
-  return <div className="flex flex-col gap-4 p-4 lg:p-8">{children}</div>;
+const WIDTH = {
+  form: "max-w-xl", // formularios cortos (altas)
+  medium: "max-w-3xl", // formularios largos y listas de una columna
+  wide: "max-w-4xl", // rejillas de dos columnas (Mi cuenta)
+} as const;
+
+/**
+ * Contenido de una página con el margen del diseño. Con `width`, el contenido se limita a ese
+ * ancho y se centra: en escritorio no queda pegado a la izquierda con un hueco a la derecha;
+ * en móvil no cambia nada (ya ocupa todo el ancho).
+ */
+export function PageBody({ children, width }: { children: ReactNode; width?: keyof typeof WIDTH }) {
+  return (
+    <div className="flex flex-col gap-4 p-4 lg:p-8">
+      {width ? (
+        <div className={`mx-auto flex w-full flex-col gap-4 ${WIDTH[width]}`}>{children}</div>
+      ) : (
+        children
+      )}
+    </div>
+  );
 }

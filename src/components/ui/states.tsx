@@ -38,14 +38,16 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   return (
     <div role="alert" className="alert alert-error alert-soft">
       <CircleAlert className="size-5 shrink-0" />
-      <div className="flex flex-col">
-        <span>{message}</span>
+      {/* min-w-0 + wrap-anywhere: un mensaje largo sin espacios (p. ej. una URL) no empuja el
+          botón fuera del aviso */}
+      <div className="flex min-w-0 flex-col">
+        <span className="wrap-anywhere">{message}</span>
         {isApiError(error) && error.requestId && error.status >= 500 && (
           <span className="text-xs opacity-70">Código: {error.requestId}</span>
         )}
       </div>
       {onRetry && (
-        <button type="button" className="btn btn-sm" onClick={onRetry}>
+        <button type="button" className="btn btn-sm shrink-0" onClick={onRetry}>
           Reintentar
         </button>
       )}

@@ -54,7 +54,7 @@ export function NewAccountPage({ kind, children }: { kind: AccountKind; children
         title={config.newLabel}
         description={`Datos de acceso del ${config.singular.toLowerCase()}.`}
       />
-      <PageBody>
+      <PageBody width="form">
         <BackLink to={config.listPath} label="Volver" />
         {children}
       </PageBody>

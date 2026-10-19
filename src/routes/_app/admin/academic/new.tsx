@@ -22,7 +22,7 @@ function NewSubjectPage() {
         title="Nueva materia"
         description={`Cada materia pertenece a un único ${settings.period_label.toLowerCase()}.`}
       />
-      <PageBody>
+      <PageBody width="form">
         <BackLink to="/admin/academic" search={semester ? { semester } : {}} label="Volver" />
         <SubjectCreateForm defaultSemesterId={semester} />
       </PageBody>

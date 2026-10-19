@@ -21,7 +21,7 @@ function SettingsPage() {
   return (
     <>
       <PageHeader title={title} description={description} />
-      <PageBody>
+      <PageBody width="medium">
         {query.error ? (
           <ErrorState error={query.error} onRetry={() => query.refetch()} />
         ) : !query.data ? (

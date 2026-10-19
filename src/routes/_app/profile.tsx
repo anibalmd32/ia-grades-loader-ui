@@ -59,8 +59,8 @@ function ProfilePage() {
   return (
     <>
       <PageHeader title={title} description={description} />
-      <PageBody>
-        <div className="grid max-w-4xl items-start gap-4 lg:grid-cols-2">
+      <PageBody width="wide">
+        <div className="grid items-start gap-4 lg:grid-cols-2">
           <section className="card card-border bg-base-100">
             <div className="card-body gap-4">
               <div className="flex items-center gap-3">

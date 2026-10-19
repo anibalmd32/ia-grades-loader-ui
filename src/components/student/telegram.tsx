@@ -219,7 +219,5 @@ export function TelegramSection({ status }: { status: TelegramStatus }) {
     wasLinked.current = status.linked;
   }, [status.linked, refreshUser]);
 
-  return (
-    <div className="max-w-2xl">{status.linked ? <LinkedCard /> : <LinkCard status={status} />}</div>
-  );
+  return <div>{status.linked ? <LinkedCard /> : <LinkCard status={status} />}</div>;
 }

@@ -63,8 +63,8 @@ function NotificationsPage() {
           )
         }
       />
-      <PageBody>
-        <section className="card card-border max-w-3xl bg-base-100">
+      <PageBody width="medium">
+        <section className="card card-border bg-base-100">
           <div className="card-body gap-2 py-4">
             <DeviceNotificationsSetting />
           </div>
@@ -85,7 +85,7 @@ function NotificationsPage() {
                 {unread === 1 ? "1 aviso sin leer" : `${unread} avisos sin leer`}
               </p>
             )}
-            <ul className="card card-border max-w-3xl divide-y divide-base-300 overflow-hidden bg-base-100">
+            <ul className="card card-border divide-y divide-base-300 overflow-hidden bg-base-100">
               {query.data.items.map((notification) => (
                 <NotificationItem key={notification.id} notification={notification} onOpen={open} />
               ))}

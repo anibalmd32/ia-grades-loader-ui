@@ -29,7 +29,7 @@ function TelegramPage() {
           bot ? `Consulta tus notas desde @${bot}.` : "Consulta tus notas desde Telegram."
         }
       />
-      <PageBody>
+      <PageBody width="medium">
         {disabled ? (
           <EmptyState
             title="La institución desactivó el asistente por Telegram"
