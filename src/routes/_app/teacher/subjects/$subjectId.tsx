@@ -5,7 +5,11 @@ import { useState } from "react";
 import * as v from "valibot";
 import { PAGE_SIZE } from "@/api/queries/admin";
 import { useSubjectRules } from "@/api/queries/settings";
-import { type SubjectGrades, subjectGradesQuery } from "@/api/queries/teacher";
+import {
+  downloadSubjectGrades,
+  type SubjectGrades,
+  subjectGradesQuery,
+} from "@/api/queries/teacher";
 import { BackLink } from "@/components/admin/common";
 import { GradeHistoryModal } from "@/components/grade-history";
 import {
@@ -21,6 +25,7 @@ import {
 } from "@/components/teacher/gradebook";
 import { ClosedPeriodNotice } from "@/components/ui/closed-period";
 import { Pagination } from "@/components/ui/data-table";
+import { DownloadButton } from "@/components/ui/download-button";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
@@ -139,15 +144,21 @@ function Gradebook({ data }: { data: SubjectGrades }) {
       Evaluaciones
     </Link>
   );
+  // Toda la materia: planilla y una hoja por lapso con evaluaciones (también si está cerrada)
+  const downloadButton = (
+    <DownloadButton label="Descargar Excel" download={() => downloadSubjectGrades(subject.id)} />
+  );
   const actions = closed ? (
     <>
       {historyButton}
       {evaluationsLink}
+      {downloadButton}
     </>
   ) : (
     <>
       {historyButton}
       {evaluationsLink}
+      {downloadButton}
       <Link
         to="/teacher/imports"
         search={{ subject: subject.id }}

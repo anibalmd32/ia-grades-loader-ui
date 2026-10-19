@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EvaluationPlan, TermEvaluationGrades } from "@/api/queries/evaluations";
 import type { StudentSubjectGrades } from "@/api/queries/student";
 import type { SubjectGrades, TeacherSubject } from "@/api/queries/teacher";
@@ -300,5 +300,87 @@ describe("estudiante: plan de evaluación", () => {
     expect(within(section).getByText("15.00")).toBeInTheDocument();
     expect(within(section).getByText("Pendiente")).toBeInTheDocument();
     expect(within(section).getByText("2 nov")).toBeInTheDocument();
+  });
+});
+
+describe("profesor: descargas en Excel", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    signedInAs(makeUser({ id: 5, role: "teacher", full_name: "José Méndez" }));
+    // jsdom no implementa las URL de objetos que usa la descarga
+    URL.createObjectURL = vi.fn(() => "blob:archivo");
+    URL.revokeObjectURL = vi.fn();
+    server.use(
+      http.get(`${API_URL}/teacher/subjects`, () => HttpResponse.json([mat])),
+      http.get(`${API_URL}/teacher/subjects/10/grades`, () => HttpResponse.json(gradebook)),
+      http.get(`${API_URL}/teacher/subjects/10/evaluations`, () => HttpResponse.json(plan)),
+      http.get(`${API_URL}/teacher/subjects/10/terms/1/evaluation-grades`, () =>
+        HttpResponse.json(sheet),
+      ),
+    );
+  });
+
+  /** Responde un .xlsx con el nombre indicado y guarda la sesión con que se pidió */
+  function excel(path: string, fileName: string, seen: { auth?: string | null }) {
+    return http.get(`${API_URL}${path}`, ({ request }) => {
+      seen.auth = request.headers.get("Authorization");
+      // Bytes y no un Blob: el Blob de jsdom no lo acepta el fetch nativo de Node (falla en Linux)
+      return new HttpResponse(new TextEncoder().encode("xlsx"), {
+        headers: { "Content-Disposition": `attachment; filename="${fileName}"` },
+      });
+    });
+  }
+
+  function savedNames(click: ReturnType<typeof vi.spyOn>) {
+    return click.mock.contexts.map((link: unknown) => (link as HTMLAnchorElement).download);
+  }
+
+  it("descarga la materia completa desde la planilla", async () => {
+    const seen: { auth?: string | null } = {};
+    server.use(excel("/teacher/subjects/10/grades/export", "notas-mat-101-2026-i.xlsx", seen));
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const user = userEvent.setup();
+    renderApp("/teacher/subjects/10");
+
+    const [button] = await screen.findAllByRole("button", { name: "Descargar Excel" });
+    await user.click(button as HTMLElement);
+    await waitFor(() => expect(savedNames(click)).toEqual(["notas-mat-101-2026-i.xlsx"]));
+    expect(seen.auth).toBe("Bearer tok");
+    click.mockRestore();
+  });
+
+  it("descarga un lapso o la materia desde el plan de evaluación", async () => {
+    server.use(
+      excel("/teacher/subjects/10/terms/1/evaluation-grades/export", "lapso-1.xlsx", {}),
+      excel("/teacher/subjects/10/grades/export", "materia.xlsx", {}),
+    );
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const user = userEvent.setup();
+    renderApp("/teacher/evaluations/10");
+
+    await user.click(await screen.findByRole("button", { name: "Descargar lapso 1" }));
+    await waitFor(() => expect(savedNames(click)).toEqual(["lapso-1.xlsx"]));
+    const [whole] = screen.getAllByRole("button", { name: "Descargar materia" });
+    await user.click(whole as HTMLElement);
+    await waitFor(() => expect(savedNames(click)).toEqual(["lapso-1.xlsx", "materia.xlsx"]));
+    click.mockRestore();
+  });
+
+  it("avisa si la descarga falla", async () => {
+    server.use(
+      http.get(`${API_URL}/teacher/subjects/10/grades/export`, () =>
+        HttpResponse.json(
+          { detail: "Materia no encontrada entre las que impartes" },
+          { status: 404 },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderApp("/teacher/subjects/10");
+    const [button] = await screen.findAllByRole("button", { name: "Descargar Excel" });
+    await user.click(button as HTMLElement);
+    expect(
+      await screen.findByText("Materia no encontrada entre las que impartes"),
+    ).toBeInTheDocument();
   });
 });

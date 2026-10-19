@@ -733,6 +733,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/teacher/subjects/{subject_id}/grades/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Descargar las notas de la materia en Excel
+         * @description Hoja «Planilla» con la nota de cada lapso, el promedio, la definitiva y la situación
+         *     de cada estudiante, y una hoja más por cada lapso con plan de evaluación (notas de cada
+         *     evaluación, acumulado y nota del lapso). También en periodos cerrados.
+         */
+        get: operations["export_subject_grades_api_v1_teacher_subjects__subject_id__grades_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/teacher/subjects/{subject_id}/grade-history": {
         parameters: {
             query?: never;
@@ -881,6 +903,27 @@ export interface paths {
          *     estudiante con notas nuevas recibe un aviso.
          */
         put: operations["save_term_evaluation_grades_api_v1_teacher_subjects__subject_id__terms__term__evaluation_grades_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teacher/subjects/{subject_id}/terms/{term}/evaluation-grades/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Descargar las notas de las evaluaciones de un lapso en Excel
+         * @description Una fila por estudiante con la nota de cada evaluación del lapso, lo acumulado y la
+         *     nota del lapso (si ya se puede calcular). También en periodos cerrados.
+         */
+        get: operations["export_term_evaluation_grades_api_v1_teacher_subjects__subject_id__terms__term__evaluation_grades_export_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -4207,6 +4250,37 @@ export interface operations {
             };
         };
     };
+    export_subject_grades_api_v1_teacher_subjects__subject_id__grades_export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archivo .xlsx */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     subject_grade_history_api_v1_teacher_subjects__subject_id__grade_history_get: {
         parameters: {
             query?: {
@@ -4530,6 +4604,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TermEvaluationGrades"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_term_evaluation_grades_api_v1_teacher_subjects__subject_id__terms__term__evaluation_grades_export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject_id: number;
+                /** @description Lapso */
+                term: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archivo .xlsx */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": unknown;
                 };
             };
             /** @description Validation Error */

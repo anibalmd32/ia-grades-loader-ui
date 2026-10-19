@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
-import { api, unwrap } from "../client";
+import { readDownload } from "@/lib/download";
+import { api, authorizedFetch, unwrap } from "../client";
 import type { components } from "../schema";
 
 export type EvaluationPlan = components["schemas"]["EvaluationPlan"];
@@ -83,6 +84,14 @@ export function saveEvaluationGrades(
       body: { grades },
     }),
   );
+}
+
+/** Excel con las notas de las evaluaciones de un lapso, lo acumulado y la nota del lapso */
+export async function downloadTermEvaluationGrades(subjectId: number, term: number) {
+  const response = await authorizedFetch(
+    `/api/v1/teacher/subjects/${subjectId}/terms/${term}/evaluation-grades/export`,
+  );
+  return readDownload(response, "notas.xlsx");
 }
 
 /** Nota del estudiante en una evaluación (null si no tiene) */

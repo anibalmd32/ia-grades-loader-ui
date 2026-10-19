@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
-import { api, unwrap } from "../client";
+import { readDownload } from "@/lib/download";
+import { api, authorizedFetch, unwrap } from "../client";
 import { isApiError } from "../errors";
 import type { components } from "../schema";
 
@@ -53,6 +54,12 @@ export function saveGrades(subjectId: number, grades: GradeEntry[], importJobId?
       body: importJobId ? { grades, import_job_id: importJobId } : { grades },
     }),
   );
+}
+
+/** Excel con la planilla de la materia y una hoja por cada lapso con plan de evaluación */
+export async function downloadSubjectGrades(subjectId: number) {
+  const response = await authorizedFetch(`/api/v1/teacher/subjects/${subjectId}/grades/export`);
+  return readDownload(response, "notas.xlsx");
 }
 
 /** Estado actual de cada nota de la materia, para la planilla */

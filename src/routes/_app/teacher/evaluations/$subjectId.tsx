@@ -4,6 +4,7 @@ import { Plus, Table } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 import {
+  downloadTermEvaluationGrades,
   type Evaluation,
   type EvaluationPlan,
   evaluationPlanQuery,
@@ -11,6 +12,7 @@ import {
   termEvaluationGradesQuery,
 } from "@/api/queries/evaluations";
 import { type AcademicSettings, useSubjectRules } from "@/api/queries/settings";
+import { downloadSubjectGrades } from "@/api/queries/teacher";
 import { BackLink } from "@/components/admin/common";
 import {
   EvaluationFormModal,
@@ -25,6 +27,7 @@ import {
 } from "@/components/teacher/evaluations";
 import { useUnsavedChangesGuard } from "@/components/teacher/gradebook";
 import { ClosedPeriodNotice } from "@/components/ui/closed-period";
+import { DownloadButton } from "@/components/ui/download-button";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
 import { isTerm, termName } from "@/lib/grades";
@@ -99,14 +102,20 @@ function Evaluations({ plan }: { plan: EvaluationPlan }) {
         title={`${subject.code} · Plan de evaluación`}
         description={`${subject.name} · ${settings.period_label} ${subject.semester.name}${closed ? " (cerrado)" : ""}`}
         actions={
-          <Link
-            to="/teacher/subjects/$subjectId"
-            params={{ subjectId: subject.id }}
-            className="btn btn-outline btn-primary"
-          >
-            <Table className="size-4" />
-            Planilla
-          </Link>
+          <>
+            <Link
+              to="/teacher/subjects/$subjectId"
+              params={{ subjectId: subject.id }}
+              className="btn btn-outline btn-primary"
+            >
+              <Table className="size-4" />
+              Planilla
+            </Link>
+            <DownloadButton
+              label="Descargar materia"
+              download={() => downloadSubjectGrades(subject.id)}
+            />
+          </>
         }
       />
       <PageBody>
@@ -254,17 +263,23 @@ function GradesEditor({
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-bold text-lg">Notas de las evaluaciones</h2>
-        {!closed && (
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={!canSave}
-            onClick={() => save.mutate(drafts.changes)}
-          >
-            {save.isPending && <span className="loading loading-spinner loading-sm" />}
-            Guardar notas{drafts.pending > 0 ? ` (${drafts.pending})` : ""}
-          </button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <DownloadButton
+            label={`Descargar ${termName(settings, term).toLowerCase()}`}
+            download={() => downloadTermEvaluationGrades(subjectId, term)}
+          />
+          {!closed && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!canSave}
+              onClick={() => save.mutate(drafts.changes)}
+            >
+              {save.isPending && <span className="loading loading-spinner loading-sm" />}
+              Guardar notas{drafts.pending > 0 ? ` (${drafts.pending})` : ""}
+            </button>
+          )}
+        </div>
       </div>
       <InvalidEvaluationAlert drafts={drafts} settings={settings} />
       <EvaluationGradesSheet
