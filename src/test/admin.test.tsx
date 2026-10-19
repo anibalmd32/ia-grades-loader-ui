@@ -213,6 +213,61 @@ describe("estudiantes", () => {
     expect(enrolled).toEqual({ subject_ids: [10] });
   });
 
+  it("elige materias de varios semestres con el selector y las resume todas", async () => {
+    const qui: SubjectRead = { id: 20, code: "QUI-101", name: "Química", semester: s2025 };
+    const closed: SemesterRead = { id: 3, name: "2025-I", is_closed: true };
+    const old: SubjectRead = { id: 30, code: "LEN-101", name: "Lenguaje", semester: closed };
+    let enrolled: unknown;
+    server.use(
+      http.get(`${API_URL}/subjects`, () => HttpResponse.json(page([mat, fis, qui, old]))),
+      http.post(`${API_URL}/students`, () =>
+        HttpResponse.json({ user: student, generated_password: "Est-1" }, { status: 201 }),
+      ),
+      http.post(`${API_URL}/students/7/subjects`, async ({ request }) => {
+        enrolled = await request.json();
+        return HttpResponse.json({ added: 2, already_enrolled: 0 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp("/admin/students/new");
+
+    const period = await screen.findByLabelText("Semestre");
+    expect(period).toHaveValue("1");
+    const summary = screen.getByRole("region", { name: "Materias seleccionadas" });
+    expect(summary).toHaveTextContent("Aún no has elegido ninguna materia.");
+
+    // Solo se ven las materias del semestre elegido
+    await user.click(screen.getByRole("checkbox", { name: "MAT-101 Matemática I" }));
+    expect(screen.queryByRole("checkbox", { name: "QUI-101 Química" })).not.toBeInTheDocument();
+    await user.selectOptions(period, "2");
+    expect(
+      screen.queryByRole("checkbox", { name: "MAT-101 Matemática I" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "QUI-101 Química" }));
+    await user.click(screen.getByRole("checkbox", { name: "QUI-101 Química" }));
+    await user.click(screen.getByRole("checkbox", { name: "QUI-101 Química" }));
+
+    // El resumen conserva las de los dos semestres y el selector cuenta las elegidas
+    expect(within(summary).getByText("MAT-101 Matemática I")).toBeInTheDocument();
+    expect(within(summary).getByText("QUI-101 Química")).toBeInTheDocument();
+    expect(summary).toHaveTextContent("Materias seleccionadas (2)");
+    expect(within(period).getByRole("option", { name: "2026-I · 1 elegida" })).toBeInTheDocument();
+
+    // Los semestres cerrados se ven pero no admiten matrículas
+    await user.selectOptions(period, "3");
+    expect(screen.getByRole("checkbox", { name: "LEN-101 Lenguaje" })).toBeDisabled();
+
+    // Quitar desde el resumen
+    await user.click(within(summary).getByRole("button", { name: "Quitar MAT-101 Matemática I" }));
+    expect(summary).toHaveTextContent("Materias seleccionadas (1)");
+
+    await user.type(screen.getByLabelText("Nombre"), "María");
+    await user.type(screen.getByLabelText("Apellido"), "Pérez");
+    await user.type(screen.getByLabelText("Número de cédula"), "28456123");
+    await user.click(screen.getByRole("button", { name: "Crear estudiante" }));
+    await waitFor(() => expect(enrolled).toEqual({ subject_ids: [20] }));
+  });
+
   it("muestra el error al retirar una matrícula con notas (409)", async () => {
     server.use(
       http.get(`${API_URL}/students/7`, () => HttpResponse.json(student)),
