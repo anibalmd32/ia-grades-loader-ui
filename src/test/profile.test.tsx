@@ -29,7 +29,9 @@ describe("mi cuenta", () => {
     expect(await screen.findByRole("heading", { name: "José Méndez" })).toBeInTheDocument();
     expect(screen.getByText("jose@uni.edu")).toBeInTheDocument();
     expect(screen.getAllByText("Profesor").length).toBeGreaterThan(0);
-    expect(screen.getByText(API_URL)).toBeInTheDocument();
+    // La URL del servidor no se le enseña al usuario
+    expect(screen.queryByText(API_URL)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Tema")).toBeInTheDocument();
     expect(screen.getByText(/Se cerrarán todas tus sesiones/i)).toBeInTheDocument();
     const change = screen
       .getAllByRole("link", { name: "Cambiar contraseña" })

@@ -138,7 +138,7 @@ describe("ajuste en Mi cuenta", () => {
   it("no aparece si el dispositivo no tiene biometría", async () => {
     biometric.available = false;
     renderApp("/profile");
-    expect(await screen.findByText("Apariencia")).toBeInTheDocument();
+    expect(await screen.findByText("Acerca de la app")).toBeInTheDocument();
     expect(screen.queryByText("Desbloqueo con huella")).not.toBeInTheDocument();
   });
 });

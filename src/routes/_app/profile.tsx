@@ -8,14 +8,14 @@ import { DeviceNotificationsSetting } from "@/components/student/notifications";
 import { Avatar } from "@/components/ui/avatar";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { biometricAvailable } from "@/lib/biometric";
-import { API_URL, RELEASES_URL } from "@/lib/config";
+import { RELEASES_URL } from "@/lib/config";
 import { openExternal } from "@/lib/open-url";
 import { ROLE_LABEL } from "@/lib/roles";
 import { type Theme, usePreferences } from "@/stores/preferences";
 import { useSession } from "@/stores/session";
 
 const title = "Mi cuenta";
-const description = "Tus datos, tu contraseña, los avisos y la versión de la app.";
+const description = "Tus datos, tu contraseña, la apariencia y la versión de la app.";
 
 const THEMES: { value: Theme; label: string }[] = [
   { value: "system", label: "Como el sistema" },
@@ -59,100 +59,94 @@ function ProfilePage() {
   return (
     <>
       <PageHeader title={title} description={description} />
-      <PageBody width="wide">
-        <div className="grid items-start gap-4 lg:grid-cols-2">
-          <section className="card card-border bg-base-100">
-            <div className="card-body gap-4">
-              <div className="flex items-center gap-3">
-                <Avatar person={current} />
-                <div className="min-w-0">
-                  <h2 className="truncate font-bold text-lg">{current.full_name}</h2>
-                  <p className="text-base-content/70 text-sm">{ROLE_LABEL[current.role]}</p>
-                </div>
+      {/* Pocas tarjetas de alturas distintas: una sola columna, apiladas y centradas */}
+      <PageBody width="form">
+        <section className="card card-border bg-base-100">
+          <div className="card-body gap-4">
+            <div className="flex items-center gap-3">
+              <Avatar person={current} />
+              <div className="min-w-0">
+                <h2 className="truncate font-bold text-lg">{current.full_name}</h2>
+                <p className="text-base-content/70 text-sm">{ROLE_LABEL[current.role]}</p>
               </div>
-              <dl className="flex flex-col gap-3">
-                {current.email && <Row label="Correo">{current.email}</Row>}
-                {current.cedula_display && (
-                  <Row label={documentLabel}>{current.cedula_display}</Row>
-                )}
-                {current.role === "student" && (
-                  <Row label="Telegram">
-                    {current.telegram_linked ? "Vinculado" : "No vinculado"}
-                  </Row>
-                )}
-              </dl>
             </div>
-          </section>
+            <dl className="flex flex-col gap-3">
+              {current.email && <Row label="Correo">{current.email}</Row>}
+              {current.cedula_display && <Row label={documentLabel}>{current.cedula_display}</Row>}
+              {current.role === "student" && (
+                <Row label="Telegram">{current.telegram_linked ? "Vinculado" : "No vinculado"}</Row>
+              )}
+            </dl>
+            <label className="flex flex-col gap-1 border-base-300 border-t pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+              <span className="text-base-content/70 text-sm">Tema</span>
+              <select
+                className="select w-full sm:w-56"
+                value={theme}
+                onChange={(event) => setTheme(event.target.value as Theme)}
+              >
+                {THEMES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </section>
 
-          <section className="card card-border bg-base-100">
-            <div className="card-body gap-3">
-              <h2 className="card-title">Seguridad</h2>
-              <p className="text-base-content/70 text-sm">
-                Al cambiar la contraseña se cerrarán todas tus sesiones abiertas, también en otros
-                dispositivos.
-              </p>
-              <Link to="/change-password" className="btn btn-outline btn-primary">
+        <section className="card card-border bg-base-100">
+          <div className="card-body gap-3">
+            <h2 className="card-title">Seguridad</h2>
+            <p className="text-base-content/70 text-sm">
+              Al cambiar la contraseña se cerrarán todas tus sesiones abiertas, también en otros
+              dispositivos.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Link to="/change-password" className="btn btn-outline btn-primary sm:flex-1">
                 <KeyRound className="size-4" />
                 Cambiar contraseña
               </Link>
-              <button type="button" className="btn btn-outline btn-error" onClick={handleSignOut}>
+              <button
+                type="button"
+                className="btn btn-outline btn-error sm:flex-1"
+                onClick={handleSignOut}
+              >
                 <LogOut className="size-4" />
                 Cerrar sesión
               </button>
             </div>
-          </section>
+          </div>
+        </section>
 
-          {current.role === "student" && (
-            <section className="card card-border bg-base-100">
-              <div className="card-body gap-3">
-                <h2 className="card-title">Notificaciones</h2>
-                <DeviceNotificationsSetting />
-              </div>
-            </section>
-          )}
-
-          <BiometricLockSetting available={biometrics} />
-
+        {current.role === "student" && (
           <section className="card card-border bg-base-100">
             <div className="card-body gap-3">
-              <h2 className="card-title">Apariencia</h2>
-              <label className="flex flex-col gap-1">
-                <span className="text-base-content/70 text-sm">Tema</span>
-                <select
-                  className="select w-full"
-                  value={theme}
-                  onChange={(event) => setTheme(event.target.value as Theme)}
-                >
-                  {THEMES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <h2 className="card-title">Notificaciones</h2>
+              <DeviceNotificationsSetting />
             </div>
           </section>
+        )}
 
-          <section className="card card-border bg-base-100">
-            <div className="card-body gap-3">
-              <h2 className="card-title">Acerca de la app</h2>
-              <dl className="flex flex-col gap-3">
-                <Row label="Versión">
-                  <AppVersion />
-                </Row>
-                <Row label="Servidor">{API_URL}</Row>
-              </dl>
-              <button
-                type="button"
-                className="btn btn-outline btn-primary"
-                onClick={() => openExternal(RELEASES_URL)}
-              >
-                <Download className="size-4" />
-                Descargar la última versión
-              </button>
-            </div>
-          </section>
-        </div>
+        <BiometricLockSetting available={biometrics} />
+
+        <section className="card card-border bg-base-100">
+          <div className="card-body gap-3">
+            <h2 className="card-title">Acerca de la app</h2>
+            <dl>
+              <Row label="Versión">
+                <AppVersion />
+              </Row>
+            </dl>
+            <button
+              type="button"
+              className="btn btn-outline btn-primary"
+              onClick={() => openExternal(RELEASES_URL)}
+            >
+              <Download className="size-4" />
+              Descargar la última versión
+            </button>
+          </div>
+        </section>
       </PageBody>
     </>
   );
