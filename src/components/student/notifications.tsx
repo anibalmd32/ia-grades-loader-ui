@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Bell } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { isApiError } from "@/api/errors";
 import {
   latestNotificationsQuery,
+  listenNotifications,
   markNotificationsRead,
   type Notification,
   notificationKeys,
@@ -23,8 +25,62 @@ import type { User } from "@/stores/session";
 /** Notificaciones del sistema a la vez como máximo; con más se agrupan en una */
 const MAX_SYSTEM_NOTIFICATIONS = 3;
 
+/** Espera antes de reconectar el tiempo real: 2 s, 4 s, 8 s… hasta 1 min */
+export function reconnectDelay(attempt: number): number {
+  return Math.min(2000 * 2 ** attempt, 60_000);
+}
+
+const sleep = (ms: number, signal: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener("abort", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+
 /**
- * Busca avisos nuevos del estudiante cada minuto. Los que llegan (id mayor que el último ya
+ * Mantiene abierta la conexión en tiempo real con los avisos del estudiante (SSE) y llama a
+ * `onChange` al conectar y con cada aviso nuevo. Se reconecta sola si se corta; con un 401 o
+ * 403 deja de intentarlo (la sesión ya no vale).
+ */
+function useNotificationStream(enabled: boolean, onChange: () => void) {
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  useEffect(() => {
+    if (!enabled) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    void (async () => {
+      let attempt = 0;
+      while (!signal.aborted) {
+        try {
+          await listenNotifications(
+            {
+              // Al (re)conectar se consulta por si llegó algo mientras no había conexión
+              onReady: () => {
+                attempt = 0;
+                onChangeRef.current();
+              },
+              onNotification: () => onChangeRef.current(),
+            },
+            signal,
+          );
+        } catch (error) {
+          if (signal.aborted) return;
+          if (isApiError(error) && (error.status === 401 || error.status === 403)) return;
+        }
+        await sleep(reconnectDelay(attempt), signal);
+        attempt += 1;
+      }
+    })();
+    return () => controller.abort();
+  }, [enabled]);
+}
+
+/**
+ * Recibe los avisos nuevos del estudiante en tiempo real (y, de respaldo, los consulta cada
+ * minuto). Los que llegan (id mayor que el último ya
  * notificado en este dispositivo) se muestran como notificación del sistema si el estudiante
  * las activó, y se refrescan sus notas. La primera vez solo se toma nota de los que ya había.
  */
@@ -38,6 +94,11 @@ export function useNotificationWatcher(user: User) {
   const enabled = usePreferences((s) => s.systemNotifications);
   const setLastNotified = usePreferences((s) => s.setLastNotified);
   const items = query.data?.items;
+  // Tiempo real: cada aviso nuevo dispara la consulta y el efecto de abajo lo notifica.
+  // La consulta periódica queda como respaldo si la conexión no está disponible.
+  useNotificationStream(isStudent, () => {
+    void queryClient.invalidateQueries({ queryKey: notificationKeys.latest });
+  });
 
   useEffect(() => {
     if (!isStudent || !hydrated || !items) return;

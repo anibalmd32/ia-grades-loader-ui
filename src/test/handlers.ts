@@ -31,6 +31,11 @@ export const handlers = [
   http.get(`${API_URL}/student/notifications`, () =>
     HttpResponse.json({ items: [], total: 0, limit: 20, offset: 0, unread: 0 }),
   ),
+  // Tiempo real de los avisos: sin stream por defecto (la app reintenta más tarde)
+  http.get(
+    `${API_URL}/student/notifications/stream`,
+    () => new HttpResponse(null, { status: 204 }),
+  ),
   // El menú del estudiante consulta si Telegram está disponible
   http.get(`${API_URL}/student/telegram`, () =>
     HttpResponse.json({ enabled: true, linked: false, bot_username: "VerMisNotasBot" }),

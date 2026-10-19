@@ -2,6 +2,7 @@ import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { api, authorizedFetch, unwrap } from "../client";
 import { ApiError } from "../errors";
 import type { components } from "../schema";
+import { parseEvent } from "../sse";
 
 export type ConversationSummary = components["schemas"]["ConversationSummary"];
 export type ConversationRead = components["schemas"]["ConversationRead"];
@@ -57,22 +58,6 @@ function streamError(detail: string, retryAfter?: unknown): ApiError {
   return typeof retryAfter === "number"
     ? new ApiError({ status: 429, message: detail, retryAfter })
     : new ApiError({ status: 503, message: detail });
-}
-
-/** Separa un bloque SSE ("event: delta\ndata: {...}") en evento y datos */
-function parseEvent(block: string): { event: string; data: unknown } | null {
-  let event = "message";
-  const data: string[] = [];
-  for (const line of block.split(/\r?\n/)) {
-    if (line.startsWith("event:")) event = line.slice(6).trim();
-    else if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
-  }
-  if (data.length === 0) return null;
-  try {
-    return { event, data: JSON.parse(data.join("\n")) };
-  } catch {
-    return null;
-  }
 }
 
 /**

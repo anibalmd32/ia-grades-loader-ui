@@ -4,6 +4,7 @@ import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Notification, NotificationPage } from "@/api/queries/notifications";
 import { notificationKeys } from "@/api/queries/notifications";
+import { reconnectDelay } from "@/components/student/notifications";
 import { API_URL } from "@/lib/config";
 import { usePreferences } from "@/stores/preferences";
 import { makeUser, renderApp, signedInAs } from "./app";
@@ -180,5 +181,60 @@ describe("notificaciones del sistema", () => {
     renderApp("/student/grades");
     await waitFor(() => expect(usePreferences.getState().lastNotified[7]).toBe(2));
     expect(system.shown).toEqual([]);
+  });
+});
+
+describe("avisos en tiempo real", () => {
+  /** Stream SSE controlado por el test: `send` empuja un evento y `close` lo termina */
+  function sseStream() {
+    const encoder = new TextEncoder();
+    let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        controller = c;
+      },
+    });
+    return {
+      body,
+      send: (event: string, data: unknown) =>
+        controller?.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)),
+      ping: () => controller?.enqueue(encoder.encode(": ping\n\n")),
+      close: () => controller?.close(),
+    };
+  }
+
+  it("notifica al instante el aviso que llega por la conexión abierta", async () => {
+    system.access = "granted";
+    usePreferences.setState({ systemNotifications: true });
+    const stream = sseStream();
+    let auth: string | null = null;
+    server.use(
+      http.get(`${API_URL}/student/notifications/stream`, ({ request }) => {
+        auth = request.headers.get("Authorization");
+        return new HttpResponse(stream.body, {
+          headers: { "Content-Type": "text/event-stream" },
+        });
+      }),
+    );
+    renderApp("/student/grades");
+    await waitFor(() => expect(usePreferences.getState().lastNotified[7]).toBe(2));
+    expect(auth).toBe("Bearer tok");
+
+    stream.send("ready", {});
+    stream.ping();
+    const fresh = notice(3, { title: "Nueva nota en Química", body: "Lapso 3: 12" });
+    current = [fresh, ...current];
+    stream.send("notification", fresh);
+    // Sin esperar a la consulta de cada minuto
+    await waitFor(() =>
+      expect(system.shown).toEqual([{ title: "Nueva nota en Química", body: "Lapso 3: 12" }]),
+    );
+    stream.close();
+  });
+});
+
+describe("reconexión", () => {
+  it("espera cada vez más entre intentos, hasta un minuto", () => {
+    expect([0, 1, 2, 3, 10].map(reconnectDelay)).toEqual([2000, 4000, 8000, 16000, 60000]);
   });
 });

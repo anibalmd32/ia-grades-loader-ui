@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
-import { api, unwrap } from "../client";
+import { api, authorizedFetch, unwrap } from "../client";
 import type { components } from "../schema";
+import { readEvents } from "../sse";
 
 export type Notification = components["schemas"]["NotificationRead"];
 export type NotificationPage = components["schemas"]["NotificationPage"];
@@ -44,4 +45,28 @@ export const notificationsPageQuery = (offset: number) =>
 /** Marca como leídos los avisos indicados (sin ids: todos) */
 export function markNotificationsRead(ids?: number[]) {
   return unwrap(api.POST("/api/v1/student/notifications/read", { body: ids ? { ids } : {} }));
+}
+
+/**
+ * Conexión en tiempo real (SSE) con los avisos nuevos del estudiante. Llama a `onReady` al
+ * conectar y a `onNotification` con cada aviso; se resuelve cuando el servidor cierra la
+ * conexión (lo hace cada 30 min) y lanza ApiError si no se puede abrir.
+ */
+export async function listenNotifications(
+  { onReady, onNotification }: { onReady: () => void; onNotification: (n: Notification) => void },
+  signal: AbortSignal,
+): Promise<void> {
+  const response = await authorizedFetch("/api/v1/student/notifications/stream", {
+    headers: { Accept: "text/event-stream" },
+    signal,
+  });
+  if (!response.headers.get("Content-Type")?.startsWith("text/event-stream")) return;
+  await readEvents(
+    response,
+    ({ event, data }) => {
+      if (event === "ready") onReady();
+      else if (event === "notification") onNotification(data as Notification);
+    },
+    signal,
+  );
 }
