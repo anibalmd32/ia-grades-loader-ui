@@ -3,6 +3,7 @@ import { KeyRound, LogOut, Menu, UserRound } from "lucide-react";
 import { type ReactNode, useId } from "react";
 import { type AcademicSettings, useAcademicSettings } from "@/api/queries/settings";
 import { AppVersion } from "@/components/app-version";
+import { NotificationBell, useNotificationWatcher } from "@/components/student/notifications";
 import { Avatar } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { userSubtitle } from "@/lib/roles";
@@ -54,6 +55,12 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
               activeProps={{ className: "menu-active bg-primary! text-primary-content! font-bold" }}
             >
               {item.label}
+              {item.badge != null && (
+                <span className="badge badge-error badge-sm ml-auto">
+                  {item.badge > 99 ? "99+" : item.badge}
+                  <span className="sr-only"> sin leer</span>
+                </span>
+              )}
             </Link>
           </li>
         ))}
@@ -99,6 +106,8 @@ export function AppLayout({ user, children }: { user: User; children: ReactNode 
   const drawerId = useId();
   const nav = useNav(user);
   const settings = useAcademicSettings();
+  // Estudiantes: busca avisos nuevos y los muestra como notificaciones del sistema
+  const unread = useNotificationWatcher(user);
   const matches = useMatches();
   const staticData = matches.at(-1)?.staticData ?? {};
   const title = resolve(staticData.title, settings);
@@ -122,6 +131,7 @@ export function AppLayout({ user, children }: { user: User; children: ReactNode 
             {description && <p className="truncate text-base-content/70 text-xs">{description}</p>}
           </div>
           <ThemeToggle />
+          {user.role === "student" && <NotificationBell unread={unread} />}
           <Avatar person={user} />
         </header>
 

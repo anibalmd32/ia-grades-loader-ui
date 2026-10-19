@@ -27,6 +27,10 @@ export const handlers = [
   // Reglas académicas (pública): las de siempre, 3 lapsos del 1 al 20 y se aprueba con 10
   settingsHandler(makeSettings()),
   http.post(`${API_URL}/auth/logout`, () => new HttpResponse(null, { status: 204 })),
+  // La app del estudiante busca avisos nuevos cada minuto
+  http.get(`${API_URL}/student/notifications`, () =>
+    HttpResponse.json({ items: [], total: 0, limit: 20, offset: 0, unread: 0 }),
+  ),
   // El menú del estudiante consulta si Telegram está disponible
   http.get(`${API_URL}/student/telegram`, () =>
     HttpResponse.json({ enabled: true, linked: false, bot_username: "VerMisNotasBot" }),

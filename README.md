@@ -27,6 +27,7 @@ Las versiones se publican en [GitHub Releases](https://github.com/anibalmd32/ia-
 - Tauri v2 (Rust) + React + TypeScript + Vite
 - TanStack Router (rutas por archivos en `src/routes`), TanStack Query y TanStack Form
 - Valibot, Zustand (persistido con `@tauri-apps/plugin-store`)
+- Notificaciones del sistema con `@tauri-apps/plugin-notification` (en la web, la API Notification)
 - Tailwind CSS v4 + daisyUI 5
 - Bun
 

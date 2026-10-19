@@ -1,4 +1,5 @@
 import {
+  Bell,
   BookOpen,
   FileUp,
   GraduationCap,
@@ -28,8 +29,8 @@ export type NavEntry = {
   /** false: solo en el menú lateral, no en la barra inferior del móvil (que tiene poco sitio) */
   dock?: boolean;
 };
-/** Entrada del menú lista para mostrar */
-export type NavItem = Omit<NavEntry, "label"> & { label: string };
+/** Entrada del menú lista para mostrar (con un contador, p. ej. avisos sin leer) */
+export type NavItem = Omit<NavEntry, "label"> & { label: string; badge?: number };
 
 const ADMIN_NAV: NavEntry[] = [
   { to: "/admin/teachers", label: "Profesores", icon: Users },
@@ -57,6 +58,8 @@ export const NAV: Record<Role, NavEntry[]> = {
     { to: "/student/grades", label: "Mis notas", icon: GraduationCap },
     { to: "/student/assistant", label: "Asistente IA", icon: MessageCircle },
     { to: "/student/telegram", label: "Telegram", icon: Send },
+    // En el móvil la campana está en la barra superior
+    { to: "/student/notifications", label: "Avisos", icon: Bell, dock: false },
   ],
 };
 

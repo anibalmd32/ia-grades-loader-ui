@@ -3,5 +3,11 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": ["main"],
-  "permissions": ["core:default", "core:app:allow-exit", "opener:default", "store:default"]
+  "permissions": [
+    "core:default",
+    "core:app:allow-exit",
+    "opener:default",
+    "store:default",
+    "notification:default"
+  ]
 }

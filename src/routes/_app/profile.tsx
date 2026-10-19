@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Download, KeyRound, LogOut } from "lucide-react";
 import { useAcademicSettings } from "@/api/queries/settings";
 import { AppVersion } from "@/components/app-version";
+import { DeviceNotificationsSetting } from "@/components/student/notifications";
 import { Avatar } from "@/components/ui/avatar";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { API_URL, RELEASES_URL } from "@/lib/config";
@@ -11,7 +12,7 @@ import { type Theme, usePreferences } from "@/stores/preferences";
 import { useSession } from "@/stores/session";
 
 const title = "Mi cuenta";
-const description = "Tus datos, tu contraseña y la versión de la app.";
+const description = "Tus datos, tu contraseña, los avisos y la versión de la app.";
 
 const THEMES: { value: Theme; label: string }[] = [
   { value: "system", label: "Como el sistema" },
@@ -92,6 +93,15 @@ function ProfilePage() {
               </button>
             </div>
           </section>
+
+          {current.role === "student" && (
+            <section className="card card-border bg-base-100">
+              <div className="card-body gap-3">
+                <h2 className="card-title">Notificaciones</h2>
+                <DeviceNotificationsSetting />
+              </div>
+            </section>
+          )}
 
           <section className="card card-border bg-base-100">
             <div className="card-body gap-3">
