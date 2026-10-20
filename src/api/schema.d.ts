@@ -133,6 +133,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/login/biometric": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login con huella (app del móvil)
+         * @description La app del móvil envía la credencial que recibió al activar el inicio con huella
+         *     (`POST /auth/biometric`), solo después de que el usuario verifique su huella o cara.
+         */
+        post: operations["login_biometric_api_v1_auth_login_biometric_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/biometric": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activar el inicio de sesión con huella en este teléfono
+         * @description Devuelve la credencial del teléfono una sola vez. Cerrar sesión no la invalida;
+         *     cambiar o restablecer la contraseña, sí.
+         */
+        post: operations["register_biometric_api_v1_auth_biometric_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/biometric/{device_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Desactivar el inicio de sesión con huella en un teléfono */
+        delete: operations["remove_biometric_api_v1_auth_biometric__device_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/token": {
         parameters: {
             query?: never;
@@ -992,6 +1051,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/student/notifications/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mis avisos en tiempo real (Server-Sent Events)
+         * @description Conexión abierta (`text/event-stream`) por la que llega cada aviso nuevo **del
+         *     estudiante autenticado** en cuanto se guarda la nota. Eventos: `ready` al conectar,
+         *     `notification` (mismo formato que `GET /student/notifications`) y comentarios `ping`
+         *     cada 20 s. Se cierra a los 30 min; el cliente debe volver a conectar. Los avisos
+         *     siguen en `GET /student/notifications` por si se pierde alguno sin conexión.
+         */
+        get: operations["notifications_stream_api_v1_student_notifications_stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/student/notifications/read": {
         parameters: {
             query?: never;
@@ -1338,6 +1421,24 @@ export interface components {
              * @description Los estudiantes pueden usar el asistente por Telegram (requiere también assistant_enabled y el bot configurado en el servidor)
              */
             telegram_enabled: boolean;
+        };
+        /** BiometricCredential */
+        BiometricCredential: {
+            /** Device Id */
+            device_id: number;
+            /**
+             * Credential
+             * @description Credencial del teléfono (`<id>.<secreto>`). Se devuelve una sola vez: la app la guarda y la envía a `/auth/login/biometric` tras verificar la huella
+             */
+            credential: string;
+        };
+        /**
+         * BiometricLogin
+         * @description Inicio de sesión con huella desde la app del móvil.
+         */
+        BiometricLogin: {
+            /** Credential */
+            credential: string;
         };
         /** Body_enqueue_grades_import_api_v1_teacher_subjects__subject_id__grades_import_post */
         Body_enqueue_grades_import_api_v1_teacher_subjects__subject_id__grades_import_post: {
@@ -2834,6 +2935,88 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TokenResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login_biometric_api_v1_auth_login_biometric_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BiometricLogin"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_biometric_api_v1_auth_biometric_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BiometricCredential"];
+                };
+            };
+        };
+    };
+    remove_biometric_api_v1_auth_biometric__device_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -4731,6 +4914,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    notifications_stream_api_v1_student_notifications_stream_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": unknown;
                 };
             };
         };

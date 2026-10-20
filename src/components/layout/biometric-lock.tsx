@@ -1,12 +1,44 @@
 import { useNavigate } from "@tanstack/react-router";
 import { Fingerprint, LogIn } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { api, unwrap } from "@/api/client";
 import { isMobileApp, verifyIdentity } from "@/lib/biometric";
 import { usePreferences, usePreferencesHydrated } from "@/stores/preferences";
-import { useSession } from "@/stores/session";
+import { type User, useSession } from "@/stores/session";
 
 /** Tiempo en segundo plano tras el que se vuelve a pedir la huella */
 export const RELOCK_AFTER_MS = 5 * 60_000;
+
+// El usuario acaba de iniciar sesión en esta ejecución de la app: no se le pide la huella otra vez
+let signedInNow = false;
+
+/** Llamar al terminar el login (con contraseña o con huella) */
+export function markSignedIn() {
+  signedInNow = true;
+}
+
+/** Da de alta este teléfono en la API para entrar con huella desde el login */
+export async function enableBiometricLogin(user: User): Promise<void> {
+  const { device_id, credential } = await unwrap(api.POST("/api/v1/auth/biometric"));
+  usePreferences.getState().setBiometricLogin({
+    deviceId: device_id,
+    credential,
+    userId: user.id,
+    name: user.full_name,
+  });
+}
+
+/** Olvida la credencial del teléfono y la borra en la API (si falla, se ignora) */
+export async function disableBiometricLogin(): Promise<void> {
+  const current = usePreferences.getState().biometricLogin;
+  usePreferences.getState().setBiometricLogin(null);
+  if (!current) return;
+  await unwrap(
+    api.DELETE("/api/v1/auth/biometric/{device_id}", {
+      params: { path: { device_id: current.deviceId } },
+    }),
+  ).catch(() => {});
+}
 
 /**
  * Si el usuario activó el desbloqueo con huella (solo app del móvil), la app arranca bloqueada
@@ -25,13 +57,30 @@ export function BiometricGate({
   const [locked, setLocked] = useState(false);
   const checkedStart = useRef(false);
   const hiddenAt = useRef<number | null>(null);
+  const user = useSession((s) => s.user);
+  const biometricLogin = usePreferences((s) => s.biometricLogin);
+  const registering = useRef(false);
 
-  // Arranque en frío: bloquear una sola vez, cuando ya se sabe si está activado
+  // Arranque en frío con la sesión guardada: bloquear una sola vez, cuando ya se sabe si está
+  // activado (si acaba de iniciar sesión, ya se identificó)
   useEffect(() => {
     if (!hydrated || checkedStart.current) return;
     checkedStart.current = true;
-    if (enabled) setLocked(true);
+    if (enabled && !signedInNow) setLocked(true);
   }, [hydrated, enabled]);
+
+  // Sin credencial para el login con huella (se activó antes de existir, caducó al cambiar la
+  // contraseña o es de otro usuario): se pide una nueva para el usuario actual
+  useEffect(() => {
+    if (!enabled || !hydrated || locked || !user || biometricLogin?.userId === user.id) return;
+    if (registering.current) return;
+    registering.current = true;
+    void enableBiometricLogin(user)
+      .catch(() => {})
+      .finally(() => {
+        registering.current = false;
+      });
+  }, [enabled, hydrated, locked, user, biometricLogin]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -124,30 +173,40 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   );
 }
 
-/** Ajuste "Desbloqueo con huella" de Mi cuenta (solo si el móvil tiene biometría) */
+/** Ajuste "Entrar con huella" de Mi cuenta (solo si el móvil tiene biometría) */
 export function BiometricLockSetting({ available }: { available: boolean }) {
   const enabled = usePreferences((s) => s.biometricLock);
   const setEnabled = usePreferences((s) => s.setBiometricLock);
+  const user = useSession((s) => s.user);
   const [error, setError] = useState<string | null>(null);
 
   const toggle = async (checked: boolean) => {
     setError(null);
     if (!checked) {
       setEnabled(false);
+      await disableBiometricLogin();
       return;
     }
     // Se confirma antes con la huella: así se sabe que funciona en este teléfono
-    if (await verifyIdentity("Confirma para activar el desbloqueo con huella")) setEnabled(true);
-    else setError("No se pudo verificar tu identidad: el desbloqueo sigue desactivado.");
+    if (!(await verifyIdentity("Confirma para activar el inicio con huella"))) {
+      setError("No se pudo verificar tu identidad: el inicio con huella sigue desactivado.");
+      return;
+    }
+    try {
+      if (user) await enableBiometricLogin(user);
+      setEnabled(true);
+    } catch {
+      setError("No se pudo activar el inicio con huella. Inténtalo de nuevo.");
+    }
   };
 
   if (!available) return null;
   return (
     <section className="card card-border bg-base-100">
       <div className="card-body gap-3">
-        <h2 className="card-title">Desbloqueo con huella</h2>
+        <h2 className="card-title">Entrar con huella</h2>
         <label className="flex cursor-pointer items-center justify-between gap-3">
-          <span>Pedir la huella, la cara o el PIN al abrir la app</span>
+          <span>Entrar con la huella, la cara o el PIN del teléfono</span>
           <input
             type="checkbox"
             className="toggle toggle-primary"
@@ -156,8 +215,9 @@ export function BiometricLockSetting({ available }: { available: boolean }) {
           />
         </label>
         <p className="text-base-content/70 text-sm">
-          Si alguien toma tu teléfono con la sesión abierta, no podrá ver tus datos. También se pide
-          al volver a la app tras {RELOCK_AFTER_MS / 60_000} minutos.
+          Podrás iniciar sesión sin escribir tu usuario ni tu contraseña. Si alguien toma tu
+          teléfono con la sesión abierta, tampoco podrá ver tus datos: se pide al abrir la app y al
+          volver a ella tras {RELOCK_AFTER_MS / 60_000} minutos.
         </p>
         {error && (
           <p role="alert" className="text-error text-sm">

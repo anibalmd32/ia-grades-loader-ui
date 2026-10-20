@@ -6,6 +6,15 @@ import { appStorage } from "@/lib/app-storage";
 export type Theme = "system" | "light" | "dark";
 export type LoginTab = "staff" | "student";
 
+/** Credencial del teléfono para entrar con huella (POST /auth/biometric) */
+export type BiometricLogin = {
+  deviceId: number;
+  credential: string;
+  userId: number;
+  /** Nombre del usuario, para mostrarlo en el login */
+  name: string;
+};
+
 type PreferencesState = {
   theme: Theme;
   /** Última pestaña usada en el login */
@@ -16,11 +25,14 @@ type PreferencesState = {
   lastNotified: Record<string, number>;
   /** Pedir huella o cara al abrir la app (solo móvil) */
   biometricLock: boolean;
+  /** Con qué se entra con la huella desde el login, sin usuario ni contraseña (solo móvil) */
+  biometricLogin: BiometricLogin | null;
   setTheme: (theme: Theme) => void;
   setLoginTab: (tab: LoginTab) => void;
   setSystemNotifications: (enabled: boolean) => void;
   setLastNotified: (userId: number, notificationId: number) => void;
   setBiometricLock: (enabled: boolean) => void;
+  setBiometricLogin: (login: BiometricLogin | null) => void;
 };
 
 export const usePreferences = create<PreferencesState>()(
@@ -31,12 +43,14 @@ export const usePreferences = create<PreferencesState>()(
       systemNotifications: false,
       lastNotified: {},
       biometricLock: false,
+      biometricLogin: null,
       setTheme: (theme) => set({ theme }),
       setLoginTab: (loginTab) => set({ loginTab }),
       setSystemNotifications: (systemNotifications) => set({ systemNotifications }),
       setLastNotified: (userId, notificationId) =>
         set((state) => ({ lastNotified: { ...state.lastNotified, [userId]: notificationId } })),
       setBiometricLock: (biometricLock) => set({ biometricLock }),
+      setBiometricLogin: (biometricLogin) => set({ biometricLogin }),
     }),
     {
       name: "preferences",

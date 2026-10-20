@@ -1,6 +1,6 @@
 import { useStore } from "@tanstack/react-form";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { TriangleAlert } from "lucide-react";
+import { Fingerprint, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 import { api, unwrap } from "@/api/client";
@@ -18,6 +18,8 @@ import {
 } from "@/components/form/document-fields";
 import { FormError, useAppForm } from "@/components/form/form";
 import { AuthLayout } from "@/components/layout/auth-layout";
+import { markSignedIn } from "@/components/layout/biometric-lock";
+import { isMobileApp, verifyIdentity } from "@/lib/biometric";
 import { homePath } from "@/lib/roles";
 import { type LoginTab, usePreferences } from "@/stores/preferences";
 import { sessionReady, type User, useSession } from "@/stores/session";
@@ -67,6 +69,7 @@ function useFinishLogin() {
   const { redirect: redirectTo } = Route.useSearch();
   return async (accessToken: string) => {
     const user: User = await signIn(accessToken);
+    markSignedIn();
     if (user.must_change_password) {
       await navigate({ to: "/change-password", replace: true });
     } else if (redirectTo?.startsWith("/")) {
@@ -75,6 +78,77 @@ function useFinishLogin() {
       await navigate({ to: homePath(user.role), replace: true });
     }
   };
+}
+
+/** Entrar con huella sin usuario ni contraseña: solo en el móvil y si se activó en Mi cuenta */
+function BiometricLoginButton() {
+  const finishLogin = useFinishLogin();
+  const enabled = usePreferences((s) => s.biometricLock);
+  const biometricLogin = usePreferences((s) => s.biometricLogin);
+  const setBiometricLogin = usePreferences((s) => s.setBiometricLogin);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Sin credencial solo queda el aviso de por qué ya no se puede entrar con huella
+  if (!isMobileApp() || !enabled || (!biometricLogin && !error)) return null;
+
+  const enter = async () => {
+    if (!biometricLogin) return;
+    setError(null);
+    setBusy(true);
+    try {
+      if (!(await verifyIdentity("Inicia sesión en Notas"))) {
+        setError("No se pudo verificar tu identidad. Inténtalo de nuevo.");
+        return;
+      }
+      const token = await unwrap(
+        api.POST("/api/v1/auth/login/biometric", {
+          body: { credential: biometricLogin.credential },
+        }),
+      );
+      await finishLogin(token.access_token);
+    } catch (error) {
+      if (isApiError(error) && error.status === 401) {
+        // Se desactivó o cambió la contraseña: se renueva al entrar con la contraseña
+        setBiometricLogin(null);
+        setError("El inicio con huella ya no es válido. Entra con tu contraseña.");
+      } else if (isApiError(error) && error.status === 403) {
+        setError(error.message);
+      } else {
+        setError("No se pudo iniciar sesión. Inténtalo de nuevo.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      {biometricLogin && (
+        <>
+          <button
+            type="button"
+            className="btn btn-outline btn-primary w-full"
+            disabled={busy}
+            onClick={() => void enter()}
+          >
+            {busy ? (
+              <span className="loading loading-spinner loading-sm" />
+            ) : (
+              <Fingerprint className="size-4" />
+            )}
+            Entrar con huella
+          </button>
+          <p className="text-center text-base-content/60 text-xs">Como {biometricLogin.name}</p>
+        </>
+      )}
+      {error && (
+        <p role="alert" className="text-center text-error text-sm">
+          {error}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function StaffForm() {
@@ -126,6 +200,7 @@ function StaffForm() {
       <form.AppForm>
         <form.SubmitButton label="Iniciar sesión" className="mt-4 w-full" />
       </form.AppForm>
+      <BiometricLoginButton />
       <p className="mt-4 text-base-content/70 text-sm">
         ¿Olvidaste tu contraseña? Pídele a tu coordinador que la restablezca.
       </p>
@@ -200,6 +275,7 @@ function StudentForm() {
       <form.AppForm>
         <form.SubmitButton label="Iniciar sesión" className="mt-4 w-full" />
       </form.AppForm>
+      <BiometricLoginButton />
       <p className="mt-4 text-base-content/70 text-sm">
         ¿No tienes cuenta? Las crea tu coordinador; no hay registro público.
       </p>

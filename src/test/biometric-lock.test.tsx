@@ -1,9 +1,12 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BiometricGate, RELOCK_AFTER_MS } from "@/components/layout/biometric-lock";
+import { API_URL } from "@/lib/config";
 import { usePreferences } from "@/stores/preferences";
 import { makeUser, renderApp, signedInAs } from "./app";
+import { server } from "./server";
 
 const biometric = vi.hoisted(() => ({
   available: true,
@@ -23,6 +26,9 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
   useNavigate: () => navigate,
 }));
+// Altas (POST /auth/biometric) y bajas (DELETE) de la credencial del teléfono en la API simulada
+const registered: number[] = [];
+const removed: number[] = [];
 
 beforeEach(() => {
   localStorage.clear();
@@ -30,7 +36,22 @@ beforeEach(() => {
   biometric.results = [];
   biometric.calls = 0;
   navigate.mockClear();
-  usePreferences.setState({ biometricLock: false });
+  usePreferences.setState({ biometricLock: false, biometricLogin: null });
+  registered.length = 0;
+  removed.length = 0;
+  server.use(
+    http.post(`${API_URL}/auth/biometric`, () => {
+      registered.push(registered.length + 1);
+      return HttpResponse.json(
+        { device_id: registered.length, credential: `${registered.length}.secreto` },
+        { status: 201 },
+      );
+    }),
+    http.delete(`${API_URL}/auth/biometric/:id`, ({ params }) => {
+      removed.push(Number(params.id));
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
   signedInAs(makeUser({ id: 7, role: "student", full_name: "María Pérez" }));
 });
 
@@ -113,6 +134,20 @@ describe("bloqueo con huella", () => {
     );
     await user.click(await screen.findByRole("button", { name: "Entrar con mi contraseña" }));
     await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/login" }));
+    // La credencial del teléfono se conserva para poder entrar con la huella desde el login
+    expect(usePreferences.getState().biometricLock).toBe(true);
+  });
+
+  it("si se activó sin credencial para el login, la pide tras desbloquear", async () => {
+    usePreferences.setState({ biometricLock: true });
+    render(
+      <BiometricGate mobile>
+        <p>Contenido</p>
+      </BiometricGate>,
+    );
+    expect(await screen.findByText("Contenido")).toBeInTheDocument();
+    await waitFor(() => expect(usePreferences.getState().biometricLogin?.userId).toBe(7));
+    expect(registered).toEqual([1]);
   });
 });
 
@@ -122,16 +157,46 @@ describe("ajuste en Mi cuenta", () => {
     biometric.results = [false, true];
     renderApp("/profile");
     const toggle = await screen.findByRole("checkbox", {
-      name: "Pedir la huella, la cara o el PIN al abrir la app",
+      name: "Entrar con la huella, la cara o el PIN del teléfono",
     });
 
     await user.click(toggle);
     expect(await screen.findByRole("alert")).toHaveTextContent("sigue desactivado");
     expect(usePreferences.getState().biometricLock).toBe(false);
 
+    expect(registered).toEqual([]);
+
+    // Al activarlo, el teléfono recibe su credencial para entrar con huella desde el login
     await user.click(toggle);
     await waitFor(() => expect(usePreferences.getState().biometricLock).toBe(true));
+    expect(usePreferences.getState().biometricLogin).toEqual({
+      deviceId: 1,
+      credential: "1.secreto",
+      userId: 7,
+      name: "María Pérez",
+    });
+
+    // Al desactivarlo, se olvida y se borra en la API
     await user.click(toggle);
+    expect(usePreferences.getState().biometricLock).toBe(false);
+    await waitFor(() => expect(removed).toEqual([1]));
+    expect(usePreferences.getState().biometricLogin).toBeNull();
+  });
+
+  it("si la activación falla en la API, sigue desactivado", async () => {
+    server.use(
+      http.post(`${API_URL}/auth/biometric`, () =>
+        HttpResponse.json({ detail: "Error" }, { status: 500 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderApp("/profile");
+    await user.click(
+      await screen.findByRole("checkbox", {
+        name: "Entrar con la huella, la cara o el PIN del teléfono",
+      }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("No se pudo activar");
     expect(usePreferences.getState().biometricLock).toBe(false);
   });
 
@@ -139,6 +204,6 @@ describe("ajuste en Mi cuenta", () => {
     biometric.available = false;
     renderApp("/profile");
     expect(await screen.findByText("Acerca de la app")).toBeInTheDocument();
-    expect(screen.queryByText("Desbloqueo con huella")).not.toBeInTheDocument();
+    expect(screen.queryByText("Entrar con huella")).not.toBeInTheDocument();
   });
 });
