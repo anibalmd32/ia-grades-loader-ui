@@ -81,6 +81,34 @@
 }
 
 /*
+ * Una tarjeta dentro de una rejilla o un flex no debe ensanchar la página: sin esto, un texto
+ * truncado (white-space: nowrap) cuenta con su ancho completo y provoca scroll horizontal en
+ * el móvil.
+ */
+.card {
+  min-width: 0;
+}
+
+/* Lo mismo en los grupos de campos (un <fieldset> mide como mínimo su contenido) */
+.fieldset {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Los textos de ayuda de un campo (daisyUI los deja en una línea) se parten en el móvil */
+.fieldset .label {
+  white-space: normal;
+}
+
+/* Barra inferior del móvil: una sola línea por etiqueta, aunque sea larga */
+.dock .dock-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
  * Lista desplegable de los <select> (Chrome y Edge la dibujan con appearance: base-select).
  * daisyUI la pinta del mismo color que la tarjeta y con un borde base-200, que en el tema
  * oscuro casi no se distingue: borde y sombra visibles y la opción activa y la elegida

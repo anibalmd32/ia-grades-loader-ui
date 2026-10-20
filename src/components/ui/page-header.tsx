@@ -20,9 +20,14 @@ export function PageHeader({
           <h1 className="truncate font-bold text-2xl">{title}</h1>
           {description && <p className="text-base-content/70 text-sm">{description}</p>}
         </div>
-        {actions && <div className="flex gap-2">{actions}</div>}
+        {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
       </header>
-      {actions && <div className="flex flex-col gap-2 px-4 pt-4 *:w-full lg:hidden">{actions}</div>}
+      {/* Móvil: los botones cortos se emparejan en una fila y los largos ocupan todo el ancho */}
+      {actions && (
+        <div className="flex flex-wrap gap-2 px-4 pt-4 *:flex-auto *:whitespace-nowrap lg:hidden">
+          {actions}
+        </div>
+      )}
     </>
   );
 }

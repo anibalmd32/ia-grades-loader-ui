@@ -418,7 +418,7 @@ export function EvaluationGradesSheet({
                     {evaluation.name} ({percentText(evaluation.weight)})
                   </span>
                   <GradeCell
-                    className="input-md"
+                    className="input-md w-full"
                     label={`${row.student.full_name} · ${evaluation.name}`}
                     value={drafts.text(row, evaluation.id)}
                     edited={drafts.isEdited(row, evaluation.id)}

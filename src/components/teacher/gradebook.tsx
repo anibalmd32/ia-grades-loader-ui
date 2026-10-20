@@ -171,7 +171,7 @@ export function GradeCell({
       placeholder="—"
       aria-label={label}
       aria-invalid={invalid || undefined}
-      className={`input input-sm w-full text-center tabular-nums ${state} ${className}`}
+      className={`input input-sm text-center tabular-nums ${state} ${className || "w-full"}`}
       value={value}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}

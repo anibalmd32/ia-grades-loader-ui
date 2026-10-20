@@ -553,9 +553,12 @@ export function AcademicSettingsForm({ settings }: { settings: AcademicSettings 
                   <legend className="fieldset-legend text-sm">Tipos de documento</legend>
                   <ul className="flex flex-col gap-1">
                     {types.map((_, index) => (
-                      // Las filas solo se añaden al final o se quitan: el índice basta como clave
-                      // biome-ignore lint/suspicious/noArrayIndexKey: filas de un formulario
-                      <li key={index} className="grid grid-cols-[6rem_1fr_auto] items-start gap-2">
+                      <li
+                        // Las filas solo se añaden al final o se quitan: el índice basta como clave
+                        // biome-ignore lint/suspicious/noArrayIndexKey: filas de un formulario
+                        key={index}
+                        className="grid grid-cols-[5rem_minmax(0,1fr)_auto] items-start gap-2"
+                      >
                         <form.AppField
                           name={`document_types[${index}].code`}
                           listeners={{ onChange: clearDocumentTypesError }}

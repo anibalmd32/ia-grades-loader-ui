@@ -20,8 +20,8 @@ export function AuthLayout({
         <ThemeToggle />
       </div>
       <div className="w-full max-w-md p-6 sm:rounded-box sm:border sm:border-base-300 sm:bg-base-100 sm:p-10 sm:shadow-sm">
-        {/* pr-10 en móvil: el botón de tema queda arriba a la derecha, sobre la tarjeta */}
-        <h1 className="pr-10 font-bold text-2xl sm:pr-0 sm:text-3xl">{title}</h1>
+        <img src="/favicon.svg" alt="Notas" className="mb-5 size-12 rounded-xl" />
+        <h1 className="font-bold text-2xl sm:text-3xl">{title}</h1>
         <p className="mt-1 text-base-content/70 text-sm">{description}</p>
         <div className="mt-6">{children}</div>
       </div>

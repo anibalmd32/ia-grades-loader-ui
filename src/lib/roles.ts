@@ -26,6 +26,8 @@ export type NavEntry = {
   to: string;
   label: string | ((settings: AcademicSettings) => string);
   icon: LucideIcon;
+  /** Etiqueta corta para la barra inferior del móvil (si la normal no cabe) */
+  short?: string;
   /** false: solo en el menú lateral, no en la barra inferior del móvil (que tiene poco sitio) */
   dock?: boolean;
 };
@@ -38,6 +40,7 @@ const ADMIN_NAV: NavEntry[] = [
   {
     to: "/admin/academic",
     label: (settings) => `${settings.period_label_plural} y materias`,
+    short: "Materias",
     icon: BookOpen,
   },
 ];

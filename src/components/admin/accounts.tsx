@@ -272,11 +272,11 @@ export function AccountHeader({ kind, user }: { kind: AccountKind; user: UserRea
   return (
     <section className="card card-border bg-base-100">
       <div className="card-body flex-col gap-4 lg:flex-row lg:items-center">
-        <div className="flex flex-1 items-center gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-4">
           <Avatar person={user} size="lg" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-bold text-2xl">{user.full_name}</h2>
+              <h2 className="font-bold text-xl leading-tight sm:text-2xl">{user.full_name}</h2>
               <StatusBadge active={user.is_active} />
             </div>
             <p className="text-base-content/70 text-sm">{accountIdentity(user, documentLabel)}</p>
@@ -287,8 +287,12 @@ export function AccountHeader({ kind, user }: { kind: AccountKind; user: UserRea
             )}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn btn-ghost" onClick={() => setEditing(true)}>
+        <div className="flex flex-wrap gap-2 max-lg:*:flex-auto">
+          <button
+            type="button"
+            className="btn btn-outline border-base-300"
+            onClick={() => setEditing(true)}
+          >
             Editar
           </button>
           <button

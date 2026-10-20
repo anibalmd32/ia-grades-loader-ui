@@ -134,7 +134,10 @@ function Evaluations({ plan }: { plan: EvaluationPlan }) {
           />
         )}
 
-        <div role="tablist" className="flex flex-wrap gap-2">
+        <div
+          role="tablist"
+          className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 *:shrink-0 lg:mx-0 lg:flex-wrap lg:px-0"
+        >
           {plan.terms.map((t) => (
             <button
               key={t.term}

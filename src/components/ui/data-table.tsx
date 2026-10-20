@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { EmptyState, ErrorState, LoadingState } from "./states";
 
@@ -124,23 +124,28 @@ export function Pagination({
   const first = Math.max(1, Math.min(current - 2, pages - 4));
   const numbers = Array.from({ length: Math.min(5, pages) }, (_, i) => first + i);
 
+  const step = "btn join-item border-base-300 bg-base-100 font-semibold";
   return (
-    <nav className="flex flex-wrap items-center justify-between gap-3" aria-label="Paginación">
+    <nav
+      className="flex flex-wrap items-center justify-center gap-3 lg:justify-between"
+      aria-label="Paginación"
+    >
       <p className="hidden text-base-content/70 text-sm lg:block">{rangeText(page)}</p>
       <div className="join">
         <button
           type="button"
-          className="btn join-item"
+          className={step}
           disabled={current <= 1}
           onClick={() => onPageChange(offset - limit)}
         >
-          Anterior
+          <ChevronLeft className="size-4" />
+          <span className="max-sm:sr-only">Anterior</span>
         </button>
         {numbers.map((n) => (
           <button
             key={n}
             type="button"
-            className={`btn join-item ${n === current ? "btn-primary" : ""}`}
+            className={`btn join-item min-w-11 ${n === current ? "btn-primary" : "border-base-300 bg-base-100"}`}
             aria-current={n === current ? "page" : undefined}
             onClick={() => onPageChange((n - 1) * limit)}
           >
@@ -149,11 +154,12 @@ export function Pagination({
         ))}
         <button
           type="button"
-          className="btn join-item"
+          className={step}
           disabled={current >= pages}
           onClick={() => onPageChange(offset + limit)}
         >
-          Siguiente
+          <span className="max-sm:sr-only">Siguiente</span>
+          <ChevronRight className="size-4" />
         </button>
       </div>
     </nav>

@@ -40,9 +40,16 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
   return (
     <nav className="flex min-h-full w-64 flex-col bg-neutral p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-neutral-content">
       <div className="flex items-start justify-between gap-2 px-3 py-2">
-        <div className="min-w-0">
-          <p className="font-bold text-xl">Notas</p>
-          <p className="truncate text-neutral-content/70 text-xs">{settings.institution_name}</p>
+        <div className="flex min-w-0 items-center gap-3">
+          <img
+            src="/favicon.svg"
+            alt=""
+            className="size-9 shrink-0 rounded-lg ring-1 ring-white/15"
+          />
+          <div className="min-w-0">
+            <p className="font-bold text-xl leading-tight">Notas</p>
+            <p className="truncate text-neutral-content/70 text-xs">{settings.institution_name}</p>
+          </div>
         </div>
         <ThemeToggle className="-mr-2" />
       </div>
@@ -148,7 +155,7 @@ export function AppLayout({ user, children }: { user: User; children: ReactNode 
                 activeProps={{ className: "dock-active text-primary!" }}
               >
                 <item.icon className="size-5" />
-                <span className="dock-label">{item.label}</span>
+                <span className="dock-label">{item.short ?? item.label}</span>
               </Link>
             ))}
           <Link

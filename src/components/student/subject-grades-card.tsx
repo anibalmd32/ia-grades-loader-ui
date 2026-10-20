@@ -43,7 +43,7 @@ export function SubjectGradesCard({ item }: { item: StudentSubjectGrades }) {
       params={{ subjectId: subject.id }}
       className="card card-border bg-base-100 transition-shadow hover:shadow-md"
     >
-      <div className="card-body gap-3 p-5">
+      <div className="card-body gap-3 p-4 sm:p-5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="font-bold text-primary text-xs">{subject.code}</p>
@@ -57,7 +57,7 @@ export function SubjectGradesCard({ item }: { item: StudentSubjectGrades }) {
           <StandingBadge projection={projection} settings={settings} />
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(4.5rem,1fr))] gap-2">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(3.75rem,1fr))] gap-2">
           {item.grades.map((g) => (
             <GradeBox
               key={g.term}

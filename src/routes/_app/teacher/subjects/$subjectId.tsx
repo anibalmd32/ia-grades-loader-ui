@@ -282,7 +282,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                           </p>
                         </div>
                         <GradeCell
-                          className="input-md w-24"
+                          className="input-md w-24 shrink-0"
                           label={`${row.student.full_name} · ${termName(settings, currentTerm)}`}
                           value={drafts.text(row, currentTerm)}
                           edited={drafts.isEdited(row, currentTerm)}
@@ -306,32 +306,31 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                       <tr>
                         <th>Estudiante</th>
                         {terms.map((term) => (
-                          <th key={term} className="w-32">
+                          <th key={term} className="w-32 min-w-28">
                             {termName(settings, term)}
                             {computed.has(term) && (
-                              <span className="block font-normal text-base-content/60">
+                              <span className="block font-normal text-base-content/60 text-xs">
                                 Por evaluaciones
                               </span>
                             )}
                           </th>
                         ))}
-                        <th className="w-32">Definitiva</th>
+                        <th className="w-32 min-w-28">Definitiva</th>
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map((row) => (
                         <tr key={row.student.id}>
-                          <td>
+                          <td className="min-w-52">
                             <div className="flex items-center justify-between gap-2">
-                              <span>
-                                {row.student.full_name}
+                              <div className="min-w-0">
+                                <p className="font-semibold">{row.student.full_name}</p>
                                 {row.student.cedula_display && (
-                                  <span className="text-base-content/70">
-                                    {" "}
-                                    · {row.student.cedula_display}
-                                  </span>
+                                  <p className="text-base-content/70 text-xs">
+                                    {row.student.cedula_display}
+                                  </p>
                                 )}
-                              </span>
+                              </div>
                               <HistoryButton
                                 name={row.student.full_name}
                                 onClick={() => setHistory(row.student)}
