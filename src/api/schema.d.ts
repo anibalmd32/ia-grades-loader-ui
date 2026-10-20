@@ -54,7 +54,9 @@ export interface paths {
          * Crear el super admin (solo la primera vez)
          * @description Crea la cuenta de super admin y devuelve su token.
          *
-         *     Una vez instalado, responde **404** igual que una ruta inexistente.
+         *     Si el servidor tiene `SETUP_TOKEN` (obligatorio con `APP_ENV=production`), hay que enviarlo
+         *     en la cabecera `X-Setup-Token`: así nadie puede adelantarse a instalar una API recién
+         *     desplegada. Una vez instalado, responde **404** igual que una ruta inexistente.
          */
         post: operations["setup_api_v1_setup_post"];
         delete?: never;
@@ -105,6 +107,9 @@ export interface paths {
         /**
          * Login del personal (email)
          * @description Super admin, coordinadores y profesores inician sesión con email y contraseña.
+         *
+         *     Tras varios intentos fallidos seguidos (por cuenta o por IP) responde 429 con
+         *     `Retry-After`.
          */
         post: operations["login_staff_api_v1_auth_login_staff_post"];
         delete?: never;
@@ -125,6 +130,8 @@ export interface paths {
         /**
          * Login de estudiantes (cédula)
          * @description Los estudiantes inician sesión con tipo (V/E), número de cédula y contraseña.
+         *
+         *     Tras varios intentos fallidos seguidos responde 429 con `Retry-After`.
          */
         post: operations["login_student_api_v1_auth_login_student_post"];
         delete?: never;
@@ -161,12 +168,20 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Teléfonos con el inicio de sesión con huella activado
+         * @description Del más reciente al más antiguo. Sirve para desactivar uno que ya no se usa.
+         */
+        get: operations["list_biometric_api_v1_auth_biometric_get"];
         put?: never;
         /**
          * Activar el inicio de sesión con huella en este teléfono
          * @description Devuelve la credencial del teléfono una sola vez. Cerrar sesión no la invalida;
          *     cambiar o restablecer la contraseña, sí.
+         *
+         *     Sin `current_password` solo vale con una sesión abierta hace menos de 10 minutos (la app
+         *     lo activa justo después del login); si no, responde 403 y hay que enviar la contraseña.
+         *     Cada usuario puede tener hasta 5 teléfonos: al activar otro, se borra el más antiguo.
          */
         post: operations["register_biometric_api_v1_auth_biometric_post"];
         delete?: never;
@@ -1063,7 +1078,8 @@ export interface paths {
          * @description Conexión abierta (`text/event-stream`) por la que llega cada aviso nuevo **del
          *     estudiante autenticado** en cuanto se guarda la nota. Eventos: `ready` al conectar,
          *     `notification` (mismo formato que `GET /student/notifications`) y comentarios `ping`
-         *     cada 20 s. Se cierra a los 30 min; el cliente debe volver a conectar. Los avisos
+         *     cada 20 s. Se cierra a los 5 min; el cliente debe volver a conectar (así se revalida la
+         *     sesión). Como mucho 3 conexiones a la vez por estudiante (429 si hay más). Los avisos
          *     siguen en `GET /student/notifications` por si se pierde alguno sin conexión.
          */
         get: operations["notifications_stream_api_v1_student_notifications_stream_get"];
@@ -1433,12 +1449,38 @@ export interface components {
             credential: string;
         };
         /**
+         * BiometricDeviceRead
+         * @description Teléfono con el inicio de sesión con huella activado.
+         */
+        BiometricDeviceRead: {
+            /** Id */
+            id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Used At */
+            last_used_at: string | null;
+        };
+        /**
          * BiometricLogin
          * @description Inicio de sesión con huella desde la app del móvil.
          */
         BiometricLogin: {
             /** Credential */
             credential: string;
+        };
+        /**
+         * BiometricRegister
+         * @description Alta del teléfono para entrar con huella.
+         */
+        BiometricRegister: {
+            /**
+             * Current Password
+             * @description Contraseña actual. Obligatoria si la sesión se abrió hace más de 10 minutos: así un token robado no basta para conseguir una credencial duradera
+             */
+            current_password?: string | null;
         };
         /** Body_enqueue_grades_import_api_v1_teacher_subjects__subject_id__grades_import_post */
         Body_enqueue_grades_import_api_v1_teacher_subjects__subject_id__grades_import_post: {
@@ -2185,6 +2227,12 @@ export interface components {
              * @description True si ya existe el super admin
              */
             installed: boolean;
+            /**
+             * Token Required
+             * @description True si el instalador pide el código de instalación (cabecera X-Setup-Token): se configura en el servidor con SETUP_TOKEN
+             * @default false
+             */
+            token_required: boolean;
         };
         /**
          * StaffCreate
@@ -2791,7 +2839,9 @@ export interface operations {
     setup_api_v1_setup_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-Setup-Token"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -2809,6 +2859,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TokenResponse"];
                 };
+            };
+            /** @description Falta o no coincide el código de instalación */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description El sistema ya está instalado */
             404: {
@@ -2980,7 +3037,7 @@ export interface operations {
             };
         };
     };
-    register_biometric_api_v1_auth_biometric_post: {
+    list_biometric_api_v1_auth_biometric_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -2990,12 +3047,45 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BiometricDeviceRead"][];
+                };
+            };
+        };
+    };
+    register_biometric_api_v1_auth_biometric_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["BiometricRegister"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["BiometricCredential"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

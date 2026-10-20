@@ -50,7 +50,7 @@ export function markNotificationsRead(ids?: number[]) {
 /**
  * Conexión en tiempo real (SSE) con los avisos nuevos del estudiante. Llama a `onReady` al
  * conectar y a `onNotification` con cada aviso; se resuelve cuando el servidor cierra la
- * conexión (lo hace cada 30 min) y lanza ApiError si no se puede abrir.
+ * conexión (lo hace cada 5 min) y lanza ApiError si no se puede abrir.
  */
 export async function listenNotifications(
   { onReady, onNotification }: { onReady: () => void; onNotification: (n: Notification) => void },

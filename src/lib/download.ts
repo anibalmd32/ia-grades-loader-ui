@@ -29,9 +29,14 @@ export async function readDownload(response: Response, fallback: string): Promis
   return { blob: await response.blob(), fileName: fileNameFrom(response, fallback) };
 }
 
-/** Campo CSV: entre comillas si lleva separador, comillas o saltos de línea */
+/**
+ * Campo CSV: entre comillas si lleva separador, comillas o saltos de línea. Un texto que
+ * empieza por = + - @ (o tabulador) se precede de un apóstrofo: Excel lo ejecutaría como
+ * fórmula (un nombre como `=HYPERLINK(...)` podría filtrar datos al abrir el archivo).
+ */
 function csvField(value: string): string {
-  return /[",;\n\r]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return /[",;\n\r]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe;
 }
 
 /** CSV en UTF-8 con BOM (para que Excel respete las tildes), una fila por array */

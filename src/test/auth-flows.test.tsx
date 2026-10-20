@@ -57,6 +57,36 @@ describe("instalador", () => {
     expect(useSession.getState().token).toBe("nuevo");
   });
 
+  it("pide el código de instalación si el servidor lo exige", async () => {
+    let setupToken: string | null = null;
+    server.use(
+      http.get(`${API_URL}/setup/status`, () =>
+        HttpResponse.json({ installed: false, token_required: true }),
+      ),
+      http.post(`${API_URL}/setup`, ({ request }) => {
+        setupToken = request.headers.get("X-Setup-Token");
+        return HttpResponse.json(token("super_admin"), { status: 201 });
+      }),
+      http.get(`${API_URL}/auth/me`, () => HttpResponse.json(makeUser({ role: "super_admin" }))),
+    );
+    const user = userEvent.setup();
+    const { router } = renderApp("/setup");
+
+    await user.type(await screen.findByLabelText("Nombre"), "Anibal");
+    await user.type(screen.getByLabelText("Apellido"), "Torres");
+    await user.type(screen.getByLabelText("Email"), "admin@uni.edu");
+    await user.type(screen.getByLabelText("Contraseña"), "secreta123");
+    await user.type(screen.getByLabelText("Confirmar contraseña"), "secreta123");
+    await user.click(screen.getByRole("button", { name: "Crear super admin" }));
+    expect(await screen.findByText("Escribe el código de instalación.")).toBeInTheDocument();
+    expect(setupToken).toBeNull();
+
+    await user.type(screen.getByLabelText("Código de instalación"), "codigo-secreto");
+    await user.click(screen.getByRole("button", { name: "Crear super admin" }));
+    await expectPath(router, "/admin/coordinators");
+    expect(setupToken).toBe("codigo-secreto");
+  });
+
   it("valida que las contraseñas coincidan", async () => {
     server.use(http.get(`${API_URL}/setup/status`, () => HttpResponse.json({ installed: false })));
     const user = userEvent.setup();

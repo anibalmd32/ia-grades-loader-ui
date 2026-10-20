@@ -188,4 +188,9 @@ describe("toCsv", () => {
     const text = await toCsv([["a,b", 'di "hola"', "c"]]).text();
     expect(text).toContain('"a,b","di ""hola""",c');
   });
+
+  it("neutraliza los textos que Excel tomaría por fórmulas", async () => {
+    const text = await toCsv([['=HYPERLINK("x")', "@SUM(A1)", "Ana"]]).text();
+    expect(text).toContain(`"'=HYPERLINK(""x"")",'@SUM(A1),Ana`);
+  });
 });

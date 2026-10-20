@@ -200,6 +200,51 @@ describe("ajuste en Mi cuenta", () => {
     expect(usePreferences.getState().biometricLock).toBe(false);
   });
 
+  it("con una sesión de hace rato pide la contraseña para activarlo", async () => {
+    const bodies: unknown[] = [];
+    server.use(
+      http.post(`${API_URL}/auth/biometric`, async ({ request }) => {
+        const body = await request.text();
+        bodies.push(body ? JSON.parse(body) : null);
+        if (!body) {
+          return HttpResponse.json(
+            { detail: "Confirma tu contraseña para activar el inicio de sesión con huella" },
+            { status: 403 },
+          );
+        }
+        if (JSON.parse(body).current_password !== "secreta123") {
+          return HttpResponse.json({ detail: "La contraseña no es correcta" }, { status: 400 });
+        }
+        return HttpResponse.json({ device_id: 4, credential: "4.secreto" }, { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp("/profile");
+    await user.click(
+      await screen.findByRole("checkbox", {
+        name: "Entrar con la huella, la cara o el PIN del teléfono",
+      }),
+    );
+
+    const password = await screen.findByLabelText("Confirma tu contraseña para activarlo");
+    expect(usePreferences.getState().biometricLock).toBe(false);
+    await user.type(password, "mala");
+    await user.click(screen.getByRole("button", { name: "Activar" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("La contraseña no es correcta");
+
+    await user.clear(password);
+    await user.type(password, "secreta123");
+    await user.click(screen.getByRole("button", { name: "Activar" }));
+    await waitFor(() => expect(usePreferences.getState().biometricLock).toBe(true));
+    expect(usePreferences.getState().biometricLogin?.deviceId).toBe(4);
+    expect(bodies).toEqual([
+      null,
+      { current_password: "mala" },
+      { current_password: "secreta123" },
+    ]);
+    expect(screen.queryByLabelText("Confirma tu contraseña para activarlo")).toBeNull();
+  });
+
   it("no aparece si el dispositivo no tiene biometría", async () => {
     biometric.available = false;
     renderApp("/profile");

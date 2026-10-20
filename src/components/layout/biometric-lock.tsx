@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Fingerprint, LogIn } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { api, unwrap } from "@/api/client";
+import { isApiError } from "@/api/errors";
 import { isMobileApp, verifyIdentity } from "@/lib/biometric";
 import { usePreferences, usePreferencesHydrated } from "@/stores/preferences";
 import { type User, useSession } from "@/stores/session";
@@ -17,9 +18,16 @@ export function markSignedIn() {
   signedInNow = true;
 }
 
-/** Da de alta este teléfono en la API para entrar con huella desde el login */
-export async function enableBiometricLogin(user: User): Promise<void> {
-  const { device_id, credential } = await unwrap(api.POST("/api/v1/auth/biometric"));
+/**
+ * Da de alta este teléfono en la API para entrar con huella. Sin contraseña solo vale justo
+ * después de iniciar sesión (la API responde 403 si la sesión tiene más de 10 minutos).
+ */
+export async function enableBiometricLogin(user: User, currentPassword?: string): Promise<void> {
+  const { device_id, credential } = await unwrap(
+    api.POST("/api/v1/auth/biometric", {
+      body: currentPassword ? { current_password: currentPassword } : undefined,
+    }),
+  );
   usePreferences.getState().setBiometricLogin({
     deviceId: device_id,
     credential,
@@ -179,10 +187,36 @@ export function BiometricLockSetting({ available }: { available: boolean }) {
   const setEnabled = usePreferences((s) => s.setBiometricLock);
   const user = useSession((s) => s.user);
   const [error, setError] = useState<string | null>(null);
+  // La sesión es de hace rato: la API pide la contraseña para activarlo
+  const [askPassword, setAskPassword] = useState(false);
+  const [password, setPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const activate = async (currentPassword?: string) => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      await enableBiometricLogin(user, currentPassword);
+      setEnabled(true);
+      setAskPassword(false);
+      setPassword("");
+    } catch (err) {
+      if (isApiError(err) && err.status === 403 && !currentPassword) {
+        setAskPassword(true);
+      } else if (isApiError(err) && (err.status === 400 || err.status === 429)) {
+        setError(err.message);
+      } else {
+        setError("No se pudo activar el inicio con huella. Inténtalo de nuevo.");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const toggle = async (checked: boolean) => {
     setError(null);
     if (!checked) {
+      setAskPassword(false);
       setEnabled(false);
       await disableBiometricLogin();
       return;
@@ -192,12 +226,7 @@ export function BiometricLockSetting({ available }: { available: boolean }) {
       setError("No se pudo verificar tu identidad: el inicio con huella sigue desactivado.");
       return;
     }
-    try {
-      if (user) await enableBiometricLogin(user);
-      setEnabled(true);
-    } catch {
-      setError("No se pudo activar el inicio con huella. Inténtalo de nuevo.");
-    }
+    await activate();
   };
 
   if (!available) return null;
@@ -210,10 +239,39 @@ export function BiometricLockSetting({ available }: { available: boolean }) {
           <input
             type="checkbox"
             className="toggle toggle-primary"
-            checked={enabled}
+            checked={enabled || askPassword}
+            disabled={saving}
             onChange={(event) => void toggle(event.target.checked)}
           />
         </label>
+        {askPassword && (
+          <form
+            className="flex flex-col gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setError(null);
+              if (password) void activate(password);
+            }}
+          >
+            <label htmlFor="biometric-password" className="font-semibold text-sm">
+              Confirma tu contraseña para activarlo
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                id="biometric-password"
+                type="password"
+                autoComplete="current-password"
+                className="input min-w-0 flex-1"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+              <button type="submit" className="btn btn-primary" disabled={!password || saving}>
+                {saving && <span className="loading loading-spinner loading-sm" />}
+                Activar
+              </button>
+            </div>
+          </form>
+        )}
         <p className="text-base-content/70 text-sm">
           Podrás iniciar sesión sin escribir tu usuario ni tu contraseña. Si alguien toma tu
           teléfono con la sesión abierta, tampoco podrá ver tus datos: se pide al abrir la app y al

@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { Info } from "lucide-react";
 import { useState } from "react";
@@ -39,6 +40,7 @@ const SetupSchema = v.pipe(
       v.maxLength(128, "Máximo 128 caracteres."),
     ),
     confirm: v.string(),
+    setup_token: v.pipe(v.string(), v.trim()),
   }),
   v.forward(
     v.partialCheck(
@@ -56,12 +58,28 @@ function SetupPage() {
   const queryClient = Route.useRouteContext({ select: (c) => c.queryClient });
   const [formError, setFormError] = useState<string | null>(null);
   const [showNotice, setShowNotice] = useState(true);
+  // En producción el servidor pide el código de instalación (SETUP_TOKEN)
+  const tokenRequired = useQuery(setupStatusQuery).data?.token_required ?? false;
 
   const form = useAppForm({
-    defaultValues: { first_name: "", last_name: "", email: "", password: "", confirm: "" },
+    defaultValues: {
+      first_name: "",
+      last_name: "",
+      email: "",
+      password: "",
+      confirm: "",
+      setup_token: "",
+    },
     validators: { onSubmit: SetupSchema },
     onSubmit: async ({ value }) => {
       setFormError(null);
+      if (tokenRequired && !value.setup_token) {
+        form.setFieldMeta("setup_token", (meta) => ({
+          ...meta,
+          errorMap: { onSubmit: "Escribe el código de instalación." },
+        }));
+        return;
+      }
       try {
         const token = await unwrap(
           api.POST("/api/v1/setup", {
@@ -71,9 +89,13 @@ function SetupPage() {
               email: value.email.trim(),
               password: value.password,
             },
+            headers: tokenRequired ? { "X-Setup-Token": value.setup_token } : undefined,
           }),
         );
-        queryClient.setQueryData(setupStatusQuery.queryKey, { installed: true });
+        queryClient.setQueryData(setupStatusQuery.queryKey, {
+          installed: true,
+          token_required: tokenRequired,
+        });
         const user = await signIn(token.access_token);
         await navigate({ to: homePath(user.role), replace: true });
       } catch (error) {
@@ -110,6 +132,18 @@ function SetupPage() {
           </div>
         )}
         <FormError message={formError} />
+        {tokenRequired && (
+          <form.AppField name="setup_token">
+            {(field) => (
+              <field.TextField
+                label="Código de instalación"
+                type="password"
+                autoComplete="off"
+                hint="Lo define quien administra el servidor (variable SETUP_TOKEN)."
+              />
+            )}
+          </form.AppField>
+        )}
         <PersonNameRow
           firstName={
             <form.AppField name="first_name">

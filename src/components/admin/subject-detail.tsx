@@ -363,6 +363,7 @@ function EnrollStudentsModal({
 /** Botón para eliminar la materia (solo si no tiene estudiantes) */
 export function DeleteSubjectButton({ subject }: { subject: SubjectRead }) {
   const queryClient = useQueryClient();
+  const settings = useAcademicSettings();
   const navigate = useNavigate();
   const remove = useMutation({
     mutationFn: () =>
@@ -390,11 +391,14 @@ export function DeleteSubjectButton({ subject }: { subject: SubjectRead }) {
     if (ok) remove.mutate();
   };
 
+  // La API no deja eliminar materias de un periodo cerrado (409): se conserva su historial
+  const closed = subject.semester.is_closed;
   return (
     <button
       type="button"
       className="btn btn-outline btn-error"
-      disabled={remove.isPending}
+      disabled={remove.isPending || closed}
+      title={closed ? `El ${settings.period_label.toLowerCase()} está cerrado` : undefined}
       onClick={handleDelete}
     >
       Eliminar
