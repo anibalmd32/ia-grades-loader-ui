@@ -135,12 +135,7 @@ function SetupPage() {
         {tokenRequired && (
           <form.AppField name="setup_token">
             {(field) => (
-              <field.TextField
-                label="Código de instalación"
-                type="password"
-                autoComplete="off"
-                hint="Lo define quien administra el servidor (variable SETUP_TOKEN)."
-              />
+              <field.TextField label="Código de instalación" type="password" autoComplete="off" />
             )}
           </form.AppField>
         )}
