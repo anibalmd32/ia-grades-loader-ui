@@ -23,6 +23,7 @@ import { Modal } from "@/components/ui/modal";
 import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
 import { toast } from "@/components/ui/toast";
+import { ACADEMIC_LABEL } from "@/lib/roles";
 import { Section } from "./common";
 import { addSubjectToTeacher, removeSubjectFromTeacher } from "./subject-form";
 
@@ -47,7 +48,7 @@ export function SubjectTeachers({ subject }: { subject: SubjectRead }) {
     content = (
       <p className="font-semibold text-warning text-sm">
         El {settings.period_label.toLowerCase()} {subject.semester.name} no tiene secciones: créalas
-        en {settings.period_label_plural} y materias para asignar profesores.
+        en {ACADEMIC_LABEL} para asignar profesores.
       </p>
     );
   } else {

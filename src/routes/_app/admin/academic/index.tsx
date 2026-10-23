@@ -10,8 +10,9 @@ import { DataTable } from "@/components/ui/data-table";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState } from "@/components/ui/states";
+import { ACADEMIC_LABEL } from "@/lib/roles";
 
-const title = (settings: AcademicSettings) => `${settings.period_label_plural} y materias`;
+const title = ACADEMIC_LABEL;
 const description = (settings: AcademicSettings) =>
   `Cada materia pertenece a un único ${settings.period_label.toLowerCase()}.`;
 
@@ -52,11 +53,7 @@ function AcademicPage() {
 
   return (
     <>
-      <PageHeader
-        title={title(settings)}
-        description={description(settings)}
-        actions={newSubject}
-      />
+      <PageHeader title={title} description={description(settings)} actions={newSubject} />
       <PageBody>
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
           <SemestersPanel

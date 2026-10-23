@@ -14,6 +14,7 @@ import {
 import { useAcademicSettings } from "@/api/queries/settings";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
 import { toast } from "@/components/ui/toast";
+import { ACADEMIC_LABEL } from "@/lib/roles";
 import { Section } from "./common";
 
 /** Clave de una asignación (materia, sección) en el conjunto marcado */
@@ -25,7 +26,6 @@ const keyOf = (subjectId: number, sectionId: number) => `${subjectId}:${sectionI
  * imparte en esa sección, la API responde 409 y se muestra su mensaje (dice quién).
  */
 export function TeacherSubjects({ teacherId }: { teacherId: number }) {
-  const settings = useAcademicSettings();
   const queryClient = useQueryClient();
   const subjects = useQuery(allSubjectsQuery);
   const assigned = useQuery(teacherSubjectsQuery(teacherId));
@@ -77,7 +77,7 @@ export function TeacherSubjects({ teacherId }: { teacherId: number }) {
     content = (
       <EmptyState
         title="No hay materias"
-        description={`Crea materias en ${settings.period_label_plural} y materias para poder asignarlas.`}
+        description={`Crea materias en ${ACADEMIC_LABEL} para poder asignarlas.`}
       />
     );
   } else {

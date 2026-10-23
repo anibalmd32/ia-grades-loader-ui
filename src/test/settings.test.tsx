@@ -89,8 +89,8 @@ describe("configuración académica (super admin)", () => {
       assistant_enabled: true,
       telegram_enabled: true,
     });
-    // El menú y la marca usan la configuración nueva
-    expect((await screen.findAllByText("Trimestres y materias")).length).toBeGreaterThan(0);
+    // La marca usa la configuración nueva; el menú dice siempre "Periodo escolar"
+    expect((await screen.findAllByText("Periodo escolar")).length).toBeGreaterThan(0);
     expect(screen.getAllByText("UNEFA").length).toBeGreaterThan(0);
   });
 

@@ -15,6 +15,7 @@ import { EditSubjectModal } from "@/components/admin/subject-form";
 import { ClosedPeriodNotice } from "@/components/ui/closed-period";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { ErrorState, LoadingState } from "@/components/ui/states";
+import { ACADEMIC_LABEL } from "@/lib/roles";
 
 export const Route = createFileRoute("/_app/admin/academic/subjects/$subjectId")({
   params: {
@@ -62,7 +63,7 @@ function SubjectPage() {
         <BackLink
           to="/admin/academic"
           search={subject ? { semester: subject.semester.id } : {}}
-          label={`${settings.period_label_plural} y materias`}
+          label={ACADEMIC_LABEL}
         />
         {query.error ? (
           <ErrorState error={query.error} onRetry={() => query.refetch()} />

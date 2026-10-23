@@ -6,8 +6,8 @@ import { NAV, type NavItem, navItem } from "@/lib/roles";
 import type { User } from "@/stores/session";
 
 /**
- * Menú del rol, con las etiquetas según la configuración académica ("Semestres y materias",
- * "Trimestres y materias"…). A los estudiantes se les oculta el asistente IA si la institución
+ * Menú del rol, con las etiquetas que dependen de la configuración académica.
+ * A los estudiantes se les oculta el asistente IA si la institución
  * lo desactivó, y Telegram si está desactivado (él o el asistente) o el bot no está configurado.
  * La entrada de avisos lleva el número de avisos sin leer.
  */

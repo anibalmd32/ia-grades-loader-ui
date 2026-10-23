@@ -435,7 +435,7 @@ describe("recuentos de la API en los listados", () => {
   });
 });
 
-describe("semestres y materias", () => {
+describe("periodo escolar", () => {
   it("muestra las materias del primer semestre y crea un semestre", async () => {
     let semesterQuery = "";
     let createdName: unknown;

@@ -10,7 +10,7 @@ import { userSubtitle } from "@/lib/roles";
 import { type User, useSession } from "@/stores/session";
 import { useNav } from "./use-nav";
 
-/** Texto fijo o que depende de la configuración académica ("Semestres y materias"…) */
+/** Texto fijo o que depende de la configuración académica ("Periodo escolar"…) */
 type SettingsText = string | ((settings: AcademicSettings) => string);
 
 declare module "@tanstack/react-router" {

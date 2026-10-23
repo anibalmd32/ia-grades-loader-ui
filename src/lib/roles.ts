@@ -34,13 +34,17 @@ export type NavEntry = {
 /** Entrada del menú lista para mostrar (con un contador, p. ej. avisos sin leer) */
 export type NavItem = Omit<NavEntry, "label"> & { label: string; badge?: number };
 
+/** Pantalla de periodos, secciones y materias (menú, título y enlaces de vuelta) */
+export const ACADEMIC_LABEL = "Periodo escolar";
+
 const ADMIN_NAV: NavEntry[] = [
   { to: "/admin/teachers", label: "Profesores", icon: Users },
   { to: "/admin/students", label: "Estudiantes", icon: GraduationCap },
   {
     to: "/admin/academic",
-    label: (settings) => `${settings.period_label_plural} y materias`,
-    short: "Materias",
+    // Nombre fijo: el tipo de periodo (semestre, trimestre…) lo configura la institución
+    label: ACADEMIC_LABEL,
+    short: "Periodo",
     icon: BookOpen,
   },
 ];
