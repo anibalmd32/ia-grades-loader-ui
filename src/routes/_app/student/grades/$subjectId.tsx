@@ -10,7 +10,8 @@ import {
 import { type StudentSubjectGrades, studentSubjectQuery } from "@/api/queries/student";
 import { BackLink } from "@/components/admin/common";
 import { StandingBadge, standingSentence } from "@/components/student/projection";
-import { gradeColor } from "@/components/student/subject-grades-card";
+import { gradeColor, teacherText } from "@/components/student/subject-grades-card";
+import { AbsentBadge } from "@/components/ui/grade-badge";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { ErrorState, LoadingState } from "@/components/ui/states";
 import { dueDateText } from "@/lib/dates";
@@ -41,7 +42,7 @@ function SubjectPage() {
           item
             ? [
                 `${settings.period_label} ${item.subject.semester.name}${item.subject.semester.is_closed ? " (cerrado)" : ""}`,
-                ...item.teachers.map((t) => `Prof. ${t}`),
+                teacherText(item),
               ]
                 .filter(Boolean)
                 .join(" · ")
@@ -74,8 +75,7 @@ function SubjectDetail({ item }: { item: StudentSubjectGrades }) {
       <div className="lg:hidden">
         <h2 className="font-bold text-xl">{subject.name}</h2>
         <p className="text-base-content/70 text-sm">
-          {subject.code}
-          {item.teachers.length > 0 && ` · Prof. ${item.teachers.join(", ")}`}
+          {subject.code} · {teacherText(item)}
         </p>
       </div>
 
@@ -84,13 +84,23 @@ function SubjectDetail({ item }: { item: StudentSubjectGrades }) {
           <div key={g.term} className="card card-border bg-base-100">
             <div className="card-body items-center gap-1 p-4 text-center">
               <p className="text-base-content/70 text-sm">{termName(settings, g.term)}</p>
-              <p
-                className={`font-bold text-3xl tabular-nums lg:text-4xl ${gradeColor(g.value, settings)}`}
-              >
-                {formatGrade(g.value, settings)}
-              </p>
+              {g.absent ? (
+                <p className="py-1.5">
+                  <AbsentBadge rules={settings} />
+                </p>
+              ) : (
+                <p
+                  className={`font-bold text-3xl tabular-nums lg:text-4xl ${gradeColor(g.value, settings)}`}
+                >
+                  {formatGrade(g.value, settings)}
+                </p>
+              )}
               <p className="text-base-content/60 text-xs">
-                {g.value == null ? "Pendiente" : "Cargada"}
+                {g.absent
+                  ? `Cuenta como ${formatGrade(g.value, settings)}`
+                  : g.value == null
+                    ? "Pendiente"
+                    : "Cargada"}
               </p>
             </div>
           </div>
@@ -176,7 +186,9 @@ function EvaluationPlan({
         <p className="text-base-content/70 text-sm">
           La nota de {terms.length === 1 ? "este" : "estos"}{" "}
           {(terms.length === 1 ? settings.term_label : settings.term_label_plural).toLowerCase()} es
-          la suma de cada evaluación por su porcentaje. Aparece cuando todas tienen nota.
+          la suma de cada evaluación por su porcentaje. Aparece cuando todas tienen nota. Si no te
+          presentaste a una evaluación figuras como inasistente: cuenta como{" "}
+          {formatGrade(settings.min_grade, settings)}.
         </p>
         {terms.map((term) => (
           <div key={term} className="flex flex-col gap-1">
@@ -200,7 +212,9 @@ function EvaluationPlan({
                         </p>
                       )}
                     </div>
-                    {evaluation.value == null ? (
+                    {evaluation.absent ? (
+                      <AbsentBadge rules={settings} />
+                    ) : evaluation.value == null ? (
                       <span className="font-semibold text-base-content/60 text-sm">Pendiente</span>
                     ) : (
                       <span

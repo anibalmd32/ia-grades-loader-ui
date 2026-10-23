@@ -218,6 +218,11 @@ function UploadStep({
               <strong>Materias</strong> (opcional): códigos separados por comas, p. ej.{" "}
               <em>MAT-101, FIS-101</em>.
             </li>
+            <li>
+              <strong>Sección</strong> (opcional): p. ej. <em>A</em>. Se le asigna en el{" "}
+              {settings.period_label.toLowerCase()} de sus materias; hace falta para matricularlo si
+              aún no tiene sección en ese {settings.period_label.toLowerCase()}.
+            </li>
           </ul>
           <p className="text-base-content/70">
             Los estudiantes que ya existen no se duplican: solo se matriculan en las materias
@@ -314,6 +319,7 @@ function ImportPreview({
           { header: "Estudiante", cell: fullName },
           { header: settings.document_label, cell: documentText },
           { header: "Materias", cell: (row) => row.subject_codes.join(", ") || "—" },
+          { header: "Sección", cell: (row) => row.section ?? "—" },
           { header: "Estado", cell: (row) => <StatusBadge status={row.status} /> },
           {
             header: "Observaciones",
@@ -333,6 +339,7 @@ function ImportPreview({
             <p className="text-base-content/70 text-sm">
               Fila {row.row} · {documentText(row)}
               {row.subject_codes.length > 0 && ` · ${row.subject_codes.join(", ")}`}
+              {row.section && ` · Sección ${row.section}`}
             </p>
             {row.issues.length > 0 && (
               <p className={`text-sm ${row.status === "error" ? "text-error" : ""}`}>

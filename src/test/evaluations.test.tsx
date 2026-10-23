@@ -11,11 +11,13 @@ import { personName } from "./handlers";
 import { server } from "./server";
 
 const s2026 = { id: 1, name: "2026-I", is_closed: false };
+const secA = { id: 3, name: "A", semester_id: 1 };
 const mat: TeacherSubject = {
   id: 10,
   code: "MAT-101",
   name: "Matemática I",
   semester: s2026,
+  section: secA,
   students_count: 2,
   grades_count: { "1": 2, "2": 0, "3": 0 },
 };
@@ -33,6 +35,7 @@ const parcial = {
 const taller = { id: 2, term: 1, name: "Taller", weight: 60, due_date: null, graded_count: 1 };
 const plan: EvaluationPlan = {
   subject: mat,
+  section: secA,
   terms: [
     { term: 1, weights_total: 100, evaluations_count: 2, complete: true },
     { term: 2, weights_total: 0, evaluations_count: 0, complete: false },
@@ -42,39 +45,43 @@ const plan: EvaluationPlan = {
 };
 const sheet: TermEvaluationGrades = {
   subject: mat,
+  section: secA,
   plan: plan.terms[0] as EvaluationPlan["terms"][number],
   evaluations: [parcial, taller],
   students: [
     {
       student: maria,
       grades: [
-        { evaluation_id: 1, value: 15 },
-        { evaluation_id: 2, value: 18.5 },
+        { evaluation_id: 1, value: 15, absent: false },
+        { evaluation_id: 2, value: 18.5, absent: false },
       ],
       accumulated: 17.1,
       term_grade: 17.1,
+      term_absent: false,
     },
     {
       student: carlos,
       grades: [
-        { evaluation_id: 1, value: 8 },
-        { evaluation_id: 2, value: null },
+        { evaluation_id: 1, value: 8, absent: false },
+        { evaluation_id: 2, value: null, absent: false },
       ],
       accumulated: 3.2,
       term_grade: null,
+      term_absent: false,
     },
   ],
 };
 const gradebook: SubjectGrades = {
   subject: mat,
+  section: secA,
   computed_terms: [1],
   students: [
     {
       student: maria,
       grades: [
-        { term: 1, value: 17.1 },
-        { term: 2, value: null },
-        { term: 3, value: null },
+        { term: 1, value: 17.1, absent: false },
+        { term: 2, value: null, absent: false },
+        { term: 3, value: null, absent: false },
       ],
       average: 17.1,
       final_grade: null,
@@ -93,16 +100,20 @@ describe("profesor: plan de evaluación", () => {
     signedInAs(makeUser({ id: 5, role: "teacher", full_name: "José Méndez" }));
     server.use(
       http.get(`${API_URL}/teacher/subjects`, () => HttpResponse.json([mat])),
-      http.get(`${API_URL}/teacher/subjects/10/grades`, () => HttpResponse.json(gradebook)),
-      http.get(`${API_URL}/teacher/subjects/10/evaluations`, () => HttpResponse.json(plan)),
-      http.get(`${API_URL}/teacher/subjects/10/terms/1/evaluation-grades`, () =>
+      http.get(`${API_URL}/teacher/subjects/10/sections/3/grades`, () =>
+        HttpResponse.json(gradebook),
+      ),
+      http.get(`${API_URL}/teacher/subjects/10/sections/3/evaluations`, () =>
+        HttpResponse.json(plan),
+      ),
+      http.get(`${API_URL}/teacher/subjects/10/sections/3/terms/1/evaluation-grades`, () =>
         HttpResponse.json(sheet),
       ),
     );
   });
 
   it("en la planilla el lapso con evaluaciones no se edita y enlaza al plan", async () => {
-    renderApp("/teacher/subjects/10");
+    renderApp("/teacher/subjects/10/3");
     const computed = await cell("María Pérez · Lapso 1");
     expect(computed).toBeDisabled();
     expect(computed).toHaveValue("17.10");
@@ -110,12 +121,12 @@ describe("profesor: plan de evaluación", () => {
     expect(screen.getByText("Por evaluaciones")).toBeInTheDocument();
     // Las acciones de la cabecera se repiten en escritorio y móvil
     for (const link of screen.getAllByRole("link", { name: "Evaluaciones" })) {
-      expect(link).toHaveAttribute("href", "/teacher/evaluations/10");
+      expect(link).toHaveAttribute("href", "/teacher/evaluations/10/3");
     }
   });
 
   it("muestra el plan del lapso y la nota calculada por la API", async () => {
-    renderApp("/teacher/evaluations/10");
+    renderApp("/teacher/evaluations/10/3");
 
     expect(await screen.findByText("Parcial")).toBeInTheDocument();
     expect(screen.getByText(/El plan suma 100 %/)).toBeInTheDocument();
@@ -136,7 +147,7 @@ describe("profesor: plan de evaluación", () => {
 
   it("un lapso sin evaluaciones explica la carga directa", async () => {
     const user = userEvent.setup();
-    renderApp("/teacher/evaluations/10");
+    renderApp("/teacher/evaluations/10/3");
     await user.click(await screen.findByRole("tab", { name: /Lapso 2/ }));
     expect(await screen.findByText(/se carga directamente en la planilla/)).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
@@ -146,12 +157,15 @@ describe("profesor: plan de evaluación", () => {
     const user = userEvent.setup();
     let body: unknown;
     server.use(
-      http.put(`${API_URL}/teacher/subjects/10/terms/1/evaluation-grades`, async ({ request }) => {
-        body = await request.json();
-        return HttpResponse.json(sheet);
-      }),
+      http.put(
+        `${API_URL}/teacher/subjects/10/sections/3/terms/1/evaluation-grades`,
+        async ({ request }) => {
+          body = await request.json();
+          return HttpResponse.json(sheet);
+        },
+      ),
     );
-    renderApp("/teacher/evaluations/10");
+    renderApp("/teacher/evaluations/10/3");
 
     const input = await cell("Carlos Gómez · Taller");
     await user.type(input, "21");
@@ -164,21 +178,79 @@ describe("profesor: plan de evaluación", () => {
     await user.type(input, "12,5");
     await user.click(screen.getByRole("button", { name: "Guardar notas (1)" }));
     await waitFor(() =>
-      expect(body).toEqual({ grades: [{ student_id: 8, evaluation_id: 2, value: 12.5 }] }),
+      expect(body).toEqual({
+        grades: [{ student_id: 8, evaluation_id: 2, value: 12.5, absent: false }],
+      }),
     );
     expect(await screen.findByText("1 nota guardada.")).toBeInTheDocument();
+  });
+
+  it("marca a un estudiante inasistente en una evaluación", async () => {
+    const user = userEvent.setup();
+    let body: unknown;
+    server.use(
+      http.put(
+        `${API_URL}/teacher/subjects/10/sections/3/terms/1/evaluation-grades`,
+        async ({ request }) => {
+          body = await request.json();
+          return HttpResponse.json(sheet);
+        },
+      ),
+    );
+    renderApp("/teacher/evaluations/10/3");
+
+    const toggle = (
+      await screen.findAllByRole("button", { name: "Inasistente · Carlos Gómez · Taller" })
+    ).at(-1) as HTMLElement;
+    await user.click(toggle);
+    expect(await cell("Carlos Gómez · Taller")).toHaveValue("I");
+    await user.click(screen.getByRole("button", { name: "Guardar notas (1)" }));
+    await waitFor(() =>
+      expect(body).toEqual({
+        grades: [{ student_id: 8, evaluation_id: 2, value: null, absent: true }],
+      }),
+    );
+  });
+
+  it("muestra las inasistencias guardadas y el lapso inasistente", async () => {
+    const absentSheet: TermEvaluationGrades = {
+      ...sheet,
+      students: [
+        {
+          student: carlos,
+          grades: [
+            { evaluation_id: 1, value: 1, absent: true },
+            { evaluation_id: 2, value: 1, absent: true },
+          ],
+          accumulated: 1,
+          term_grade: 1,
+          term_absent: true,
+        },
+      ],
+    };
+    server.use(
+      http.get(`${API_URL}/teacher/subjects/10/sections/3/terms/1/evaluation-grades`, () =>
+        HttpResponse.json(absentSheet),
+      ),
+    );
+    renderApp("/teacher/evaluations/10/3");
+
+    expect(await cell("Carlos Gómez · Parcial")).toHaveValue("I");
+    const table = await screen.findByRole("table");
+    expect(within(table).getByText("Inasistente")).toBeInTheDocument();
+    expect(screen.getAllByText(/Sección A/).length).toBeGreaterThan(0);
   });
 
   it("añade una evaluación con el porcentaje libre del lapso", async () => {
     const user = userEvent.setup();
     let body: unknown;
     server.use(
-      http.post(`${API_URL}/teacher/subjects/10/evaluations`, async ({ request }) => {
+      http.post(`${API_URL}/teacher/subjects/10/sections/3/evaluations`, async ({ request }) => {
         body = await request.json();
         return HttpResponse.json({ ...parcial, id: 3, term: 2 }, { status: 201 });
       }),
     );
-    renderApp("/teacher/evaluations/10?term=2");
+    renderApp("/teacher/evaluations/10/3?term=2");
 
     await user.click(await screen.findByRole("button", { name: "Añadir evaluación" }));
     const dialog = await screen.findByRole("dialog", { name: "Nueva evaluación · Lapso 2" });
@@ -202,14 +274,14 @@ describe("profesor: plan de evaluación", () => {
   it("muestra el error de la API al crear la primera evaluación de un lapso con notas", async () => {
     const user = userEvent.setup();
     server.use(
-      http.post(`${API_URL}/teacher/subjects/10/evaluations`, () =>
+      http.post(`${API_URL}/teacher/subjects/10/sections/3/evaluations`, () =>
         HttpResponse.json(
           { detail: "El lapso 2 ya tiene 3 notas cargadas directamente." },
           { status: 409 },
         ),
       ),
     );
-    renderApp("/teacher/evaluations/10?term=2");
+    renderApp("/teacher/evaluations/10/3?term=2");
     await user.click(await screen.findByRole("button", { name: "Añadir evaluación" }));
     const dialog = await screen.findByRole("dialog");
     await user.type(within(dialog).getByLabelText("Nombre"), "Examen");
@@ -222,16 +294,16 @@ describe("profesor: plan de evaluación", () => {
     let patched: unknown;
     let deleted = false;
     server.use(
-      http.patch(`${API_URL}/teacher/subjects/10/evaluations/2`, async ({ request }) => {
+      http.patch(`${API_URL}/teacher/subjects/10/sections/3/evaluations/2`, async ({ request }) => {
         patched = await request.json();
         return HttpResponse.json(taller);
       }),
-      http.delete(`${API_URL}/teacher/subjects/10/evaluations/1`, () => {
+      http.delete(`${API_URL}/teacher/subjects/10/sections/3/evaluations/1`, () => {
         deleted = true;
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    renderApp("/teacher/evaluations/10");
+    renderApp("/teacher/evaluations/10/3");
 
     await user.click(await screen.findByRole("button", { name: "Editar Taller" }));
     const dialog = await screen.findByRole("dialog", { name: "Editar «Taller»" });
@@ -254,11 +326,11 @@ describe("profesor: plan de evaluación", () => {
   it("en un periodo cerrado el plan es de solo lectura", async () => {
     const closed = { ...mat, semester: { ...s2026, is_closed: true } };
     server.use(
-      http.get(`${API_URL}/teacher/subjects/10/evaluations`, () =>
+      http.get(`${API_URL}/teacher/subjects/10/sections/3/evaluations`, () =>
         HttpResponse.json({ ...plan, subject: closed }),
       ),
     );
-    renderApp("/teacher/evaluations/10");
+    renderApp("/teacher/evaluations/10/3");
     expect(await screen.findByText(/está cerrado/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Añadir evaluación" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Editar Taller" })).not.toBeInTheDocument();
@@ -271,15 +343,23 @@ describe("estudiante: plan de evaluación", () => {
     signedInAs(makeUser({ id: 7, role: "student", full_name: "María Pérez" }));
     const detail: StudentSubjectGrades = {
       subject: mat,
-      teachers: ["José Méndez"],
+      section: "A",
+      teacher: "José Méndez",
       grades: [
-        { term: 1, value: 17.1 },
-        { term: 2, value: null },
-        { term: 3, value: null },
+        { term: 1, value: 17.1, absent: false },
+        { term: 2, value: null, absent: false },
+        { term: 3, value: null, absent: false },
       ],
       evaluations: [
-        { term: 1, name: "Parcial", weight: 40, due_date: "2026-11-02", value: 15 },
-        { term: 1, name: "Taller", weight: 60, due_date: null, value: null },
+        {
+          term: 1,
+          name: "Parcial",
+          weight: 40,
+          due_date: "2026-11-02",
+          value: 15,
+          absent: false,
+        },
+        { term: 1, name: "Taller", weight: 60, due_date: null, value: null, absent: false },
       ],
       average: 17.1,
       projection: {
@@ -312,9 +392,13 @@ describe("profesor: descargas en Excel", () => {
     URL.revokeObjectURL = vi.fn();
     server.use(
       http.get(`${API_URL}/teacher/subjects`, () => HttpResponse.json([mat])),
-      http.get(`${API_URL}/teacher/subjects/10/grades`, () => HttpResponse.json(gradebook)),
-      http.get(`${API_URL}/teacher/subjects/10/evaluations`, () => HttpResponse.json(plan)),
-      http.get(`${API_URL}/teacher/subjects/10/terms/1/evaluation-grades`, () =>
+      http.get(`${API_URL}/teacher/subjects/10/sections/3/grades`, () =>
+        HttpResponse.json(gradebook),
+      ),
+      http.get(`${API_URL}/teacher/subjects/10/sections/3/evaluations`, () =>
+        HttpResponse.json(plan),
+      ),
+      http.get(`${API_URL}/teacher/subjects/10/sections/3/terms/1/evaluation-grades`, () =>
         HttpResponse.json(sheet),
       ),
     );
@@ -337,10 +421,12 @@ describe("profesor: descargas en Excel", () => {
 
   it("descarga la materia completa desde la planilla", async () => {
     const seen: { auth?: string | null } = {};
-    server.use(excel("/teacher/subjects/10/grades/export", "notas-mat-101-2026-i.xlsx", seen));
+    server.use(
+      excel("/teacher/subjects/10/sections/3/grades/export", "notas-mat-101-2026-i.xlsx", seen),
+    );
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     const user = userEvent.setup();
-    renderApp("/teacher/subjects/10");
+    renderApp("/teacher/subjects/10/3");
 
     const [button] = await screen.findAllByRole("button", { name: "Descargar Excel" });
     await user.click(button as HTMLElement);
@@ -351,12 +437,12 @@ describe("profesor: descargas en Excel", () => {
 
   it("descarga un lapso o la materia desde el plan de evaluación", async () => {
     server.use(
-      excel("/teacher/subjects/10/terms/1/evaluation-grades/export", "lapso-1.xlsx", {}),
-      excel("/teacher/subjects/10/grades/export", "materia.xlsx", {}),
+      excel("/teacher/subjects/10/sections/3/terms/1/evaluation-grades/export", "lapso-1.xlsx", {}),
+      excel("/teacher/subjects/10/sections/3/grades/export", "materia.xlsx", {}),
     );
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     const user = userEvent.setup();
-    renderApp("/teacher/evaluations/10");
+    renderApp("/teacher/evaluations/10/3");
 
     await user.click(await screen.findByRole("button", { name: "Descargar lapso 1" }));
     await waitFor(() => expect(savedNames(click)).toEqual(["lapso-1.xlsx"]));
@@ -368,7 +454,7 @@ describe("profesor: descargas en Excel", () => {
 
   it("avisa si la descarga falla", async () => {
     server.use(
-      http.get(`${API_URL}/teacher/subjects/10/grades/export`, () =>
+      http.get(`${API_URL}/teacher/subjects/10/sections/3/grades/export`, () =>
         HttpResponse.json(
           { detail: "Materia no encontrada entre las que impartes" },
           { status: 404 },
@@ -376,7 +462,7 @@ describe("profesor: descargas en Excel", () => {
       ),
     );
     const user = userEvent.setup();
-    renderApp("/teacher/subjects/10");
+    renderApp("/teacher/subjects/10/3");
     const [button] = await screen.findAllByRole("button", { name: "Descargar Excel" });
     await user.click(button as HTMLElement);
     expect(

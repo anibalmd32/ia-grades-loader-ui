@@ -31,6 +31,7 @@ const row = (overrides: Partial<StudentImportRow>): StudentImportRow => ({
   nationality: "V",
   cedula: 30111222,
   subject_codes: ["MAT-101"],
+  section: "A",
   status: "new",
   issues: [],
   user: null,
@@ -127,6 +128,8 @@ describe("alta masiva de estudiantes", () => {
     expect(within(table).getByText("Nuevo")).toBeInTheDocument();
     expect(within(table).getByText("Ya existe")).toBeInTheDocument();
     expect(within(table).getByText("V-30111222")).toBeInTheDocument();
+    // Sección que se le asigna en el periodo de sus materias
+    expect(within(table).getByRole("columnheader", { name: "Sección" })).toBeInTheDocument();
     expect(screen.getByText("Nuevos").previousSibling).toHaveTextContent("1");
     expect(imports.calls).toEqual([[expect.objectContaining({ name: "estudiantes.xlsx" }), true]]);
 

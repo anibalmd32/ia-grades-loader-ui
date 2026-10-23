@@ -11,17 +11,19 @@ import { Pagination } from "@/components/ui/data-table";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
 import { timeAgo } from "@/lib/dates";
-import { formatGrade, termName } from "@/lib/grades";
+import { ABSENT_LABEL, formatGrade, termName } from "@/lib/grades";
 
 type HistorySubject = { id: number; semester: SemesterRead };
 
 const fullDate = new Intl.DateTimeFormat("es", { dateStyle: "long", timeStyle: "short" });
 
-/** "15.00 → 16.00", "Nota nueva: 16.00" o "Nota borrada: 15.00" */
+/** "15.00 → 16.00", "Nota nueva: 16.00", "Nota borrada: 15.00" o "15.00 → Inasistente" */
 export function changeText(change: GradeChange, rules: AcademicSettings): string {
-  if (change.old_value == null) return `Nota nueva: ${formatGrade(change.new_value, rules)}`;
-  if (change.new_value == null) return `Nota borrada: ${formatGrade(change.old_value, rules)}`;
-  return `${formatGrade(change.old_value, rules)} → ${formatGrade(change.new_value, rules)}`;
+  const oldText = change.old_absent ? ABSENT_LABEL : formatGrade(change.old_value, rules);
+  const newText = change.new_absent ? ABSENT_LABEL : formatGrade(change.new_value, rules);
+  if (change.old_value == null) return `Nota nueva: ${newText}`;
+  if (change.new_value == null) return `Nota borrada: ${oldText}`;
+  return `${oldText} → ${newText}`;
 }
 
 const SOURCE_LABEL: Record<GradeChange["source"], string> = {

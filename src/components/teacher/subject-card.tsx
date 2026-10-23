@@ -4,12 +4,16 @@ import type { TeacherSubject } from "@/api/queries/teacher";
 import { ClosedBadge } from "@/components/ui/closed-period";
 import { termName, termNumbers } from "@/lib/grades";
 
-/** Tarjeta de "Mis materias": estudiantes, notas cargadas por lapso y accesos */
+/**
+ * Tarjeta de "Mis materias" (una por materia y sección): estudiantes de la sección, notas
+ * cargadas por lapso y accesos
+ */
 export function SubjectCard({ subject }: { subject: TeacherSubject }) {
   // Lapsos según las reglas del periodo (congeladas si se cerró alguna vez)
   const settings = useSubjectRules(subject.semester);
   const total = subject.students_count;
   const closed = subject.semester.is_closed;
+  const params = { subjectId: subject.id, sectionId: subject.section.id };
 
   return (
     <article className="card card-border bg-base-100">
@@ -17,6 +21,9 @@ export function SubjectCard({ subject }: { subject: TeacherSubject }) {
         <div className="flex items-center justify-between gap-2">
           <span className="font-bold text-primary text-sm">{subject.code}</span>
           <span className="flex flex-wrap justify-end gap-1">
+            <span className="badge badge-soft badge-primary badge-sm font-semibold">
+              Sección {subject.section.name}
+            </span>
             <span className="badge badge-ghost badge-sm font-semibold">
               {settings.period_label} {subject.semester.name}
             </span>
@@ -62,8 +69,8 @@ export function SubjectCard({ subject }: { subject: TeacherSubject }) {
               consultar.
             </p>
             <Link
-              to="/teacher/subjects/$subjectId"
-              params={{ subjectId: subject.id }}
+              to="/teacher/subjects/$subjectId/$sectionId"
+              params={params}
               className="btn btn-outline btn-primary w-full"
             >
               Ver notas
@@ -72,15 +79,15 @@ export function SubjectCard({ subject }: { subject: TeacherSubject }) {
         ) : (
           <div className="card-actions mt-1 grid grid-cols-2 gap-2">
             <Link
-              to="/teacher/subjects/$subjectId"
-              params={{ subjectId: subject.id }}
+              to="/teacher/subjects/$subjectId/$sectionId"
+              params={params}
               className="btn btn-primary"
             >
               Cargar notas
             </Link>
             <Link
               to="/teacher/imports"
-              search={{ subject: subject.id }}
+              search={{ subject: subject.id, section: subject.section.id }}
               className="btn btn-outline btn-primary"
             >
               Importar Excel

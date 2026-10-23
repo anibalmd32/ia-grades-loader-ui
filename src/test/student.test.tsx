@@ -12,7 +12,7 @@ const s2026 = { id: 2, name: "2026-I", is_closed: false };
 const s2025 = { id: 1, name: "2025-II", is_closed: false };
 
 const grades = (values: [number | null, number | null, number | null]) =>
-  values.map((value, i) => ({ term: i + 1, value }));
+  values.map((value, i) => ({ term: i + 1, value, absent: false }));
 
 const subject = (
   id: number,
@@ -22,7 +22,8 @@ const subject = (
   semester = s2026,
 ): StudentSubjectGrades => ({
   subject: { id, code, name, semester },
-  teachers: ["José Méndez"],
+  section: "A",
+  teacher: "José Méndez",
   grades: grades([null, null, null]),
   average: null,
   projection: {
@@ -176,6 +177,71 @@ describe("detalle de materia", () => {
     );
   });
 
+  it("muestra su único profesor y su sección", async () => {
+    server.use(http.get(`${API_URL}/student/subjects/11`, () => HttpResponse.json(fis)));
+    renderApp("/student/grades/11");
+
+    expect((await screen.findAllByText(/Prof\. José Méndez · Sección A/)).length).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it("sin profesor asignado lo indica", async () => {
+    server.use(
+      http.get(`${API_URL}/student/subjects`, () =>
+        HttpResponse.json({ ...overview, subjects: [{ ...mat, teacher: null }] }),
+      ),
+    );
+    renderApp("/student/grades");
+
+    const matematica = await card("Matemática I");
+    expect(within(matematica).getByText("Sin profesor asignado · Sección A")).toBeInTheDocument();
+  });
+
+  it("marca las inasistencias del lapso y de las evaluaciones", async () => {
+    const absent: StudentSubjectGrades = {
+      ...fis,
+      grades: [
+        { term: 1, value: 1, absent: true },
+        { term: 2, value: 9.5, absent: false },
+        { term: 3, value: null, absent: false },
+      ],
+      evaluations: [
+        { term: 2, name: "Parcial", weight: 50, due_date: null, value: 1, absent: true },
+        { term: 2, name: "Taller", weight: 50, due_date: null, value: 18, absent: false },
+      ],
+    };
+    server.use(http.get(`${API_URL}/student/subjects/11`, () => HttpResponse.json(absent)));
+    renderApp("/student/grades/11");
+
+    const badges = await screen.findAllByText("Inasistente");
+    // Una en el lapso 1 y otra en la evaluación «Parcial»
+    expect(badges).toHaveLength(2);
+    expect(screen.getByText("Cuenta como 1.00")).toBeInTheDocument();
+    expect(badges[0]).toHaveAttribute("title", "Inasistente: cuenta como 1.00");
+    expect(screen.getByText("18.00")).toBeInTheDocument();
+  });
+
+  it("en la tarjeta la inasistencia se ve como «I»", async () => {
+    server.use(
+      http.get(`${API_URL}/student/subjects`, () =>
+        HttpResponse.json({
+          ...overview,
+          subjects: [
+            { ...mat, grades: [{ term: 1, value: 1, absent: true }, ...mat.grades.slice(1)] },
+          ],
+        }),
+      ),
+    );
+    renderApp("/student/grades");
+
+    const matematica = await card("Matemática I");
+    expect(within(matematica).getByText("I")).toHaveAttribute(
+      "title",
+      "Inasistente: cuenta como 1.00",
+    );
+  });
+
   it("con la materia cerrada muestra la definitiva", async () => {
     server.use(http.get(`${API_URL}/student/subjects/12`, () => HttpResponse.json(prg)));
     renderApp("/student/grades/12");
@@ -212,7 +278,11 @@ describe("con otra configuración académica", () => {
           subjects: [
             {
               ...qui,
-              grades: [10, 20, null, null].map((value, i) => ({ term: i + 1, value })),
+              grades: [10, 20, null, null].map((value, i) => ({
+                term: i + 1,
+                value,
+                absent: false,
+              })),
               average: 15,
               projection: { ...qui.projection, pending_terms: [3, 4] },
             },

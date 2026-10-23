@@ -127,23 +127,26 @@ describe("coordinación", () => {
 describe("profesor", () => {
   const closedSubject: TeacherSubject = {
     ...his,
+    section: { id: 21, name: "A", semester_id: 2 },
     students_count: 1,
     grades_count: { "1": 1, "2": 1, "3": 1 },
   };
   const openSubject: TeacherSubject = {
     ...mat,
+    section: { id: 11, name: "A", semester_id: 1 },
     students_count: 1,
     grades_count: { "1": 0, "2": 0, "3": 0 },
   };
   const data: SubjectGrades = {
     subject: his,
+    section: { id: 21, name: "A", semester_id: 2 },
     students: [
       {
         student: maria,
         grades: [
-          { term: 1, value: 15 },
-          { term: 2, value: 16 },
-          { term: 3, value: 17 },
+          { term: 1, value: 15, absent: false },
+          { term: 2, value: 16, absent: false },
+          { term: 3, value: 17, absent: false },
         ],
         average: 16,
         final_grade: 16,
@@ -159,7 +162,7 @@ describe("profesor", () => {
       http.get(`${API_URL}/teacher/subjects`, () =>
         HttpResponse.json([openSubject, closedSubject]),
       ),
-      http.get(`${API_URL}/teacher/subjects/20/grades`, () => HttpResponse.json(data)),
+      http.get(`${API_URL}/teacher/subjects/20/sections/21/grades`, () => HttpResponse.json(data)),
       http.get(`${API_URL}/teacher/import-jobs`, () => HttpResponse.json([])),
     );
   });
@@ -175,7 +178,7 @@ describe("profesor", () => {
   });
 
   it("la planilla de un periodo cerrado es de solo lectura", async () => {
-    renderApp("/teacher/subjects/20");
+    renderApp("/teacher/subjects/20/21");
 
     expect(
       await screen.findByText(/El semestre 2025-II está cerrado: sus notas ya no se pueden/),
@@ -183,12 +186,14 @@ describe("profesor", () => {
     for (const input of screen.getAllByLabelText(/María Pérez · Lapso/)) {
       expect(input).toBeDisabled();
     }
+    // Sin botones para marcar inasistencias
+    expect(screen.queryByRole("button", { name: /Inasistente/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Guardar cambios/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Importar Excel" })).not.toBeInTheDocument();
   });
 
   it("no ofrece importar notas en materias de periodos cerrados", async () => {
-    renderApp("/teacher/imports?subject=20");
+    renderApp("/teacher/imports?subject=20&section=21");
 
     const select = await screen.findByRole("combobox", { name: /Materia/ });
     const option = await within(select).findByRole("option", { name: /HIS-100/ });
@@ -207,11 +212,12 @@ describe("estudiante", () => {
       subjects: [
         {
           subject: his,
-          teachers: [],
+          section: "A",
+          teacher: null,
           grades: [
-            { term: 1, value: 15 },
-            { term: 2, value: 16 },
-            { term: 3, value: 17 },
+            { term: 1, value: 15, absent: false },
+            { term: 2, value: 16, absent: false },
+            { term: 3, value: 17, absent: false },
           ],
           average: 16,
           projection: {

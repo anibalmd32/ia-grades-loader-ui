@@ -78,3 +78,10 @@ export function termsText(settings: TermSettings, terms: number[]): string {
   if (terms.length === 1) return termName(settings, terms[0] as number);
   return `${settings.term_label_plural} ${terms.slice(0, -1).join(", ")} y ${terms.at(-1)}`;
 }
+
+/**
+ * Inasistencia: el estudiante no se presentó a la evaluación o al lapso. La API guarda la nota
+ * mínima de la escala y la marca con `absent`; se muestra con estas etiquetas.
+ */
+export const ABSENT_LABEL = "Inasistente";
+export const ABSENT_SHORT = "I";

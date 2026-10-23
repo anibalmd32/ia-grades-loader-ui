@@ -5,6 +5,11 @@ import type { components } from "../schema";
 export type UserRead = components["schemas"]["UserRead"];
 export type SubjectRead = components["schemas"]["SubjectRead"];
 export type SemesterRead = components["schemas"]["SemesterRead"];
+export type SectionRead = components["schemas"]["SectionRead"];
+export type StudentSectionRead = components["schemas"]["StudentSectionRead"];
+export type TeacherAssignment = components["schemas"]["TeacherAssignment"];
+export type TeacherAssignmentRead = components["schemas"]["TeacherAssignmentRead"];
+export type SubjectTeacherRead = components["schemas"]["SubjectTeacherRead"];
 
 /** Tipos de cuenta que gestiona administración (cada uno con su recurso en la API) */
 export type AccountKind = "coordinators" | "teachers" | "students";
@@ -31,6 +36,10 @@ export const adminKeys = {
   studentSubjects: (studentId: number) => ["students", studentId, "subjects"] as const,
   subjectTeachers: (subjectId: number) => ["subjects", subjectId, "teachers"] as const,
   subjectStudents: (subjectId: number) => ["subjects", subjectId, "students"] as const,
+  sections: ["sections"] as const,
+  semesterSections: (semesterId: number) => ["sections", "semester", semesterId] as const,
+  sectionStudents: (sectionId: number) => ["sections", sectionId, "students"] as const,
+  studentSections: (studentId: number) => ["sections", "student", studentId] as const,
 };
 
 export const usersQuery = (kind: AccountKind, params: UserListParams) =>
@@ -156,15 +165,108 @@ export const subjectStudentsQuery = (subjectId: number) =>
       ),
   });
 
-/** Reemplaza el conjunto de materias del profesor */
-export function setTeacherSubjects(teacherId: number, subjectIds: number[]) {
+/**
+ * Reemplaza las (materia, sección) del profesor. Cada materia tiene un solo profesor por
+ * sección: si otro ya la imparte en esa sección, la API responde 409.
+ */
+export function setTeacherSubjects(teacherId: number, assignments: TeacherAssignment[]) {
   return unwrap(
     api.PUT("/api/v1/teachers/{teacher_id}/subjects", {
       params: { path: { teacher_id: teacherId } },
-      body: { subject_ids: subjectIds },
+      body: { assignments },
     }),
   );
 }
+
+// --- Secciones -------------------------------------------------------------------
+// Cada periodo tiene secciones; un estudiante cursa el periodo en una sola sección (hace
+// falta para matricularlo) y cada materia tiene un único profesor por sección.
+
+/** Secciones de un periodo con su número de estudiantes */
+export const semesterSectionsQuery = (semesterId: number) =>
+  queryOptions({
+    queryKey: adminKeys.semesterSections(semesterId),
+    queryFn: ({ signal }) =>
+      unwrap(
+        api.GET("/api/v1/semesters/{semester_id}/sections", {
+          params: { path: { semester_id: semesterId } },
+          signal,
+        }),
+      ),
+  });
+
+export function createSection(semesterId: number, name: string) {
+  return unwrap(
+    api.POST("/api/v1/semesters/{semester_id}/sections", {
+      params: { path: { semester_id: semesterId } },
+      body: { name },
+    }),
+  );
+}
+
+export function renameSection(sectionId: number, name: string) {
+  return unwrap(
+    api.PATCH("/api/v1/sections/{section_id}", {
+      params: { path: { section_id: sectionId } },
+      body: { name },
+    }),
+  );
+}
+
+/** Solo sin estudiantes ni profesores (409) */
+export function deleteSection(sectionId: number) {
+  return unwrap(
+    api.DELETE("/api/v1/sections/{section_id}", { params: { path: { section_id: sectionId } } }),
+  );
+}
+
+export const sectionStudentsQuery = (sectionId: number) =>
+  queryOptions({
+    queryKey: adminKeys.sectionStudents(sectionId),
+    queryFn: ({ signal }) =>
+      unwrap(
+        api.GET("/api/v1/sections/{section_id}/students", {
+          params: { path: { section_id: sectionId } },
+          signal,
+        }),
+      ),
+  });
+
+/** Asigna estudiantes a la sección (si estaban en otra del periodo, se cambian; 409 con notas) */
+export function assignSectionStudents(sectionId: number, studentIds: number[]) {
+  return unwrap(
+    api.POST("/api/v1/sections/{section_id}/students", {
+      params: { path: { section_id: sectionId } },
+      body: { student_ids: studentIds },
+    }),
+  );
+}
+
+/** Quita al estudiante de la sección (409 si está matriculado en materias del periodo) */
+export function removeSectionStudent(sectionId: number, studentId: number) {
+  return unwrap(
+    api.DELETE("/api/v1/sections/{section_id}/students/{student_id}", {
+      params: { path: { section_id: sectionId, student_id: studentId } },
+    }),
+  );
+}
+
+/** Sección del estudiante en cada periodo */
+export const studentSectionsQuery = (studentId: number) =>
+  queryOptions({
+    queryKey: adminKeys.studentSections(studentId),
+    queryFn: ({ signal }) =>
+      unwrap(
+        api.GET("/api/v1/students/{student_id}/sections", {
+          params: { path: { student_id: studentId } },
+          signal,
+        }),
+      ),
+  });
+
+/** "MAT-101 Matemática I · Sección A" */
+export const assignmentLabel = ({ subject, section }: TeacherAssignmentRead) =>
+  `${subjectLabel(subject)} · Sección ${section.name}`;
 
 /** "MAT-101 Matemática I" */
 export const subjectLabel = (subject: SubjectRead) => `${subject.code} ${subject.name}`;

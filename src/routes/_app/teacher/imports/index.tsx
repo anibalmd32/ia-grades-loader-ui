@@ -9,15 +9,16 @@ const title = "Importar notas desde Excel";
 
 export const Route = createFileRoute("/_app/teacher/imports/")({
   validateSearch: v.object({
-    // Materia preseleccionada al llegar desde "Importar Excel"
+    // Materia y sección preseleccionadas al llegar desde "Importar Excel"
     subject: v.optional(v.fallback(v.optional(v.pipe(v.number(), v.integer())), undefined)),
+    section: v.optional(v.fallback(v.optional(v.pipe(v.number(), v.integer())), undefined)),
   }),
   staticData: { title: "Importar Excel", description: "La IA te propone cada nota" },
   component: ImportsPage,
 });
 
 function ImportsPage() {
-  const { subject } = Route.useSearch();
+  const { subject, section } = Route.useSearch();
   const settings = useAcademicSettings();
   const description = `La IA lee el archivo y te propone a qué estudiante y ${settings.term_label.toLowerCase()} va cada nota.`;
   return (
@@ -25,7 +26,11 @@ function ImportsPage() {
       <PageHeader title={title} description={description} />
       <PageBody>
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_26rem]">
-          <UploadForm key={subject} defaultSubject={subject} />
+          <UploadForm
+            key={`${subject}:${section}`}
+            defaultSubject={subject}
+            defaultSection={section}
+          />
           <RecentImports />
         </div>
       </PageBody>

@@ -9,6 +9,7 @@ import {
   type EvaluationGradeEntry,
   evaluationGradeOf,
   evaluationKeys,
+  isAbsentFrom,
   percentText,
   type StudentEvaluationGrades,
   saveEvaluationGrades,
@@ -22,17 +23,28 @@ import { studentKeys } from "@/api/queries/student";
 import { teacherKeys } from "@/api/queries/teacher";
 import { applyApiErrors } from "@/components/form/api-errors";
 import { FormError, useAppForm } from "@/components/form/form";
-import { GradeCell } from "@/components/teacher/gradebook";
+import {
+  AbsentToggle,
+  cellText,
+  GradeCell,
+  isAbsentText,
+  parseCell,
+} from "@/components/teacher/gradebook";
 import { confirm } from "@/components/ui/confirm";
+import { AbsentBadge } from "@/components/ui/grade-badge";
 import { Modal } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { dueDateText } from "@/lib/dates";
-import { formatGrade, gradeRule, gradeText, parseGrade, termName } from "@/lib/grades";
+import { ABSENT_SHORT, formatGrade, gradeRule, gradeText, termName } from "@/lib/grades";
 
 /** Tras cambiar el plan o sus notas cambian la planilla, el historial y lo que ve el estudiante */
-function invalidateAfterChange(queryClient: ReturnType<typeof useQueryClient>, subjectId: number) {
+function invalidateAfterChange(
+  queryClient: ReturnType<typeof useQueryClient>,
+  subjectId: number,
+  sectionId: number,
+) {
   void queryClient.invalidateQueries({ queryKey: evaluationKeys.all });
-  void queryClient.invalidateQueries({ queryKey: teacherKeys.grades(subjectId) });
+  void queryClient.invalidateQueries({ queryKey: teacherKeys.grades(subjectId, sectionId) });
   void queryClient.invalidateQueries({ queryKey: teacherKeys.subjects });
   void queryClient.invalidateQueries({ queryKey: gradeHistoryKeys.all });
   void queryClient.invalidateQueries({ queryKey: studentKeys.all });
@@ -141,7 +153,11 @@ export function EvaluationList({
 }
 
 /** Pide confirmación y borra la evaluación (con sus notas) */
-export function useDeleteEvaluation(subjectId: number, settings: AcademicSettings) {
+export function useDeleteEvaluation(
+  subjectId: number,
+  sectionId: number,
+  settings: AcademicSettings,
+) {
   const queryClient = useQueryClient();
   return async (evaluation: Evaluation) => {
     const graded = evaluation.graded_count;
@@ -156,8 +172,8 @@ export function useDeleteEvaluation(subjectId: number, settings: AcademicSetting
     });
     if (!ok) return;
     try {
-      await deleteEvaluation(subjectId, evaluation.id);
-      invalidateAfterChange(queryClient, subjectId);
+      await deleteEvaluation(subjectId, sectionId, evaluation.id);
+      invalidateAfterChange(queryClient, subjectId, sectionId);
       toast.success("Evaluación eliminada.");
     } catch (error) {
       toast.error((error as Error).message);
@@ -188,6 +204,7 @@ const EvaluationSchema = v.object({
 /** Alta o edición de una evaluación del lapso */
 export function EvaluationFormModal({
   subjectId,
+  sectionId,
   term,
   evaluation,
   available,
@@ -195,6 +212,7 @@ export function EvaluationFormModal({
   onClose,
 }: {
   subjectId: number;
+  sectionId: number;
   term: number;
   /** Sin evaluación: alta */
   evaluation?: Evaluation;
@@ -219,9 +237,9 @@ export function EvaluationFormModal({
         due_date: value.due_date || null,
       };
       try {
-        if (evaluation) await updateEvaluation(subjectId, evaluation.id, body);
-        else await createEvaluation(subjectId, { term, ...body });
-        invalidateAfterChange(queryClient, subjectId);
+        if (evaluation) await updateEvaluation(subjectId, sectionId, evaluation.id, body);
+        else await createEvaluation(subjectId, sectionId, { term, ...body });
+        invalidateAfterChange(queryClient, subjectId, sectionId);
         toast.success(evaluation ? "Evaluación actualizada." : "Evaluación añadida.");
         onClose();
       } catch (error) {
@@ -279,13 +297,17 @@ export function EvaluationFormModal({
 
 const cellKey = (studentId: number, evaluationId: number) => `${studentId}:${evaluationId}`;
 
-/** Celdas editadas de la hoja de evaluaciones (como la planilla, pero por evaluación) */
+/**
+ * Celdas editadas de la hoja de evaluaciones (como la planilla, pero por evaluación). "I" marca
+ * al estudiante como inasistente a la evaluación.
+ */
 export function useEvaluationDrafts(data: TermEvaluationGrades, settings: AcademicSettings) {
   const [drafts, setDrafts] = useState<Map<string, string>>(new Map());
 
+  const saved = (row: StudentEvaluationGrades, evaluationId: number) =>
+    cellText(evaluationGradeOf(row, evaluationId), isAbsentFrom(row, evaluationId), settings);
   const text = (row: StudentEvaluationGrades, evaluationId: number) =>
-    drafts.get(cellKey(row.student.id, evaluationId)) ??
-    gradeText(evaluationGradeOf(row, evaluationId), settings);
+    drafts.get(cellKey(row.student.id, evaluationId)) ?? saved(row, evaluationId);
 
   const changes: EvaluationGradeEntry[] = [];
   const invalid: { row: StudentEvaluationGrades; evaluation: Evaluation }[] = [];
@@ -295,15 +317,20 @@ export function useEvaluationDrafts(data: TermEvaluationGrades, settings: Academ
       const key = cellKey(row.student.id, evaluation.id);
       const draft = drafts.get(key);
       if (draft === undefined) continue;
-      const parsed = parseGrade(draft, settings);
+      const parsed = parseCell(draft, settings);
+      const absent = isAbsentFrom(row, evaluation.id);
       if (!parsed.valid) {
         invalid.push({ row, evaluation });
         edited.add(key);
-      } else if (parsed.value !== evaluationGradeOf(row, evaluation.id)) {
+      } else if (
+        parsed.absent !== absent ||
+        (!parsed.absent && parsed.value !== evaluationGradeOf(row, evaluation.id))
+      ) {
         changes.push({
           student_id: row.student.id,
           evaluation_id: evaluation.id,
-          value: parsed.value,
+          value: parsed.absent ? null : parsed.value,
+          absent: parsed.absent,
         });
         edited.add(key);
       }
@@ -321,19 +348,36 @@ export function useEvaluationDrafts(data: TermEvaluationGrades, settings: Academ
       invalid.some((c) => c.row === row && c.evaluation.id === evaluationId),
     set: (row: StudentEvaluationGrades, evaluationId: number, value: string) =>
       setDrafts((prev) => new Map(prev).set(cellKey(row.student.id, evaluationId), value)),
+    /** Marca o desmarca la inasistencia (al desmarcar vuelve a la nota guardada o a vacía) */
+    toggleAbsent: (row: StudentEvaluationGrades, evaluationId: number) => {
+      const key = cellKey(row.student.id, evaluationId);
+      const current = drafts.get(key) ?? saved(row, evaluationId);
+      const next = !isAbsentText(current)
+        ? ABSENT_SHORT
+        : isAbsentFrom(row, evaluationId)
+          ? ""
+          : gradeText(evaluationGradeOf(row, evaluationId), settings);
+      setDrafts((prev) => new Map(prev).set(key, next));
+    },
     reset: () => setDrafts(new Map()),
   };
 }
 
 export type EvaluationDrafts = ReturnType<typeof useEvaluationDrafts>;
 
-export function useSaveEvaluationGrades(subjectId: number, term: number, drafts: EvaluationDrafts) {
+export function useSaveEvaluationGrades(
+  subjectId: number,
+  sectionId: number,
+  term: number,
+  drafts: EvaluationDrafts,
+) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (changes: EvaluationGradeEntry[]) => saveEvaluationGrades(subjectId, term, changes),
+    mutationFn: (changes: EvaluationGradeEntry[]) =>
+      saveEvaluationGrades(subjectId, sectionId, term, changes),
     onSuccess: (data, changes) => {
-      queryClient.setQueryData(evaluationKeys.grades(subjectId, term), data);
-      invalidateAfterChange(queryClient, subjectId);
+      queryClient.setQueryData(evaluationKeys.grades(subjectId, sectionId, term), data);
+      invalidateAfterChange(queryClient, subjectId, sectionId);
       drafts.reset();
       toast.success(
         changes.length === 1 ? "1 nota guardada." : `${changes.length} notas guardadas.`,
@@ -357,7 +401,8 @@ export function InvalidEvaluationAlert({
   return (
     <div role="alert" className="alert alert-error alert-soft">
       <span>
-        {first.row.student.full_name} · {first.evaluation.name}: {gradeRule(settings)}.
+        {first.row.student.full_name} · {first.evaluation.name}: {gradeRule(settings)} (o «
+        {ABSENT_SHORT}» si es inasistente).
         {more > 0 && ` Hay ${more} ${more === 1 ? "celda más" : "celdas más"} por corregir.`}
       </span>
     </div>
@@ -372,6 +417,7 @@ export function TermResult({
   row: StudentEvaluationGrades;
   settings: AcademicSettings;
 }) {
+  if (row.term_absent) return <AbsentBadge rules={settings} />;
   if (row.term_grade != null) {
     return (
       <span
@@ -390,11 +436,14 @@ export function EvaluationGradesSheet({
   drafts,
   settings,
   disabled,
+  readOnly = false,
 }: {
   data: TermEvaluationGrades;
   drafts: EvaluationDrafts;
   settings: AcademicSettings;
   disabled: boolean;
+  /** Periodo cerrado: sin botones de inasistencia */
+  readOnly?: boolean;
 }) {
   const { evaluations, students } = data;
   return (
@@ -417,15 +466,25 @@ export function EvaluationGradesSheet({
                   <span className="truncate text-base-content/70">
                     {evaluation.name} ({percentText(evaluation.weight)})
                   </span>
-                  <GradeCell
-                    className="input-md w-full"
-                    label={`${row.student.full_name} · ${evaluation.name}`}
-                    value={drafts.text(row, evaluation.id)}
-                    edited={drafts.isEdited(row, evaluation.id)}
-                    invalid={drafts.isInvalid(row, evaluation.id)}
-                    onChange={(value) => drafts.set(row, evaluation.id, value)}
-                    disabled={disabled}
-                  />
+                  <div className="flex items-center gap-1">
+                    <GradeCell
+                      className="input-md w-full"
+                      label={`${row.student.full_name} · ${evaluation.name}`}
+                      value={drafts.text(row, evaluation.id)}
+                      edited={drafts.isEdited(row, evaluation.id)}
+                      invalid={drafts.isInvalid(row, evaluation.id)}
+                      onChange={(value) => drafts.set(row, evaluation.id, value)}
+                      disabled={disabled}
+                    />
+                    {!readOnly && (
+                      <AbsentToggle
+                        pressed={isAbsentText(drafts.text(row, evaluation.id))}
+                        label={`Inasistente · ${row.student.full_name} · ${evaluation.name}`}
+                        onClick={() => drafts.toggleAbsent(row, evaluation.id)}
+                        disabled={disabled}
+                      />
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -461,14 +520,24 @@ export function EvaluationGradesSheet({
                 </td>
                 {evaluations.map((evaluation) => (
                   <td key={evaluation.id}>
-                    <GradeCell
-                      label={`${row.student.full_name} · ${evaluation.name}`}
-                      value={drafts.text(row, evaluation.id)}
-                      edited={drafts.isEdited(row, evaluation.id)}
-                      invalid={drafts.isInvalid(row, evaluation.id)}
-                      onChange={(value) => drafts.set(row, evaluation.id, value)}
-                      disabled={disabled}
-                    />
+                    <div className="flex items-center gap-1">
+                      <GradeCell
+                        label={`${row.student.full_name} · ${evaluation.name}`}
+                        value={drafts.text(row, evaluation.id)}
+                        edited={drafts.isEdited(row, evaluation.id)}
+                        invalid={drafts.isInvalid(row, evaluation.id)}
+                        onChange={(value) => drafts.set(row, evaluation.id, value)}
+                        disabled={disabled}
+                      />
+                      {!readOnly && (
+                        <AbsentToggle
+                          pressed={isAbsentText(drafts.text(row, evaluation.id))}
+                          label={`Inasistente · ${row.student.full_name} · ${evaluation.name}`}
+                          onClick={() => drafts.toggleAbsent(row, evaluation.id)}
+                          disabled={disabled}
+                        />
+                      )}
+                    </div>
                   </td>
                 ))}
                 <td className="tabular-nums">{formatGrade(row.accumulated, settings)}</td>

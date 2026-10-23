@@ -12,6 +12,7 @@ import { confirm } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/modal";
 import { ErrorState, LoadingState } from "@/components/ui/states";
 import { toast } from "@/components/ui/toast";
+import { SectionsPanel } from "./sections-panel";
 
 const NameSchema = v.object({
   name: v.pipe(
@@ -35,6 +36,7 @@ export function SemestersPanel({
   const settings = useAcademicSettings();
   const period = settings.period_label.toLowerCase();
   const [renaming, setRenaming] = useState<SemesterRead | null>(null);
+  const selected = semesters.data?.find((s) => s.id === selectedId);
   const [formError, setFormError] = useState<string | null>(null);
 
   const createForm = useAppForm({
@@ -216,6 +218,7 @@ export function SemestersPanel({
             <createForm.SubmitButton label={`Crear ${period}`} className="btn-outline" />
           </createForm.AppForm>
         </form>
+        {selected && <SectionsPanel semester={selected} />}
       </div>
       {renaming && <RenameModal semester={renaming} onClose={() => setRenaming(null)} />}
     </section>

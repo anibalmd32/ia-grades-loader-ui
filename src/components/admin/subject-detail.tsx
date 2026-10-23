@@ -6,11 +6,11 @@ import { api, unwrap } from "@/api/client";
 import {
   activeTeachersQuery,
   adminKeys,
+  type SectionRead,
   type SubjectRead,
-  setTeacherSubjects,
+  semesterSectionsQuery,
   subjectStudentsQuery,
   subjectTeachersQuery,
-  teacherSubjectsQuery,
   type UserRead,
   usersQuery,
 } from "@/api/queries/admin";
@@ -24,115 +24,157 @@ import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
 import { toast } from "@/components/ui/toast";
 import { Section } from "./common";
-import { addSubjectToTeacher } from "./subject-form";
+import { addSubjectToTeacher, removeSubjectFromTeacher } from "./subject-form";
 
-/** Profesores que imparten la materia: asignar y quitar */
+/**
+ * Profesor de la materia en cada sección de su periodo: uno solo por sección, así cada
+ * estudiante tiene un único profesor en la materia (el de su sección).
+ */
 export function SubjectTeachers({ subject }: { subject: SubjectRead }) {
-  const queryClient = useQueryClient();
+  const settings = useAcademicSettings();
   const assigned = useQuery(subjectTeachersQuery(subject.id));
+  const sections = useQuery(semesterSectionsQuery(subject.semester.id));
   const teachers = useQuery(activeTeachersQuery);
+
+  let content: React.ReactNode;
+  if (assigned.error || sections.error) {
+    content = (
+      <ErrorState error={assigned.error ?? sections.error} onRetry={() => assigned.refetch()} />
+    );
+  } else if (!assigned.data || !sections.data) {
+    content = <LoadingState rows={1} />;
+  } else if (sections.data.length === 0) {
+    content = (
+      <p className="font-semibold text-warning text-sm">
+        El {settings.period_label.toLowerCase()} {subject.semester.name} no tiene secciones: créalas
+        en {settings.period_label_plural} y materias para asignar profesores.
+      </p>
+    );
+  } else {
+    content = (
+      <ul className="flex flex-col gap-2">
+        {sections.data.map((section) => (
+          <SectionTeacherRow
+            key={section.id}
+            subject={subject}
+            section={section}
+            teacher={assigned.data.find((a) => a.section.id === section.id)?.teacher}
+            teachers={teachers.data?.items ?? []}
+          />
+        ))}
+      </ul>
+    );
+  }
+
+  return (
+    <Section
+      title="Profesores por sección"
+      description="Cada sección tiene un solo profesor, que carga y edita las notas de sus estudiantes."
+    >
+      {content}
+    </Section>
+  );
+}
+
+function SectionTeacherRow({
+  subject,
+  section,
+  teacher,
+  teachers,
+}: {
+  subject: SubjectRead;
+  section: SectionRead;
+  teacher: UserRead | undefined;
+  teachers: UserRead[];
+}) {
+  const queryClient = useQueryClient();
   const [teacherId, setTeacherId] = useState("");
 
   const refresh = async (id: number) => {
     await queryClient.invalidateQueries({ queryKey: adminKeys.subjectTeachers(subject.id) });
     await queryClient.invalidateQueries({ queryKey: adminKeys.teacherSubjects(id) });
+    await queryClient.invalidateQueries({ queryKey: adminKeys.subjects });
   };
 
   const assign = useMutation({
-    mutationFn: (id: number) => addSubjectToTeacher(queryClient, id, subject.id),
+    mutationFn: (id: number) => addSubjectToTeacher(queryClient, id, subject.id, section.id),
     onSuccess: async (_, id) => {
       setTeacherId("");
       await refresh(id);
-      toast.success("Profesor asignado.");
+      toast.success(`Profesor asignado a la sección ${section.name}.`);
     },
+    // 409: la sección ya tiene profesor
     onError: (error) => toast.error(error.message),
   });
 
   const unassign = useMutation({
-    mutationFn: async (teacher: UserRead) => {
-      const current = await queryClient.fetchQuery(teacherSubjectsQuery(teacher.id));
-      await setTeacherSubjects(
-        teacher.id,
-        current.map((s) => s.id).filter((id) => id !== subject.id),
-      );
-    },
-    onSuccess: async (_, teacher) => {
-      await refresh(teacher.id);
-      toast.success("Profesor quitado de la materia.");
+    mutationFn: (current: UserRead) =>
+      removeSubjectFromTeacher(queryClient, current.id, subject.id, section.id),
+    onSuccess: async (_, current) => {
+      await refresh(current.id);
+      toast.success("Profesor quitado de la sección.");
     },
     onError: (error) => toast.error(error.message),
   });
 
-  const handleUnassign = async (teacher: UserRead) => {
+  const handleUnassign = async (current: UserRead) => {
     const ok = await confirm({
-      title: `¿Quitar a ${teacher.full_name}?`,
-      message: "Dejará de poder cargar notas en esta materia.",
+      title: `¿Quitar a ${current.full_name} de la sección ${section.name}?`,
+      message: "Dejará de poder cargar notas de esta materia en esa sección.",
       confirmLabel: "Quitar",
       danger: true,
     });
-    if (ok) unassign.mutate(teacher);
+    if (ok) unassign.mutate(current);
   };
 
-  const assignedIds = new Set(assigned.data?.map((t) => t.id));
-  const available = teachers.data?.items.filter((t) => !assignedIds.has(t.id)) ?? [];
-
   return (
-    <Section
-      title="Profesores asignados"
-      description="Pueden cargar y editar las notas de esta materia."
-    >
-      {assigned.error ? (
-        <ErrorState error={assigned.error} onRetry={() => assigned.refetch()} />
-      ) : !assigned.data ? (
-        <LoadingState rows={1} />
-      ) : assigned.data.length === 0 ? (
-        <p className="font-semibold text-warning text-sm">Sin profesor asignado.</p>
+    <li className="flex flex-col gap-2 rounded-field border border-base-300 px-3 py-2 sm:flex-row sm:items-center">
+      <span className="font-semibold sm:w-28">Sección {section.name}</span>
+      {teacher ? (
+        <span className="flex flex-1 items-center gap-2">
+          <span className="badge badge-outline badge-primary badge-lg gap-1">
+            {teacher.full_name}
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs btn-circle"
+              aria-label={`Quitar a ${teacher.full_name} de la sección ${section.name}`}
+              onClick={() => handleUnassign(teacher)}
+            >
+              <X className="size-3.5" />
+            </button>
+          </span>
+        </span>
       ) : (
-        <ul className="flex flex-wrap gap-2">
-          {assigned.data.map((teacher) => (
-            <li key={teacher.id} className="badge badge-outline badge-primary badge-lg gap-1">
-              {teacher.full_name}
-              <button
-                type="button"
-                className="btn btn-ghost btn-xs btn-circle"
-                aria-label={`Quitar a ${teacher.full_name}`}
-                onClick={() => handleUnassign(teacher)}
-              >
-                <X className="size-3.5" />
-              </button>
-            </li>
-          ))}
-        </ul>
+        <form
+          className="flex flex-1 flex-col gap-2 sm:flex-row"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (teacherId) assign.mutate(Number(teacherId));
+          }}
+        >
+          <select
+            className="select select-sm w-full sm:max-w-xs"
+            aria-label={`Profesor de la sección ${section.name}`}
+            value={teacherId}
+            onChange={(event) => setTeacherId(event.target.value)}
+          >
+            <option value="">Sin profesor: selecciona uno…</option>
+            {teachers.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.full_name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="btn btn-outline btn-primary btn-sm"
+            disabled={!teacherId || assign.isPending}
+          >
+            Asignar
+          </button>
+        </form>
       )}
-      <form
-        className="flex flex-col gap-2 sm:flex-row"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (teacherId) assign.mutate(Number(teacherId));
-        }}
-      >
-        <select
-          className="select w-full sm:max-w-md"
-          aria-label="Profesor a asignar"
-          value={teacherId}
-          onChange={(event) => setTeacherId(event.target.value)}
-        >
-          <option value="">Selecciona un profesor…</option>
-          {available.map((teacher) => (
-            <option key={teacher.id} value={teacher.id}>
-              {teacher.full_name}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          className="btn btn-outline btn-primary"
-          disabled={!teacherId || assign.isPending}
-        >
-          Asignar
-        </button>
-      </form>
-    </Section>
+    </li>
   );
 }
 
@@ -271,7 +313,8 @@ function EnrollStudentsModal({
 }) {
   const queryClient = useQueryClient();
   const [q, setQ] = useState("");
-  const documentLabel = useAcademicSettings().document_label;
+  const settings = useAcademicSettings();
+  const documentLabel = settings.document_label;
   const [selected, setSelected] = useState<Map<number, UserRead>>(new Map());
   const candidates = useQuery(usersQuery("students", { q, is_active: true }));
 
@@ -295,6 +338,7 @@ function EnrollStudentsModal({
       );
       onClose();
     },
+    // 409: alguno no tiene sección en el periodo (la API dice quiénes)
     onError: (error) => toast.error(error.message),
   });
 
@@ -311,6 +355,11 @@ function EnrollStudentsModal({
   return (
     <Modal open title={`Matricular en ${subject.code}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
+        <p className="text-base-content/70 text-sm">
+          Solo se pueden matricular estudiantes con sección en el{" "}
+          {settings.period_label.toLowerCase()} {subject.semester.name}; su profesor será el de su
+          sección.
+        </p>
         <SearchInput
           value={q}
           onChange={setQ}
@@ -431,7 +480,7 @@ export function SubjectGradeHistory({ subject }: { subject: SubjectRead }) {
       </select>
       <GradeHistory
         key={studentId}
-        scope="admin"
+        scope={{ kind: "admin" }}
         subject={subject}
         studentId={studentId ? Number(studentId) : undefined}
       />

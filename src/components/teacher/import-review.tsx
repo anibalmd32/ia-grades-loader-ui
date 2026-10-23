@@ -20,16 +20,16 @@ import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState } from "@/components/ui/states";
 import { toast } from "@/components/ui/toast";
 import {
+  ABSENT_LABEL,
+  ABSENT_SHORT,
   formatGrade,
   gradeRule,
-  gradeText,
   isTerm,
-  parseGrade,
   termName,
   termNumbers,
 } from "@/lib/grades";
 import { useImportReviews } from "@/stores/import-reviews";
-import { GradeCell } from "./gradebook";
+import { cellText, GradeCell, parseCell } from "./gradebook";
 
 type Preview = NonNullable<ImportJobRead["result"]>;
 type RowStatus = ImportRow["status"];
@@ -60,9 +60,14 @@ const canSave = (row: ImportRow) => row.student != null;
 function initialDecision(row: ImportRow, settings: AcademicSettings): Decision {
   const term = asTerm(row.term, settings);
   return {
-    include: canSave(row) && row.status !== "error" && term != null && row.value != null,
+    include:
+      canSave(row) &&
+      row.status !== "error" &&
+      term != null &&
+      (row.value != null || row.absent === true),
     term,
-    value: gradeText(row.value, settings),
+    // "I" = inasistente (la planilla traía "I", "NP", "Inasistente"...)
+    value: cellText(row.value, row.absent ?? false, settings),
   };
 }
 
@@ -74,9 +79,14 @@ function entryOf(
 ): GradeEntry | string {
   if (!row.student) return "estudiante no identificado";
   if (decision.term == null) return `sin ${settings.term_label.toLowerCase()}`;
-  const parsed = parseGrade(decision.value, settings);
-  if (!parsed.valid || parsed.value == null) return gradeRule(settings);
-  return { student_id: row.student.id, term: decision.term, value: parsed.value };
+  const parsed = parseCell(decision.value, settings);
+  if (parsed.valid && parsed.absent) {
+    return { student_id: row.student.id, term: decision.term, value: null, absent: true };
+  }
+  if (!parsed.valid || parsed.value == null) {
+    return `${gradeRule(settings)} (o «${ABSENT_SHORT}» si es inasistente)`;
+  }
+  return { student_id: row.student.id, term: decision.term, value: parsed.value, absent: false };
 }
 
 /** Previsualización de una importación: revisar, corregir, excluir y confirmar */
@@ -127,17 +137,17 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
   });
 
   const confirmImport = useMutation({
-    mutationFn: () => saveGrades(preview.subject.id, entries, job.id),
+    mutationFn: () => saveGrades(preview.subject.id, job.section_id, entries, job.id),
     onSuccess: async (data) => {
-      queryClient.setQueryData(teacherKeys.grades(preview.subject.id), data);
+      queryClient.setQueryData(teacherKeys.grades(preview.subject.id, job.section_id), data);
       void queryClient.invalidateQueries({ queryKey: gradeHistoryKeys.all });
       await queryClient.invalidateQueries({ queryKey: teacherKeys.jobs });
       toast.success(
         entries.length === 1 ? "1 nota guardada." : `${entries.length} notas guardadas.`,
       );
       await navigate({
-        to: "/teacher/subjects/$subjectId",
-        params: { subjectId: preview.subject.id },
+        to: "/teacher/subjects/$subjectId/$sectionId",
+        params: { subjectId: preview.subject.id, sectionId: job.section_id },
       });
     },
     onError: (error) => toast.error(error.message),
@@ -186,6 +196,7 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
     );
 
   const { subject, summary } = preview;
+  const sectionText = preview.section ? ` · Sección ${preview.section.name}` : "";
   const actions = (
     <>
       <button type="button" className="btn btn-outline btn-primary" onClick={discard}>
@@ -207,13 +218,14 @@ export function ImportReview({ job, preview }: { job: ImportJobRead; preview: Pr
     <>
       <PageHeader
         title="Revisa la importación"
-        description={`${job.file_name} · ${subject.code} ${subject.name} · ${preview.rows.length} filas leídas`}
+        description={`${job.file_name} · ${subject.code} ${subject.name}${sectionText} · ${preview.rows.length} filas leídas`}
         actions={actions}
       />
       <PageBody>
         <BackLink to="/teacher/imports" label="Importaciones" />
         <p className="text-base-content/70 text-sm lg:hidden">
-          {job.file_name} · {subject.code} · {preview.rows.length} filas leídas
+          {job.file_name} · {subject.code}
+          {sectionText} · {preview.rows.length} filas leídas
         </p>
 
         <div className="grid grid-cols-3 gap-3">
@@ -336,8 +348,8 @@ function PreviewRow({
   onChange: (change: Partial<Decision>) => void;
 }) {
   const editable = canSave(row);
-  const parsed = parseGrade(decision.value, settings);
-  const invalid = decision.include && (!parsed.valid || parsed.value == null);
+  const parsed = parseCell(decision.value, settings);
+  const invalid = decision.include && (!parsed.valid || (parsed.value == null && !parsed.absent));
   const label = row.student?.full_name ?? excelText(row);
   const issues = row.issues.length > 0 ? row.issues.join(" · ") : STATUS_LABEL[row.status];
 
@@ -385,7 +397,7 @@ function PreviewRow({
         <GradeCell
           label={`Nota de ${label}`}
           value={decision.value}
-          edited={decision.value !== gradeText(row.value, settings)}
+          edited={decision.value !== cellText(row.value, row.absent ?? false, settings)}
           invalid={invalid}
           disabled={!editable}
           onChange={(value) => onChange({ value, include: true })}
@@ -394,7 +406,9 @@ function PreviewRow({
           {issues}
           {row.current_value != null && (
             <span className="block font-normal text-base-content/60 text-xs">
-              Nota actual: {formatGrade(row.current_value, settings)} (se sobrescribirá)
+              Nota actual:{" "}
+              {row.current_absent ? ABSENT_LABEL : formatGrade(row.current_value, settings)} (se
+              sobrescribirá)
             </span>
           )}
         </p>

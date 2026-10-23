@@ -6,6 +6,7 @@ import {
   allSubjectsQuery,
   enrollStudentInSubjects,
   type SubjectRead,
+  studentSectionsQuery,
   studentSubjectsQuery,
   subjectLabel,
 } from "@/api/queries/admin";
@@ -15,13 +16,28 @@ import { confirm } from "@/components/ui/confirm";
 import { DataTable } from "@/components/ui/data-table";
 import { toast } from "@/components/ui/toast";
 import { Section } from "./common";
+import { StudentSections } from "./student-sections";
 
-/** Materias del estudiante: matricular una a una y retirar (si no tiene notas) */
+/** Sección por periodo y materias del estudiante */
 export function StudentEnrollments({ studentId, name }: { studentId: number; name: string }) {
+  return (
+    <>
+      <StudentSections studentId={studentId} name={name} />
+      <StudentSubjects studentId={studentId} name={name} />
+    </>
+  );
+}
+
+/**
+ * Materias del estudiante: matricular una a una y retirar (si no tiene notas). Solo se
+ * matricula en materias de periodos en los que ya tiene sección.
+ */
+function StudentSubjects({ studentId, name }: { studentId: number; name: string }) {
   const settings = useAcademicSettings();
   const queryClient = useQueryClient();
   const enrolled = useQuery(studentSubjectsQuery(studentId));
   const subjects = useQuery(allSubjectsQuery);
+  const sections = useQuery(studentSectionsQuery(studentId));
   const [subjectId, setSubjectId] = useState("");
 
   const refresh = async () => {
@@ -68,6 +84,10 @@ export function StudentEnrollments({ studentId, name }: { studentId: number; nam
   const available = subjects.data?.items.filter((s) => !enrolledIds.has(s.id)) ?? [];
   const closedHint = `El ${settings.period_label.toLowerCase()} está cerrado`;
   const anyClosed = [...(enrolled.data ?? []), ...available].some((s) => s.semester.is_closed);
+  const withSection = new Set(sections.data?.map((s) => s.semester_id));
+  const missingSection = available.some(
+    (s) => !s.semester.is_closed && sections.data && !withSection.has(s.semester.id),
+  );
 
   return (
     <Section
@@ -92,17 +112,30 @@ export function StudentEnrollments({ studentId, name }: { studentId: number; nam
           onChange={(event) => setSubjectId(event.target.value)}
         >
           <option value="">Selecciona una materia…</option>
-          {available.map((subject) => (
-            <option key={subject.id} value={subject.id} disabled={subject.semester.is_closed}>
-              {subjectLabel(subject)} · {subject.semester.name}
-              {subject.semester.is_closed ? " (cerrado)" : ""}
-            </option>
-          ))}
+          {available.map((subject) => {
+            const noSection = !withSection.has(subject.semester.id);
+            return (
+              <option
+                key={subject.id}
+                value={subject.id}
+                disabled={subject.semester.is_closed || noSection}
+              >
+                {subjectLabel(subject)} · {subject.semester.name}
+                {subject.semester.is_closed ? " (cerrado)" : noSection ? " (sin sección)" : ""}
+              </option>
+            );
+          })}
         </select>
         <button type="submit" className="btn btn-primary" disabled={!subjectId || enroll.isPending}>
           Matricular
         </button>
       </form>
+      {missingSection && (
+        <p className="text-base-content/70 text-sm">
+          Para matricularlo en materias de un {settings.period_label.toLowerCase()} sin sección,
+          asígnale antes su sección.
+        </p>
+      )}
       <DataTable
         rows={enrolled.data}
         isLoading={enrolled.isPending}

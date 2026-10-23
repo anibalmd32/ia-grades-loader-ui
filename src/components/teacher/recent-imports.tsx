@@ -36,7 +36,12 @@ export function RecentImports() {
   const jobs = useQuery(importJobsQuery);
   const subjects = useQuery(teacherSubjectsQuery);
   const reviews = useImportReviews((s) => s.reviews);
-  const codeOf = (id: number) => subjects.data?.find((s) => s.id === id)?.code ?? "";
+  const codeOf = (job: ImportJobSummary) => {
+    const subject = subjects.data?.find(
+      (s) => s.id === job.subject_id && s.section.id === job.section_id,
+    );
+    return subject ? `${subject.code} · Sección ${subject.section.name}` : "";
+  };
 
   return (
     <section className="card card-border bg-base-100">
@@ -66,7 +71,7 @@ export function RecentImports() {
                   : job.attempts === 1
                     ? "1 intento"
                     : "";
-              const detail = [codeOf(job.subject_id), timeAgo(job.created_at), attempts, job.error]
+              const detail = [codeOf(job), timeAgo(job.created_at), attempts, job.error]
                 .filter(Boolean)
                 .join(" · ");
               return (

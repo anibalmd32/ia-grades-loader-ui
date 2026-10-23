@@ -4,7 +4,6 @@ import { useState } from "react";
 import * as v from "valibot";
 import { api, unwrap } from "@/api/client";
 import {
-  activeTeachersQuery,
   adminKeys,
   type SubjectRead,
   semestersQuery,
@@ -31,7 +30,6 @@ const SubjectSchema = v.object({
     v.minLength(1, "Escribe el nombre."),
     v.maxLength(150, "Máximo 150 caracteres."),
   ),
-  teacher_id: v.string(),
 });
 
 /** Opciones del selector de periodo (semestre, trimestre…); los cerrados no admiten materias */
@@ -50,25 +48,45 @@ function useSemesterOptions() {
   return { options, isClosed };
 }
 
-/** Añade la materia al profesor sin quitarle las que ya tiene */
+/** Asigna al profesor la materia en una sección sin quitarle las que ya tiene */
 export async function addSubjectToTeacher(
   queryClient: ReturnType<typeof useQueryClient>,
   teacherId: number,
   subjectId: number,
+  sectionId: number,
 ) {
   const current = await queryClient.fetchQuery(teacherSubjectsQuery(teacherId));
-  const ids = new Set(current.map((s) => s.id));
-  ids.add(subjectId);
-  await setTeacherSubjects(teacherId, [...ids]);
+  await setTeacherSubjects(teacherId, [
+    ...current.map((a) => ({ subject_id: a.subject.id, section_id: a.section.id })),
+    { subject_id: subjectId, section_id: sectionId },
+  ]);
 }
 
-/** Alta de materia: periodo (semestre…), código, nombre y profesor opcional */
+/** Quita al profesor la materia en una sección (conserva las demás) */
+export async function removeSubjectFromTeacher(
+  queryClient: ReturnType<typeof useQueryClient>,
+  teacherId: number,
+  subjectId: number,
+  sectionId: number,
+) {
+  const current = await queryClient.fetchQuery(teacherSubjectsQuery(teacherId));
+  await setTeacherSubjects(
+    teacherId,
+    current
+      .filter((a) => a.subject.id !== subjectId || a.section.id !== sectionId)
+      .map((a) => ({ subject_id: a.subject.id, section_id: a.section.id })),
+  );
+}
+
+/**
+ * Alta de materia: periodo (semestre…), código y nombre. Los profesores se asignan después,
+ * uno por sección, desde el detalle de la materia.
+ */
 export function SubjectCreateForm({ defaultSemesterId }: { defaultSemesterId?: number }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const settings = useAcademicSettings();
   const semesters = useSemesterOptions();
-  const teachers = useQuery(activeTeachersQuery);
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useAppForm({
@@ -76,7 +94,6 @@ export function SubjectCreateForm({ defaultSemesterId }: { defaultSemesterId?: n
       semester_id: defaultSemesterId ? String(defaultSemesterId) : "",
       code: "",
       name: "",
-      teacher_id: "",
     },
     validators: { onSubmit: SubjectSchema },
     onSubmit: async ({ value }) => {
@@ -101,15 +118,6 @@ export function SubjectCreateForm({ defaultSemesterId }: { defaultSemesterId?: n
       } catch (error) {
         setFormError(applyApiErrors(form, error));
         return;
-      }
-      if (value.teacher_id) {
-        try {
-          await addSubjectToTeacher(queryClient, Number(value.teacher_id), subject.id);
-        } catch (error) {
-          toast.error(
-            `La materia se creó, pero no se pudo asignar el profesor: ${(error as Error).message}`,
-          );
-        }
       }
       await queryClient.invalidateQueries({ queryKey: adminKeys.subjects });
       toast.success(`Materia ${subject.code} creada.`);
@@ -145,21 +153,9 @@ export function SubjectCreateForm({ defaultSemesterId }: { defaultSemesterId?: n
             {(field) => <field.TextField label="Nombre" placeholder="Ej. Matemática I" />}
           </form.AppField>
         </div>
-        <form.AppField name="teacher_id">
-          {(field) => (
-            <field.SelectField
-              label="Profesor (opcional)"
-              hint="Puedes asignarlo después desde el detalle de la materia."
-              options={[
-                { value: "", label: "Selecciona un profesor…" },
-                ...(teachers.data?.items ?? []).map((t) => ({
-                  value: String(t.id),
-                  label: t.full_name,
-                })),
-              ]}
-            />
-          )}
-        </form.AppField>
+        <p className="text-base-content/70 text-sm">
+          Después, desde el detalle de la materia, asigna su profesor en cada sección.
+        </p>
         <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Link
             to="/admin/academic"
@@ -196,7 +192,6 @@ export function EditSubjectModal({
       semester_id: String(subject.semester.id),
       code: subject.code,
       name: subject.name,
-      teacher_id: "",
     },
     validators: { onSubmit: SubjectSchema },
     onSubmit: async ({ value }) => {

@@ -7,16 +7,19 @@ import { PAGE_SIZE } from "@/api/queries/admin";
 import { useSubjectRules } from "@/api/queries/settings";
 import {
   downloadSubjectGrades,
+  isAbsent,
   type SubjectGrades,
   subjectGradesQuery,
 } from "@/api/queries/teacher";
 import { BackLink } from "@/components/admin/common";
 import { GradeHistoryModal } from "@/components/grade-history";
 import {
+  AbsentToggle,
   FinalGrade,
   GradebookStats,
   GradeCell,
   InvalidCellAlert,
+  isAbsentText,
   type Standing,
   standingOf,
   useGradeDrafts,
@@ -29,7 +32,7 @@ import { DownloadButton } from "@/components/ui/download-button";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
-import { isTerm, termName, termNumbers, termsText } from "@/lib/grades";
+import { ABSENT_SHORT, isTerm, termName, termNumbers, termsText } from "@/lib/grades";
 
 const SHOW_OPTIONS: { value: "all" | Standing; label: string }[] = [
   { value: "all", label: "Mostrar: Todos" },
@@ -38,12 +41,19 @@ const SHOW_OPTIONS: { value: "all" | Standing; label: string }[] = [
   { value: "failed", label: "Mostrar: Reprobados" },
 ];
 
-export const Route = createFileRoute("/_app/teacher/subjects/$subjectId")({
+const Id = v.pipe(v.string(), v.toNumber(), v.integer());
+
+// Una materia se califica por sección: el profesor solo ve a los estudiantes de la suya
+export const Route = createFileRoute("/_app/teacher/subjects/$subjectId/$sectionId")({
   params: {
-    parse: ({ subjectId }) => ({
-      subjectId: v.parse(v.pipe(v.string(), v.toNumber(), v.integer()), subjectId),
+    parse: ({ subjectId, sectionId }) => ({
+      subjectId: v.parse(Id, subjectId),
+      sectionId: v.parse(Id, sectionId),
     }),
-    stringify: ({ subjectId }) => ({ subjectId: String(subjectId) }),
+    stringify: ({ subjectId, sectionId }) => ({
+      subjectId: String(subjectId),
+      sectionId: String(sectionId),
+    }),
   },
   validateSearch: v.object({
     q: v.optional(v.fallback(v.string(), ""), ""),
@@ -70,8 +80,8 @@ export const Route = createFileRoute("/_app/teacher/subjects/$subjectId")({
 });
 
 function GradebookPage() {
-  const { subjectId } = Route.useParams();
-  const query = useQuery(subjectGradesQuery(subjectId));
+  const { subjectId, sectionId } = Route.useParams();
+  const query = useQuery(subjectGradesQuery(subjectId, sectionId));
 
   if (query.error) {
     return (
@@ -100,7 +110,7 @@ function GradebookPage() {
 function Gradebook({ data }: { data: SubjectGrades }) {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { subject, students } = data;
+  const { subject, section, students } = data;
   // Reglas del periodo de la materia: las congeladas al cerrarlo o, si no, las vigentes
   const settings = useSubjectRules(subject.semester);
   const terms = termNumbers(settings);
@@ -110,7 +120,11 @@ function Gradebook({ data }: { data: SubjectGrades }) {
   // Lapsos con plan de evaluación: su nota la calcula la API a partir de las evaluaciones
   const computed = new Set(data.computed_terms ?? []);
   const drafts = useGradeDrafts(data);
-  const save = useSaveGrades(subject.id, drafts);
+  const save = useSaveGrades(subject.id, section.id, drafts);
+  const absentLabel = (name: string, term: number) =>
+    computed.has(term)
+      ? `Marcar inasistente en todo el ${termName(settings, term).toLowerCase()} · ${name}`
+      : `Inasistente · ${name} · ${termName(settings, term)}`;
   useUnsavedChangesGuard(drafts.pending);
   // Historial abierto: de toda la materia (null) o de un estudiante
   const [history, setHistory] = useState<{ id: number; full_name: string } | null | undefined>();
@@ -135,8 +149,8 @@ function Gradebook({ data }: { data: SubjectGrades }) {
   );
   const evaluationsLink = (
     <Link
-      to="/teacher/evaluations/$subjectId"
-      params={{ subjectId: subject.id }}
+      to="/teacher/evaluations/$subjectId/$sectionId"
+      params={{ subjectId: subject.id, sectionId: section.id }}
       search={computed.size > 0 ? { term: Math.min(...computed) } : {}}
       className="btn btn-outline btn-primary"
     >
@@ -146,7 +160,10 @@ function Gradebook({ data }: { data: SubjectGrades }) {
   );
   // Toda la materia: planilla y una hoja por lapso con evaluaciones (también si está cerrada)
   const downloadButton = (
-    <DownloadButton label="Descargar Excel" download={() => downloadSubjectGrades(subject.id)} />
+    <DownloadButton
+      label="Descargar Excel"
+      download={() => downloadSubjectGrades(subject.id, section.id)}
+    />
   );
   const actions = closed ? (
     <>
@@ -161,7 +178,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
       {downloadButton}
       <Link
         to="/teacher/imports"
-        search={{ subject: subject.id }}
+        search={{ subject: subject.id, section: section.id }}
         className="btn btn-outline btn-primary"
       >
         Importar Excel
@@ -182,13 +199,16 @@ function Gradebook({ data }: { data: SubjectGrades }) {
     <>
       <PageHeader
         title={`${subject.code} · ${subject.name}`}
-        description={`${settings.period_label} ${subject.semester.name}${closed ? " (cerrado)" : ""} · ${students.length} estudiantes`}
+        description={`Sección ${section.name} · ${settings.period_label} ${subject.semester.name}${closed ? " (cerrado)" : ""} · ${students.length} estudiantes`}
         actions={actions}
       />
       <PageBody>
         <BackLink to="/teacher/subjects" label="Mis materias" />
         <h2 className="font-bold text-xl lg:hidden">
           {subject.code} · {subject.name}
+          <span className="block font-normal text-base text-base-content/70">
+            Sección {section.name}
+          </span>
         </h2>
         {closed && (
           <ClosedPeriodNotice
@@ -200,7 +220,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
         {students.length === 0 ? (
           <EmptyState
             title="Aún no hay estudiantes matriculados"
-            description="Cuando la coordinación matricule estudiantes en la materia, aparecerán aquí."
+            description={`Cuando la coordinación matricule estudiantes de la sección ${section.name} en la materia, aparecerán aquí.`}
           />
         ) : (
           <>
@@ -269,7 +289,8 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                   {computed.has(currentTerm) && (
                     <p className="text-base-content/70 text-sm">
                       La nota del {termName(settings, currentTerm).toLowerCase()} se calcula con su
-                      plan de evaluación: califícala en Evaluaciones.
+                      plan de evaluación: califícala en Evaluaciones. Con «{ABSENT_SHORT}» marcas al
+                      estudiante inasistente en todo el lapso.
                     </p>
                   )}
                   <ul className="card card-border divide-y divide-base-300 bg-base-100">
@@ -290,6 +311,17 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                           onChange={(value) => drafts.set(row, currentTerm, value)}
                           disabled={closed || save.isPending || computed.has(currentTerm)}
                         />
+                        {!closed && (
+                          <AbsentToggle
+                            pressed={isAbsentText(drafts.text(row, currentTerm))}
+                            label={absentLabel(row.student.full_name, currentTerm)}
+                            onClick={() => drafts.toggleAbsent(row, currentTerm)}
+                            disabled={
+                              save.isPending ||
+                              (computed.has(currentTerm) && isAbsent(row, currentTerm))
+                            }
+                          />
+                        )}
                         <HistoryButton
                           name={row.student.full_name}
                           onClick={() => setHistory(row.student)}
@@ -339,14 +371,26 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                           </td>
                           {terms.map((term) => (
                             <td key={term}>
-                              <GradeCell
-                                label={`${row.student.full_name} · ${termName(settings, term)}`}
-                                value={drafts.text(row, term)}
-                                edited={drafts.isEdited(row, term)}
-                                invalid={drafts.isInvalid(row, term)}
-                                onChange={(value) => drafts.set(row, term, value)}
-                                disabled={closed || save.isPending || computed.has(term)}
-                              />
+                              <div className="flex items-center gap-1">
+                                <GradeCell
+                                  label={`${row.student.full_name} · ${termName(settings, term)}`}
+                                  value={drafts.text(row, term)}
+                                  edited={drafts.isEdited(row, term)}
+                                  invalid={drafts.isInvalid(row, term)}
+                                  onChange={(value) => drafts.set(row, term, value)}
+                                  disabled={closed || save.isPending || computed.has(term)}
+                                />
+                                {!closed && (
+                                  <AbsentToggle
+                                    pressed={isAbsentText(drafts.text(row, term))}
+                                    label={absentLabel(row.student.full_name, term)}
+                                    onClick={() => drafts.toggleAbsent(row, term)}
+                                    disabled={
+                                      save.isPending || (computed.has(term) && isAbsent(row, term))
+                                    }
+                                  />
+                                )}
+                              </div>
                             </td>
                           ))}
                           <td>
@@ -359,7 +403,9 @@ function Gradebook({ data }: { data: SubjectGrades }) {
                 </div>
 
                 <p className="text-base-content/70 text-xs">
-                  {settings.summary}.{!closed && " Deja una celda vacía para borrar la nota."}
+                  {settings.summary}.
+                  {!closed &&
+                    ` Deja una celda vacía para borrar la nota. Escribe «${ABSENT_SHORT}» o usa su botón para marcar una inasistencia (cuenta con la nota mínima).`}
                   {computed.size > 0 &&
                     ` ${termsText(settings, [...computed].sort())}: la nota se calcula con su plan de evaluación (se califica en Evaluaciones).`}
                 </p>
@@ -379,7 +425,7 @@ function Gradebook({ data }: { data: SubjectGrades }) {
       </PageBody>
       {history !== undefined && (
         <GradeHistoryModal
-          scope="teacher"
+          scope={{ kind: "teacher", sectionId: section.id }}
           subject={subject}
           student={history ?? undefined}
           onClose={() => setHistory(undefined)}

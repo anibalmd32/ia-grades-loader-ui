@@ -10,11 +10,13 @@ import { server } from "./server";
 
 const s2026 = { id: 1, name: "2026-I", is_closed: false };
 const s2025 = { id: 2, name: "2025-II", is_closed: false };
+const secA = { id: 3, name: "A", semester_id: 1 };
 const mat: TeacherSubject = {
   id: 10,
   code: "MAT-101",
   name: "Matemática I",
   semester: s2026,
+  section: secA,
   students_count: 2,
   // Recuento de la API: lapsos 1 y 2 completos, lapso 3 a medias
   grades_count: { "1": 2, "2": 2, "3": 1 },
@@ -24,6 +26,7 @@ const fis: TeacherSubject = {
   code: "FIS-101",
   name: "Física I",
   semester: s2025,
+  section: { id: 4, name: "A", semester_id: 2 },
   students_count: 0,
   grades_count: { "1": 0, "2": 0, "3": 0 },
 };
@@ -32,10 +35,11 @@ const maria = { id: 7, ...personName("María Pérez"), cedula_display: "V-284561
 const carlos = { id: 8, ...personName("Carlos Gómez"), cedula_display: "V-27118904" };
 
 const grades = (values: [number | null, number | null, number | null]) =>
-  values.map((value, i) => ({ term: i + 1, value }));
+  values.map((value, i) => ({ term: i + 1, value, absent: false }));
 
 const matGrades: SubjectGrades = {
   subject: mat,
+  section: secA,
   students: [
     {
       student: maria,
@@ -59,9 +63,11 @@ beforeEach(() => {
   signedInAs(makeUser({ id: 5, role: "teacher", full_name: "José Méndez" }));
   server.use(
     http.get(`${API_URL}/teacher/subjects`, () => HttpResponse.json([mat, fis])),
-    http.get(`${API_URL}/teacher/subjects/10/grades`, () => HttpResponse.json(matGrades)),
-    http.get(`${API_URL}/teacher/subjects/11/grades`, () =>
-      HttpResponse.json({ subject: fis, students: [] }),
+    http.get(`${API_URL}/teacher/subjects/10/sections/3/grades`, () =>
+      HttpResponse.json(matGrades),
+    ),
+    http.get(`${API_URL}/teacher/subjects/11/sections/4/grades`, () =>
+      HttpResponse.json({ subject: fis, section: fis.section, students: [] }),
     ),
   );
 });
@@ -73,15 +79,16 @@ describe("mis materias", () => {
     const card = (await screen.findByRole("heading", { name: "Matemática I" })).closest("article");
     if (!card) throw new Error("sin tarjeta");
     expect(within(card).getByText("2 estudiantes matriculados")).toBeInTheDocument();
+    expect(within(card).getByText("Sección A")).toBeInTheDocument();
     expect(await within(card).findByText("1/2 notas")).toBeInTheDocument();
     expect(within(card).getAllByText("2/2 notas")).toHaveLength(2);
     expect(within(card).getByRole("link", { name: "Cargar notas" })).toHaveAttribute(
       "href",
-      "/teacher/subjects/10",
+      "/teacher/subjects/10/3",
     );
     expect(within(card).getByRole("link", { name: "Importar Excel" })).toHaveAttribute(
       "href",
-      "/teacher/imports?subject=10",
+      "/teacher/imports?subject=10&section=3",
     );
   });
 
@@ -112,7 +119,7 @@ describe("planilla de notas", () => {
     (await screen.findAllByLabelText(label)).at(-1) as HTMLElement;
 
   it("muestra el resumen y la definitiva solo con los 3 lapsos", async () => {
-    renderApp("/teacher/subjects/10");
+    renderApp("/teacher/subjects/10/3");
 
     expect(await screen.findByText("Aprobados")).toBeInTheDocument();
     const table = screen.getByRole("table");
@@ -124,13 +131,13 @@ describe("planilla de notas", () => {
   it("guarda solo las notas cambiadas, con coma decimal y vacío para borrar", async () => {
     let body: unknown;
     server.use(
-      http.put(`${API_URL}/teacher/subjects/10/grades`, async ({ request }) => {
+      http.put(`${API_URL}/teacher/subjects/10/sections/3/grades`, async ({ request }) => {
         body = await request.json();
         return HttpResponse.json(matGrades);
       }),
     );
     const user = userEvent.setup();
-    renderApp("/teacher/subjects/10");
+    renderApp("/teacher/subjects/10/3");
 
     const [save] = await screen.findAllByRole("button", { name: "Guardar cambios" });
     expect(save).toBeDisabled();
@@ -146,8 +153,8 @@ describe("planilla de notas", () => {
     await waitFor(() =>
       expect(body).toEqual({
         grades: [
-          { student_id: 7, term: 3, value: 12.5 },
-          { student_id: 8, term: 1, value: null },
+          { student_id: 7, term: 3, value: 12.5, absent: false },
+          { student_id: 8, term: 1, value: null, absent: false },
         ],
       }),
     );
@@ -156,26 +163,26 @@ describe("planilla de notas", () => {
 
   it("no deja guardar una nota fuera de rango y explica el error", async () => {
     const user = userEvent.setup();
-    renderApp("/teacher/subjects/10");
+    renderApp("/teacher/subjects/10/3");
 
     await user.type(await cell("María Pérez · Lapso 3"), "25");
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "María Pérez · Lapso 3: la nota debe estar entre 1 y 20, con hasta 2 decimales.",
+      "María Pérez · Lapso 3: la nota debe estar entre 1 y 20, con hasta 2 decimales (o «I» si es inasistente).",
     );
     expect(screen.getAllByRole("button", { name: "Guardar cambios (1)" })[0]).toBeDisabled();
   });
 
   it("pide confirmación al salir con cambios sin guardar", async () => {
     const user = userEvent.setup();
-    const { router } = renderApp("/teacher/subjects/10");
+    const { router } = renderApp("/teacher/subjects/10/3");
 
     await user.type(await cell("María Pérez · Lapso 3"), "14");
     await user.click(screen.getAllByRole("link", { name: "Mis materias" })[0]);
 
     expect(await screen.findByText("¿Salir sin guardar?")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Seguir editando" }));
-    expect(router.state.location.pathname).toBe("/teacher/subjects/10");
+    expect(router.state.location.pathname).toBe("/teacher/subjects/10/3");
 
     await user.click(screen.getAllByRole("link", { name: "Mis materias" })[0]);
     await user.click(await screen.findByRole("button", { name: "Salir sin guardar" }));
@@ -184,7 +191,7 @@ describe("planilla de notas", () => {
 
   it("cambiar de lapso, buscar o filtrar no pide confirmación ni pierde los cambios", async () => {
     const user = userEvent.setup();
-    const { router } = renderApp("/teacher/subjects/10");
+    const { router } = renderApp("/teacher/subjects/10/3");
 
     await user.type(await cell("María Pérez · Lapso 3"), "14");
     // Pestañas de lapso (móvil) y filtro: cambian solo los search params
@@ -201,7 +208,7 @@ describe("planilla de notas", () => {
   it("bloquea las celdas mientras se guarda para no perder lo que se escriba", async () => {
     let release: () => void = () => {};
     server.use(
-      http.put(`${API_URL}/teacher/subjects/10/grades`, async () => {
+      http.put(`${API_URL}/teacher/subjects/10/sections/3/grades`, async () => {
         await new Promise<void>((resolve) => {
           release = resolve;
         });
@@ -209,7 +216,7 @@ describe("planilla de notas", () => {
       }),
     );
     const user = userEvent.setup();
-    renderApp("/teacher/subjects/10");
+    renderApp("/teacher/subjects/10/3");
 
     await user.type(await cell("María Pérez · Lapso 3"), "14");
     await user.click(screen.getAllByRole("button", { name: "Guardar cambios (1)" })[0]);
@@ -219,9 +226,89 @@ describe("planilla de notas", () => {
     await waitFor(async () => expect(await cell("Carlos Gómez · Lapso 2")).toBeEnabled());
   });
 
+  it("marca y desmarca inasistencias con el botón I o escribiendo I", async () => {
+    let body: unknown;
+    server.use(
+      http.put(`${API_URL}/teacher/subjects/10/sections/3/grades`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(matGrades);
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp("/teacher/subjects/10/3");
+
+    const toggle = (
+      await screen.findAllByRole("button", { name: "Inasistente · María Pérez · Lapso 3" })
+    ).at(-1) as HTMLElement;
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(await cell("María Pérez · Lapso 3")).toHaveValue("I");
+    // Escribir "I" en la celda también la marca
+    const carlos2 = await cell("Carlos Gómez · Lapso 2");
+    await user.clear(carlos2);
+    await user.type(carlos2, "i");
+
+    await user.click(screen.getAllByRole("button", { name: "Guardar cambios (2)" })[0]);
+    await waitFor(() =>
+      expect(body).toEqual({
+        grades: [
+          { student_id: 7, term: 3, value: null, absent: true },
+          { student_id: 8, term: 2, value: null, absent: true },
+        ],
+      }),
+    );
+  });
+
+  it("muestra la sección y las inasistencias guardadas", async () => {
+    const absentRow = {
+      ...matGrades.students[1],
+      grades: [
+        { term: 1, value: 1, absent: true },
+        { term: 2, value: 8, absent: false },
+        { term: 3, value: 9, absent: false },
+      ],
+    };
+    server.use(
+      http.get(`${API_URL}/teacher/subjects/10/sections/3/grades`, () =>
+        HttpResponse.json({ ...matGrades, students: [matGrades.students[0], absentRow] }),
+      ),
+    );
+    renderApp("/teacher/subjects/10/3");
+
+    expect(await cell("Carlos Gómez · Lapso 1")).toHaveValue("I");
+    expect(screen.getAllByText(/Sección A/).length).toBeGreaterThan(0);
+  });
+
+  it("en un lapso con plan de evaluación marca la inasistencia de todo el lapso", async () => {
+    let body: unknown;
+    server.use(
+      http.get(`${API_URL}/teacher/subjects/10/sections/3/grades`, () =>
+        HttpResponse.json({ ...matGrades, computed_terms: [1] }),
+      ),
+      http.put(`${API_URL}/teacher/subjects/10/sections/3/grades`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(matGrades);
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp("/teacher/subjects/10/3");
+
+    expect(await cell("María Pérez · Lapso 1")).toBeDisabled();
+    const toggle = (
+      await screen.findAllByRole("button", {
+        name: "Marcar inasistente en todo el lapso 1 · María Pérez",
+      })
+    ).at(-1) as HTMLElement;
+    await user.click(toggle);
+    await user.click(screen.getAllByRole("button", { name: "Guardar cambios (1)" })[0]);
+    await waitFor(() =>
+      expect(body).toEqual({ grades: [{ student_id: 7, term: 1, value: null, absent: true }] }),
+    );
+  });
+
   it("filtra a los reprobados", async () => {
     const user = userEvent.setup();
-    renderApp("/teacher/subjects/10");
+    renderApp("/teacher/subjects/10/3");
     await screen.findByRole("table");
 
     await user.selectOptions(screen.getByLabelText("Filtrar estudiantes"), "failed");
@@ -244,10 +331,12 @@ describe("con otra configuración académica", () => {
     grade_decimals: 0,
     summary: "La definitiva es el promedio simple de los 4 cortes y se aprueba con 60 o más",
   });
-  const four = (values: (number | null)[]) => values.map((value, i) => ({ term: i + 1, value }));
+  const four = (values: (number | null)[]) =>
+    values.map((value, i) => ({ term: i + 1, value, absent: false }));
   const subject: TeacherSubject = { ...mat, grades_count: { "1": 2, "2": 2, "3": 1, "4": 0 } };
   const data: SubjectGrades = {
     subject,
+    section: secA,
     students: [
       {
         student: maria,
@@ -270,13 +359,13 @@ describe("con otra configuración académica", () => {
     server.use(
       settingsHandler(settings),
       http.get(`${API_URL}/teacher/subjects`, () => HttpResponse.json([subject])),
-      http.get(`${API_URL}/teacher/subjects/10/grades`, () => HttpResponse.json(data)),
+      http.get(`${API_URL}/teacher/subjects/10/sections/3/grades`, () => HttpResponse.json(data)),
     );
   });
 
   it("la planilla muestra una columna por corte y valida con la escala configurada", async () => {
     const user = userEvent.setup();
-    renderApp("/teacher/subjects/10");
+    renderApp("/teacher/subjects/10/3");
 
     const table = await screen.findByRole("table");
     await waitFor(() =>
@@ -297,7 +386,7 @@ describe("con otra configuración académica", () => {
     const cell4 = screen.getAllByLabelText("María Pérez · Corte 4").at(-1) as HTMLElement;
     await user.type(cell4, "85.5");
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "María Pérez · Corte 4: la nota debe estar entre 0 y 100, sin decimales.",
+      "María Pérez · Corte 4: la nota debe estar entre 0 y 100, sin decimales (o «I» si es inasistente).",
     );
     await user.clear(cell4);
     await user.type(cell4, "100");
@@ -306,7 +395,7 @@ describe("con otra configuración académica", () => {
   });
 
   it("el selector de corte en móvil admite el cuarto", async () => {
-    const { router } = renderApp("/teacher/subjects/10?term=4");
+    const { router } = renderApp("/teacher/subjects/10/3?term=4");
 
     expect(await screen.findByRole("tab", { name: "Corte 4" })).toHaveAttribute(
       "aria-selected",

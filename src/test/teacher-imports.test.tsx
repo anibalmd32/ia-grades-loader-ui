@@ -29,11 +29,13 @@ vi.mock("@/api/queries/teacher", async (importOriginal) => ({
 }));
 
 const s2026 = { id: 1, name: "2026-I", is_closed: false };
+const secA = { id: 3, name: "A", semester_id: 1 };
 const mat: TeacherSubject = {
   id: 10,
   code: "MAT-101",
   name: "Matemática I",
   semester: s2026,
+  section: secA,
   students_count: 3,
   grades_count: { "1": 3, "2": 0, "3": 0 },
 };
@@ -44,6 +46,7 @@ const sofia = { id: 9, ...personName("Sofía Linares"), cedula_display: "V-28990
 const summary = {
   id: "job-1",
   subject_id: 10,
+  section_id: 3,
   file_name: "notas_lapso2.xlsx",
   error: null,
   created_at: "2026-10-16T12:00:00Z",
@@ -62,7 +65,9 @@ const row = (overrides: Partial<ImportRow>): ImportRow => ({
   student: null,
   term: 2,
   value: null,
+  absent: false,
   current_value: null,
+  current_absent: false,
   status: "ok",
   issues: [],
   ...overrides,
@@ -74,6 +79,7 @@ const doneJob: ImportJobRead = {
   finished_at: "2026-10-16T12:01:00Z",
   result: {
     subject: mat,
+    section: secA,
     rows: [
       row({ row: 2, raw_name: "Maria Perez", student: maria, value: 17, raw_value: "17" }),
       row({
@@ -109,7 +115,7 @@ const doneJob: ImportJobRead = {
   },
 };
 
-const emptyGrades: SubjectGrades = { subject: mat, students: [] };
+const emptyGrades: SubjectGrades = { subject: mat, section: secA, students: [] };
 
 beforeEach(() => {
   localStorage.clear();
@@ -118,7 +124,9 @@ beforeEach(() => {
   server.use(
     http.get(`${API_URL}/teacher/subjects`, () => HttpResponse.json([mat])),
     http.get(`${API_URL}/teacher/import-jobs`, () => HttpResponse.json([])),
-    http.get(`${API_URL}/teacher/subjects/10/grades`, () => HttpResponse.json(emptyGrades)),
+    http.get(`${API_URL}/teacher/subjects/10/sections/3/grades`, () =>
+      HttpResponse.json(emptyGrades),
+    ),
   );
 });
 
@@ -139,22 +147,24 @@ describe("subir un Excel", () => {
       ),
     );
     const user = userEvent.setup();
-    const { router } = renderApp("/teacher/imports?subject=10");
+    const { router } = renderApp("/teacher/imports?subject=10&section=3");
 
-    await screen.findByRole("option", { name: "MAT-101 · Matemática I" });
-    expect(screen.getByLabelText("Materia")).toHaveValue("10");
+    await screen.findByRole("option", { name: "MAT-101 · Matemática I · Sección A" });
+    expect(screen.getByLabelText("Materia")).toHaveValue("10:3");
     await user.selectOptions(screen.getByLabelText("Lapso"), "2");
     await user.upload(screen.getByLabelText("Archivo Excel"), xlsx());
     await user.click(screen.getByRole("button", { name: "Subir y procesar" }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/teacher/imports/job-1"));
-    expect(upload.calls).toEqual([[10, expect.objectContaining({ name: "notas_lapso2.xlsx" }), 2]]);
+    expect(upload.calls).toEqual([
+      [10, 3, expect.objectContaining({ name: "notas_lapso2.xlsx" }), 2],
+    ]);
     expect(await screen.findByText("En cola")).toBeInTheDocument();
   });
 
   it("rechaza archivos que no son .xlsx", async () => {
     const user = userEvent.setup({ applyAccept: false });
-    renderApp("/teacher/imports?subject=10");
+    renderApp("/teacher/imports?subject=10&section=3");
 
     await user.upload(await screen.findByLabelText("Archivo Excel"), xlsx("notas.xls"));
 
@@ -171,7 +181,7 @@ describe("subir un Excel", () => {
       });
     };
     const user = userEvent.setup();
-    renderApp("/teacher/imports?subject=10");
+    renderApp("/teacher/imports?subject=10&section=3");
 
     await user.upload(await screen.findByLabelText("Archivo Excel"), xlsx());
     await user.click(screen.getByRole("button", { name: "Subir y procesar" }));
@@ -197,7 +207,7 @@ describe("seguimiento y revisión", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("no tiene notas reconocibles");
     expect(screen.getByRole("link", { name: "Volver a intentar" })).toHaveAttribute(
       "href",
-      "/teacher/imports?subject=10",
+      "/teacher/imports?subject=10&section=3",
     );
   });
 
@@ -205,7 +215,7 @@ describe("seguimiento y revisión", () => {
     let body: unknown;
     server.use(
       http.get(`${API_URL}/teacher/import-jobs/job-1`, () => HttpResponse.json(doneJob)),
-      http.put(`${API_URL}/teacher/subjects/10/grades`, async ({ request }) => {
+      http.put(`${API_URL}/teacher/subjects/10/sections/3/grades`, async ({ request }) => {
         body = await request.json();
         return HttpResponse.json(emptyGrades);
       }),
@@ -232,14 +242,60 @@ describe("seguimiento y revisión", () => {
     await waitFor(() =>
       expect(body).toEqual({
         grades: [
-          { student_id: 7, term: 2, value: 17 },
-          { student_id: 9, term: 2, value: 18.5 },
+          { student_id: 7, term: 2, value: 17, absent: false },
+          { student_id: 9, term: 2, value: 18.5, absent: false },
         ],
         // La API marca la importación como confirmada (confirmed_at)
         import_job_id: "job-1",
       }),
     );
-    await waitFor(() => expect(router.state.location.pathname).toBe("/teacher/subjects/10"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/teacher/subjects/10/3"));
+  });
+
+  it("las celdas «I» o «NP» del Excel se guardan como inasistencias", async () => {
+    let body: unknown;
+    const result = doneJob.result as NonNullable<ImportJobRead["result"]>;
+    const absentJob: ImportJobRead = {
+      ...doneJob,
+      result: {
+        ...result,
+        rows: [
+          row({
+            row: 2,
+            raw_name: "Maria Perez",
+            student: maria,
+            raw_value: "NP",
+            absent: true,
+            current_value: 12,
+            issues: ["Inasistente: cuenta con la nota mínima"],
+          }),
+        ],
+        summary: { ok: 1, warning: 0, error: 0 },
+      },
+    };
+    server.use(
+      http.get(`${API_URL}/teacher/import-jobs/job-1`, () => HttpResponse.json(absentJob)),
+      http.put(`${API_URL}/teacher/subjects/10/sections/3/grades`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(emptyGrades);
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp("/teacher/imports/job-1");
+
+    expect(await screen.findByLabelText("Nota de María Pérez")).toHaveValue("I");
+    expect(screen.getAllByText(/Sección A/).length).toBeGreaterThan(0);
+    await user.click(
+      (
+        await screen.findAllByRole("button", { name: "Confirmar y guardar 1 nota" })
+      )[0] as HTMLElement,
+    );
+    await waitFor(() =>
+      expect(body).toEqual({
+        grades: [{ student_id: 7, term: 2, value: null, absent: true }],
+        import_job_id: "job-1",
+      }),
+    );
   });
 
   it("no deja confirmar dos notas del mismo estudiante y lapso", async () => {
@@ -292,7 +348,7 @@ describe("seguimiento y revisión", () => {
       http.get(`${API_URL}/teacher/import-jobs/job-1`, () =>
         HttpResponse.json({ ...doneJob, confirmed_at: "2026-10-16T12:05:00Z" }),
       ),
-      http.put(`${API_URL}/teacher/subjects/10/grades`, () => {
+      http.put(`${API_URL}/teacher/subjects/10/sections/3/grades`, () => {
         saved = true;
         return HttpResponse.json({});
       }),
@@ -351,7 +407,7 @@ describe("historial de importaciones", () => {
 
     expect(within(await item("notas_lapso2.xlsx")).getByText("Procesando")).toBeInTheDocument();
     expect(
-      within(await item("notas_lapso2.xlsx")).getByText(/MAT-101 · hace 1 minuto/),
+      within(await item("notas_lapso2.xlsx")).getByText(/MAT-101 · Sección A · hace 1 minuto/),
     ).toBeInTheDocument();
     expect(within(await item("fisica.xlsx")).getByText("Lista para revisar")).toBeInTheDocument();
     expect(within(await item("lista.xlsx")).getByText("Falló")).toBeInTheDocument();

@@ -29,6 +29,8 @@ const changes: GradeChange[] = [
     source: "manual",
     import_job_id: null,
     created_at: daysAgo(3),
+    old_absent: false,
+    new_absent: false,
   },
   {
     id: 2,
@@ -41,6 +43,8 @@ const changes: GradeChange[] = [
     source: "import",
     import_job_id: "job-1",
     created_at: daysAgo(4),
+    old_absent: false,
+    new_absent: false,
   },
   {
     id: 1,
@@ -53,6 +57,22 @@ const changes: GradeChange[] = [
     source: "manual",
     import_job_id: null,
     created_at: daysAgo(6),
+    old_absent: false,
+    new_absent: false,
+  },
+  {
+    id: 0,
+    student: carlos,
+    term: 1,
+    evaluation_name: "Parcial",
+    old_value: 14,
+    new_value: 1,
+    changed_by: "Pedro Profe",
+    source: "manual",
+    import_job_id: null,
+    created_at: daysAgo(8),
+    old_absent: false,
+    new_absent: true,
   },
 ];
 
@@ -73,20 +93,23 @@ function historyHandler(path: string, seen: URLSearchParams[]) {
 }
 
 describe("profesor", () => {
+  const secA = { id: 3, name: "A", semester_id: 1 };
   const subject: TeacherSubject = {
     ...mat,
+    section: secA,
     students_count: 2,
     grades_count: { "1": 1, "2": 1, "3": 0 },
   };
   const data: SubjectGrades = {
     subject,
+    section: secA,
     students: [
       {
         student: maria,
         grades: [
-          { term: 1, value: 16 },
-          { term: 2, value: null },
-          { term: 3, value: null },
+          { term: 1, value: 16, absent: false },
+          { term: 2, value: null, absent: false },
+          { term: 3, value: null, absent: false },
         ],
         average: 16,
         final_grade: null,
@@ -95,9 +118,9 @@ describe("profesor", () => {
       {
         student: carlos,
         grades: [
-          { term: 1, value: null },
-          { term: 2, value: 12.5 },
-          { term: 3, value: null },
+          { term: 1, value: null, absent: false },
+          { term: 2, value: 12.5, absent: false },
+          { term: 3, value: null, absent: false },
         ],
         average: 12.5,
         final_grade: null,
@@ -113,14 +136,14 @@ describe("profesor", () => {
     signedInAs(makeUser({ id: 5, role: "teacher", full_name: "Pedro Profe" }));
     server.use(
       http.get(`${API_URL}/teacher/subjects`, () => HttpResponse.json([subject])),
-      http.get(`${API_URL}/teacher/subjects/10/grades`, () => HttpResponse.json(data)),
-      historyHandler("/teacher/subjects/10/grade-history", seen),
+      http.get(`${API_URL}/teacher/subjects/10/sections/3/grades`, () => HttpResponse.json(data)),
+      historyHandler("/teacher/subjects/10/sections/3/grade-history", seen),
     );
   });
 
   it("muestra el historial de la materia con cada cambio explicado", async () => {
     const user = userEvent.setup();
-    renderApp("/teacher/subjects/10");
+    renderApp("/teacher/subjects/10/3");
 
     await user.click(
       (await screen.findAllByRole("button", { name: "Historial" }))[0] as HTMLElement,
@@ -128,7 +151,7 @@ describe("profesor", () => {
     const dialog = await screen.findByRole("dialog", { name: "Historial de notas" });
     const list = await within(dialog).findByRole("list", { name: "Historial de notas" });
     const items = within(list).getAllByRole("listitem");
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     expect(items[0]).toHaveTextContent("María Pérez");
     expect(items[0]).toHaveTextContent("15.00 → 16.00");
     expect(items[0]).toHaveTextContent("Lapso 1 · Pedro Profe · hace 3 días · A mano");
@@ -136,12 +159,14 @@ describe("profesor", () => {
     expect(items[1]).toHaveTextContent("Importación");
     expect(items[2]).toHaveTextContent("Nota borrada: 9.00");
     expect(items[2]).toHaveTextContent("Usuario eliminado");
+    expect(items[3]).toHaveTextContent("14.00 → Inasistente");
+    expect(items[3]).toHaveTextContent("Parcial · Lapso 1");
     expect(seen[0]?.get("student_id")).toBeNull();
   });
 
   it("filtra el historial por estudiante desde su fila", async () => {
     const user = userEvent.setup();
-    renderApp("/teacher/subjects/10");
+    renderApp("/teacher/subjects/10/3");
 
     // Escritorio y móvil están en el DOM a la vez
     await user.click(
@@ -150,7 +175,7 @@ describe("profesor", () => {
       )[0] as HTMLElement,
     );
     const dialog = await screen.findByRole("dialog", { name: "Historial de Carlos Gómez" });
-    await waitFor(() => expect(within(dialog).getAllByRole("listitem")).toHaveLength(1));
+    await waitFor(() => expect(within(dialog).getAllByRole("listitem")).toHaveLength(2));
     expect(within(dialog).getByText("Nota nueva: 12.50")).toBeInTheDocument();
     // Filtrado por estudiante: no repite su nombre en cada cambio
     expect(within(dialog).queryByText("Carlos Gómez")).not.toBeInTheDocument();
@@ -189,7 +214,7 @@ describe("coordinación", () => {
 
     expect(await screen.findByRole("heading", { name: "Historial de notas" })).toBeInTheDocument();
     const list = await screen.findByRole("list", { name: "Historial de notas" });
-    expect(within(list).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(list).getAllByRole("listitem")).toHaveLength(4);
 
     await user.selectOptions(screen.getByLabelText("Filtrar el historial por estudiante"), "7");
     await waitFor(() =>

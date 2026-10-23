@@ -9,16 +9,27 @@ import { termName, termNumbers } from "@/lib/grades";
 
 const isXlsx = (file: File) => file.name.toLowerCase().endsWith(".xlsx");
 
-/** Subir un Excel de notas: materia, lapso opcional y archivo .xlsx */
-export function UploadForm({ defaultSubject }: { defaultSubject?: number }) {
+/** Valor del selector: materia y sección ("12:3") */
+const classKey = (subjectId: number, sectionId: number) => `${subjectId}:${sectionId}`;
+
+/** Subir un Excel de notas: materia (en una de sus secciones), lapso opcional y archivo .xlsx */
+export function UploadForm({
+  defaultSubject,
+  defaultSection,
+}: {
+  defaultSubject?: number;
+  defaultSection?: number;
+}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const subjects = useQuery(teacherSubjectsQuery);
   const settings = useAcademicSettings();
   const inputId = useId();
-  const [subjectId, setSubjectId] = useState(defaultSubject ? String(defaultSubject) : "");
+  const [choice, setChoice] = useState(
+    defaultSubject && defaultSection ? classKey(defaultSubject, defaultSection) : "",
+  );
   // Las materias de periodos cerrados no admiten notas nuevas: no se pueden elegir
-  const selected = subjects.data?.find((s) => String(s.id) === subjectId);
+  const selected = subjects.data?.find((s) => classKey(s.id, s.section.id) === choice);
   const closedSubject = selected?.semester.is_closed ? selected : undefined;
   const anyClosed = subjects.data?.some((s) => s.semester.is_closed) ?? false;
   // Los lapsos que se ofrecen son los del periodo de la materia elegida
@@ -31,7 +42,8 @@ export function UploadForm({ defaultSubject }: { defaultSubject?: number }) {
   const upload = useMutation({
     mutationFn: () => {
       if (!file) throw new Error("Selecciona un archivo .xlsx.");
-      return uploadImport(Number(subjectId), file, term ? Number(term) : null);
+      if (!selected) throw new Error("Selecciona una materia.");
+      return uploadImport(selected.id, selected.section.id, file, term ? Number(term) : null);
     },
     onSuccess: async (job) => {
       await queryClient.invalidateQueries({ queryKey: teacherKeys.jobs });
@@ -71,17 +83,21 @@ export function UploadForm({ defaultSubject }: { defaultSubject?: number }) {
             <span className="font-semibold text-sm">Materia</span>
             <select
               className="select w-full"
-              value={subjectId}
+              value={choice}
               onChange={(event) => {
-                setSubjectId(event.target.value);
+                setChoice(event.target.value);
                 setTerm("");
               }}
               disabled={!subjects.data}
             >
               <option value="">Selecciona una materia…</option>
               {subjects.data?.map((subject) => (
-                <option key={subject.id} value={subject.id} disabled={subject.semester.is_closed}>
-                  {subject.code} · {subject.name}
+                <option
+                  key={classKey(subject.id, subject.section.id)}
+                  value={classKey(subject.id, subject.section.id)}
+                  disabled={subject.semester.is_closed}
+                >
+                  {subject.code} · {subject.name} · Sección {subject.section.name}
                   {subject.semester.is_closed
                     ? ` (${settings.period_label.toLowerCase()} cerrado)`
                     : ""}
@@ -171,7 +187,7 @@ export function UploadForm({ defaultSubject }: { defaultSubject?: number }) {
         <button
           type="submit"
           className="btn btn-primary"
-          disabled={!subjectId || closedSubject != null || !file || upload.isPending}
+          disabled={!selected || closedSubject != null || !file || upload.isPending}
         >
           {upload.isPending && <span className="loading loading-spinner loading-sm" />}
           Subir y procesar

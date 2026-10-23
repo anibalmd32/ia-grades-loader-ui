@@ -598,6 +598,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/semesters/{semester_id}/sections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Secciones del periodo */
+        get: operations["list_sections_api_v1_semesters__semester_id__sections_get"];
+        put?: never;
+        /** Crear sección en el periodo */
+        post: operations["create_section_api_v1_semesters__semester_id__sections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sections/{section_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Eliminar sección (solo sin estudiantes ni profesores) */
+        delete: operations["delete_section_api_v1_sections__section_id__delete"];
+        options?: never;
+        head?: never;
+        /** Renombrar sección */
+        patch: operations["rename_section_api_v1_sections__section_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/sections/{section_id}/students": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Estudiantes de la sección */
+        get: operations["section_students_api_v1_sections__section_id__students_get"];
+        put?: never;
+        /**
+         * Asignar estudiantes a la sección
+         * @description Cada estudiante cursa el periodo en una sola sección: si estaba en otra, se cambia
+         *     (409 si ya tiene notas en el periodo). Para matricularlo en materias del periodo
+         *     necesita tener sección.
+         */
+        post: operations["assign_students_api_v1_sections__section_id__students_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sections/{section_id}/students/{student_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Quitar al estudiante de la sección (solo sin matrículas en el periodo) */
+        delete: operations["remove_student_api_v1_sections__section_id__students__student_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/students/{student_id}/sections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sección del estudiante en cada periodo */
+        get: operations["student_sections_api_v1_students__student_id__sections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/subjects": {
         parameters: {
             query?: never;
@@ -663,12 +756,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Materias del profesor */
+        /** Materias (y secciones) del profesor */
         get: operations["get_teacher_subjects_api_v1_teachers__teacher_id__subjects_get"];
         /**
-         * Asignar materias al profesor
-         * @description Envía la lista completa de materias: las que no estén se desasignan.
-         *     Una lista vacía quita todas.
+         * Asignar materias al profesor en sus secciones
+         * @description Envía la lista completa de (materia, sección): las que no estén se desasignan. Una
+         *     lista vacía quita todas. La sección debe ser del periodo de la materia (422) y cada
+         *     materia tiene un solo profesor por sección (409 si ya la imparte otro).
          */
         put: operations["set_teacher_subjects_api_v1_teachers__teacher_id__subjects_put"];
         post?: never;
@@ -685,7 +779,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Profesores de la materia */
+        /** Profesor de la materia en cada sección */
         get: operations["get_subject_teachers_api_v1_subjects__subject_id__teachers_get"];
         put?: never;
         post?: never;
@@ -763,7 +857,8 @@ export interface paths {
         };
         /**
          * Mis materias
-         * @description Materias asignadas con el número de estudiantes y de notas cargadas por lapso.
+         * @description Materias asignadas, una por cada sección en la que las imparte, con el número de
+         *     estudiantes de la sección y de notas cargadas por lapso.
          */
         get: operations["my_subjects_api_v1_teacher_subjects_get"];
         put?: never;
@@ -774,7 +869,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/teacher/subjects/{subject_id}/grades": {
+    "/api/v1/teacher/subjects/{subject_id}/sections/{section_id}/grades": {
         parameters: {
             query?: never;
             header?: never;
@@ -782,24 +877,28 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Estudiantes y notas de una materia
-         * @description Lista los estudiantes matriculados con su nota de cada lapso (null si falta).
+         * Estudiantes y notas de una materia en una sección
+         * @description Lista los estudiantes de la sección matriculados en la materia con su nota de cada
+         *     lapso (null si falta; `absent` si fue inasistente).
          */
-        get: operations["subject_grades_api_v1_teacher_subjects__subject_id__grades_get"];
+        get: operations["subject_grades_api_v1_teacher_subjects__subject_id__sections__section_id__grades_get"];
         /**
          * Cargar o corregir notas
-         * @description Envía solo las notas que cambian. `value: null` borra la nota de ese lapso.
+         * @description Envía solo las notas que cambian. `value: null` borra la nota de ese lapso y
+         *     `absent: true` (sin `value`) marca al estudiante como inasistente (cuenta con la nota
+         *     mínima). En un lapso con plan de evaluación solo se puede marcar inasistente: lo queda
+         *     en cada evaluación del lapso.
          *
-         *     Es todo o nada: si algún estudiante no está matriculado (404) o alguna nota o lapso no
-         *     cumple la configuración académica (422) no se guarda ninguna. Si el periodo de la
-         *     materia está cerrado responde 409.
+         *     Es todo o nada: si algún estudiante no está matriculado en la sección (404) o alguna
+         *     nota o lapso no cumple la configuración académica (422) no se guarda ninguna. Si el
+         *     periodo de la materia está cerrado responde 409.
          *
          *     Cada estudiante con notas nuevas o corregidas recibe un aviso (`/student/notifications`).
          *
          *     Si las notas salen de una importación, envía su `import_job_id` para marcarla como
          *     confirmada (debe ser de esta materia y estar en `done`; si no, 409).
          */
-        put: operations["save_subject_grades_api_v1_teacher_subjects__subject_id__grades_put"];
+        put: operations["save_subject_grades_api_v1_teacher_subjects__subject_id__sections__section_id__grades_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -807,7 +906,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/teacher/subjects/{subject_id}/grades/export": {
+    "/api/v1/teacher/subjects/{subject_id}/sections/{section_id}/grades/export": {
         parameters: {
             query?: never;
             header?: never;
@@ -817,10 +916,10 @@ export interface paths {
         /**
          * Descargar las notas de la materia en Excel
          * @description Hoja «Planilla» con la nota de cada lapso, el promedio, la definitiva y la situación
-         *     de cada estudiante, y una hoja más por cada lapso con plan de evaluación (notas de cada
-         *     evaluación, acumulado y nota del lapso). También en periodos cerrados.
+         *     de cada estudiante de la sección, y una hoja más por cada lapso con plan de evaluación
+         *     (notas de cada evaluación, acumulado y nota del lapso). También en periodos cerrados.
          */
-        get: operations["export_subject_grades_api_v1_teacher_subjects__subject_id__grades_export_get"];
+        get: operations["export_subject_grades_api_v1_teacher_subjects__subject_id__sections__section_id__grades_export_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -829,7 +928,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/teacher/subjects/{subject_id}/grade-history": {
+    "/api/v1/teacher/subjects/{subject_id}/sections/{section_id}/grade-history": {
         parameters: {
             query?: never;
             header?: never;
@@ -838,10 +937,11 @@ export interface paths {
         };
         /**
          * Historial de cambios de notas
-         * @description Altas, correcciones y borrados de notas de la materia, del más reciente al más
-         *     antiguo, con quién los hizo y si fueron a mano o desde una importación de Excel.
+         * @description Altas, correcciones y borrados de notas de la materia en la sección, del más
+         *     reciente al más antiguo, con quién los hizo y si fueron a mano o desde una importación de
+         *     Excel.
          */
-        get: operations["subject_grade_history_api_v1_teacher_subjects__subject_id__grade_history_get"];
+        get: operations["subject_grade_history_api_v1_teacher_subjects__subject_id__sections__section_id__grade_history_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -850,7 +950,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/teacher/subjects/{subject_id}/grades/import": {
+    "/api/v1/teacher/subjects/{subject_id}/sections/{section_id}/grades/import": {
         parameters: {
             query?: never;
             header?: never;
@@ -865,10 +965,12 @@ export interface paths {
          *     archivo en segundo plano. Consulta `GET /teacher/import-jobs/{job_id}` hasta que
          *     `status` sea `done` (o `failed`).
          *
-         *     El resultado es una previsualización: **no se guarda nada**. Envía las filas que
-         *     quieras guardar (ok o warning, ya corregidas) a `PUT /teacher/subjects/{id}/grades`.
+         *     El resultado es una previsualización con los estudiantes de la sección: **no se guarda
+         *     nada**. Envía las filas que quieras guardar (ok o warning, ya corregidas) a
+         *     `PUT /teacher/subjects/{id}/sections/{section_id}/grades`. Las celdas «I», «NP»,
+         *     «Inasistente»... se leen como inasistencias.
          */
-        post: operations["enqueue_grades_import_api_v1_teacher_subjects__subject_id__grades_import_post"];
+        post: operations["enqueue_grades_import_api_v1_teacher_subjects__subject_id__sections__section_id__grades_import_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -909,7 +1011,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/teacher/subjects/{subject_id}/evaluations": {
+    "/api/v1/teacher/subjects/{subject_id}/sections/{section_id}/evaluations": {
         parameters: {
             query?: never;
             header?: never;
@@ -917,25 +1019,25 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Plan de evaluación de la materia
+         * Plan de evaluación de la materia en la sección
          * @description Evaluaciones de cada lapso con su porcentaje. Un lapso con evaluaciones calcula su
          *     nota a partir de ellas cuando sus porcentajes suman 100 %.
          */
-        get: operations["evaluation_plan_api_v1_teacher_subjects__subject_id__evaluations_get"];
+        get: operations["evaluation_plan_api_v1_teacher_subjects__subject_id__sections__section_id__evaluations_get"];
         put?: never;
         /**
          * Añadir una evaluación
          * @description Los porcentajes de un lapso no pueden pasar del 100 % (422). La primera evaluación
          *     de un lapso exige que no tenga notas cargadas directamente (409).
          */
-        post: operations["create_evaluation_api_v1_teacher_subjects__subject_id__evaluations_post"];
+        post: operations["create_evaluation_api_v1_teacher_subjects__subject_id__sections__section_id__evaluations_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/teacher/subjects/{subject_id}/evaluations/{evaluation_id}": {
+    "/api/v1/teacher/subjects/{subject_id}/sections/{section_id}/evaluations/{evaluation_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -950,17 +1052,17 @@ export interface paths {
          * @description Borra también sus notas y recalcula la nota del lapso. Si era la última del lapso,
          *     este vuelve a cargarse directamente (queda sin notas).
          */
-        delete: operations["delete_evaluation_api_v1_teacher_subjects__subject_id__evaluations__evaluation_id__delete"];
+        delete: operations["delete_evaluation_api_v1_teacher_subjects__subject_id__sections__section_id__evaluations__evaluation_id__delete"];
         options?: never;
         head?: never;
         /**
          * Modificar una evaluación
          * @description Cambiar el porcentaje recalcula la nota del lapso de todos los estudiantes.
          */
-        patch: operations["update_evaluation_api_v1_teacher_subjects__subject_id__evaluations__evaluation_id__patch"];
+        patch: operations["update_evaluation_api_v1_teacher_subjects__subject_id__sections__section_id__evaluations__evaluation_id__patch"];
         trace?: never;
     };
-    "/api/v1/teacher/subjects/{subject_id}/terms/{term}/evaluation-grades": {
+    "/api/v1/teacher/subjects/{subject_id}/sections/{section_id}/terms/{term}/evaluation-grades": {
         parameters: {
             query?: never;
             header?: never;
@@ -968,15 +1070,16 @@ export interface paths {
             cookie?: never;
         };
         /** Notas de las evaluaciones de un lapso */
-        get: operations["term_evaluation_grades_api_v1_teacher_subjects__subject_id__terms__term__evaluation_grades_get"];
+        get: operations["term_evaluation_grades_api_v1_teacher_subjects__subject_id__sections__section_id__terms__term__evaluation_grades_get"];
         /**
          * Calificar evaluaciones de un lapso
-         * @description Envía solo las notas que cambian (`value: null` borra). Todo o nada: 404 si una
-         *     evaluación no es de ese lapso o un estudiante no está matriculado, 422 si una nota no
-         *     cumple la escala y 409 si el periodo está cerrado. La nota del lapso se recalcula y cada
-         *     estudiante con notas nuevas recibe un aviso.
+         * @description Envía solo las notas que cambian (`value: null` borra; `absent: true` sin `value`
+         *     marca al estudiante como inasistente en esa evaluación, con la nota mínima). Todo o
+         *     nada: 404 si una evaluación no es de ese lapso o un estudiante no está matriculado en la
+         *     sección, 422 si una nota no cumple la escala y 409 si el periodo está cerrado. La nota
+         *     del lapso se recalcula y cada estudiante con notas nuevas recibe un aviso.
          */
-        put: operations["save_term_evaluation_grades_api_v1_teacher_subjects__subject_id__terms__term__evaluation_grades_put"];
+        put: operations["save_term_evaluation_grades_api_v1_teacher_subjects__subject_id__sections__section_id__terms__term__evaluation_grades_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -984,7 +1087,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/teacher/subjects/{subject_id}/terms/{term}/evaluation-grades/export": {
+    "/api/v1/teacher/subjects/{subject_id}/sections/{section_id}/terms/{term}/evaluation-grades/export": {
         parameters: {
             query?: never;
             header?: never;
@@ -993,10 +1096,10 @@ export interface paths {
         };
         /**
          * Descargar las notas de las evaluaciones de un lapso en Excel
-         * @description Una fila por estudiante con la nota de cada evaluación del lapso, lo acumulado y la
-         *     nota del lapso (si ya se puede calcular). También en periodos cerrados.
+         * @description Una fila por estudiante de la sección con la nota de cada evaluación del lapso, lo
+         *     acumulado y la nota del lapso (si ya se puede calcular). También en periodos cerrados.
          */
-        get: operations["export_term_evaluation_grades_api_v1_teacher_subjects__subject_id__terms__term__evaluation_grades_export_get"];
+        get: operations["export_term_evaluation_grades_api_v1_teacher_subjects__subject_id__sections__section_id__terms__term__evaluation_grades_export_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1482,8 +1585,8 @@ export interface components {
              */
             current_password?: string | null;
         };
-        /** Body_enqueue_grades_import_api_v1_teacher_subjects__subject_id__grades_import_post */
-        Body_enqueue_grades_import_api_v1_teacher_subjects__subject_id__grades_import_post: {
+        /** Body_enqueue_grades_import_api_v1_teacher_subjects__subject_id__sections__section_id__grades_import_post */
+        Body_enqueue_grades_import_api_v1_teacher_subjects__subject_id__sections__section_id__grades_import_post: {
             /**
              * File
              * @description Planilla .xlsx de la materia
@@ -1696,9 +1799,15 @@ export interface components {
             evaluation_id: number;
             /**
              * Value
-             * @description null borra la nota
+             * @description null borra la nota (o va con `absent: true`)
              */
-            value: (number | string) | null;
+            value?: (number | string) | null;
+            /**
+             * Absent
+             * @description No se presentó a la evaluación: inasistente, sin `value` (cuenta con la nota mínima)
+             * @default false
+             */
+            absent: boolean;
         };
         /** EvaluationGradesUpdate */
         EvaluationGradesUpdate: {
@@ -1708,6 +1817,7 @@ export interface components {
         /** EvaluationPlan */
         EvaluationPlan: {
             subject: components["schemas"]["SubjectRead"];
+            section: components["schemas"]["SectionRead"];
             /**
              * Terms
              * @description Un elemento por lapso. Los lapsos sin evaluaciones se cargan directamente
@@ -1761,6 +1871,12 @@ export interface components {
              * @description null si aún no se ha calificado
              */
             value: number | null;
+            /**
+             * Absent
+             * @description Inasistente: no se presentó. Cuenta con la nota mínima de la escala (`value`)
+             * @default false
+             */
+            absent: boolean;
         };
         /**
          * GradeChangeRead
@@ -1788,6 +1904,16 @@ export interface components {
              */
             new_value: number | null;
             /**
+             * Old Absent
+             * @description Antes figuraba como inasistente
+             */
+            old_absent: boolean;
+            /**
+             * New Absent
+             * @description Queda como inasistente
+             */
+            new_absent: boolean;
+            /**
              * Changed By
              * @description Quién hizo el cambio (null si ya no existe)
              */
@@ -1813,9 +1939,15 @@ export interface components {
             term: number;
             /**
              * Value
-             * @description null borra la nota de ese lapso
+             * @description null borra la nota de ese lapso (o va con `absent: true`)
              */
-            value: (number | string) | null;
+            value?: (number | string) | null;
+            /**
+             * Absent
+             * @description Marca al estudiante como inasistente en el lapso (sin `value`: cuenta con la nota mínima). En un lapso con plan de evaluación lo marca inasistente en cada evaluación
+             * @default false
+             */
+            absent: boolean;
         };
         /** GradesUpdate */
         GradesUpdate: {
@@ -1879,6 +2011,8 @@ export interface components {
             id: string;
             /** Subject Id */
             subject_id: number;
+            /** Section Id */
+            section_id: number;
             /** File Name */
             file_name: string;
             /** @description pending = en cola; processing = la IA lo está leyendo; done = previsualización lista; failed = ver `error` */
@@ -1901,7 +2035,7 @@ export interface components {
             attempts: number;
             /**
              * Confirmed At
-             * @description Cuándo se guardaron las notas de esta importación; null = sin confirmar. Se marca al enviar `import_job_id` en `PUT /teacher/subjects/{id}/grades`
+             * @description Cuándo se guardaron las notas de esta importación; null = sin confirmar. Se marca al enviar `import_job_id` en `PUT /teacher/subjects/{id}/sections/{section_id}/grades`
              */
             confirmed_at: string | null;
             /** @description Previsualización, cuando status = done */
@@ -1913,6 +2047,8 @@ export interface components {
             id: string;
             /** Subject Id */
             subject_id: number;
+            /** Section Id */
+            section_id: number;
             /** File Name */
             file_name: string;
             /** @description pending = en cola; processing = la IA lo está leyendo; done = previsualización lista; failed = ver `error` */
@@ -1935,13 +2071,14 @@ export interface components {
             attempts: number;
             /**
              * Confirmed At
-             * @description Cuándo se guardaron las notas de esta importación; null = sin confirmar. Se marca al enviar `import_job_id` en `PUT /teacher/subjects/{id}/grades`
+             * @description Cuándo se guardaron las notas de esta importación; null = sin confirmar. Se marca al enviar `import_job_id` en `PUT /teacher/subjects/{id}/sections/{section_id}/grades`
              */
             confirmed_at: string | null;
         };
         /** ImportPreview */
         ImportPreview: {
             subject: components["schemas"]["SubjectRead"];
+            section?: components["schemas"]["SectionRead"] | null;
             /** Rows */
             rows: components["schemas"]["ImportRow"][];
             summary: components["schemas"]["ImportSummary"];
@@ -1984,10 +2121,22 @@ export interface components {
              */
             value: number | null;
             /**
+             * Absent
+             * @description La planilla lo marca como inasistente («I», «NP»...)
+             * @default false
+             */
+            absent: boolean;
+            /**
              * Current Value
              * @description Nota actual en el sistema (se sobrescribirá)
              */
             current_value: number | null;
+            /**
+             * Current Absent
+             * @description Hoy figura como inasistente
+             * @default false
+             */
+            current_absent: boolean;
             /**
              * Status
              * @description ok = lista; warning = revisar (p. ej. identificado por nombre); error = no se puede guardar
@@ -2140,6 +2289,62 @@ export interface components {
          * @enum {string}
          */
         Role: "super_admin" | "coordinator" | "teacher" | "student";
+        /** SectionCreate */
+        SectionCreate: {
+            /**
+             * Name
+             * @example A
+             */
+            name: string;
+        };
+        /** SectionRead */
+        SectionRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Semester Id */
+            semester_id: number;
+            /**
+             * Students Count
+             * @description Estudiantes asignados. Solo en el listado y el detalle; null dentro de otras respuestas.
+             */
+            students_count?: number | null;
+        };
+        /** SectionStudentsRequest */
+        SectionStudentsRequest: {
+            /**
+             * Student Ids
+             * @description Estudiantes a asignar. Si ya estaban en otra sección del periodo, se cambian (salvo que ya tengan notas en el periodo: 409)
+             */
+            student_ids: number[];
+        };
+        /** SectionStudentsResult */
+        SectionStudentsResult: {
+            /**
+             * Added
+             * @description Asignados por primera vez en el periodo
+             */
+            added: number;
+            /**
+             * Moved
+             * @description Cambiados desde otra sección del periodo
+             */
+            moved: number;
+            /**
+             * Already In Section
+             * @description Ya estaban en la sección
+             */
+            already_in_section: number;
+        };
+        /** SectionUpdate */
+        SectionUpdate: {
+            /**
+             * Name
+             * @example A
+             */
+            name: string;
+        };
         /** SemesterAverage */
         SemesterAverage: {
             semester: components["schemas"]["SemesterRead"];
@@ -2334,6 +2539,12 @@ export interface components {
              * @description null si aún no se ha calificado
              */
             value: number | null;
+            /**
+             * Absent
+             * @description Inasistente: no se presentó. Cuenta con la nota mínima de la escala (`value`)
+             * @default false
+             */
+            absent: boolean;
         };
         /** StudentEvaluationGrades */
         StudentEvaluationGrades: {
@@ -2353,6 +2564,12 @@ export interface components {
              * @description Nota del lapso: solo con el plan al 100 % y todo calificado
              */
             term_grade: number | null;
+            /**
+             * Term Absent
+             * @description Inasistente en todas las evaluaciones del lapso
+             * @default false
+             */
+            term_absent: boolean;
         };
         /** StudentGrades */
         StudentGrades: {
@@ -2406,6 +2623,11 @@ export interface components {
              * @description Materias en las que se matricula
              */
             subject_codes: string[];
+            /**
+             * Section
+             * @description Sección que se le asigna en el periodo de sus materias (si aún no tenía)
+             */
+            section?: string | null;
             /**
              * Status
              * @description new = se crea; existing = ya existe y solo se matricula; error = se omite
@@ -2466,14 +2688,34 @@ export interface components {
              */
             semesters: components["schemas"]["SemesterAverage"][];
         };
+        /** StudentSectionRead */
+        StudentSectionRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Semester Id */
+            semester_id: number;
+            /**
+             * Students Count
+             * @description Estudiantes asignados. Solo en el listado y el detalle; null dentro de otras respuestas.
+             */
+            students_count?: number | null;
+            semester: components["schemas"]["SemesterRead"];
+        };
         /** StudentSubjectGrades */
         StudentSubjectGrades: {
             subject: components["schemas"]["SubjectRead"];
             /**
-             * Teachers
-             * @description Profesores que imparten la materia
+             * Section
+             * @description Sección en la que cursa el periodo
              */
-            teachers: string[];
+            section: string | null;
+            /**
+             * Teacher
+             * @description Profesor de la materia en su sección (null si aún no tiene)
+             */
+            teacher: string | null;
             /**
              * Grades
              * @description Siempre un elemento por lapso, en orden
@@ -2535,6 +2777,7 @@ export interface components {
         /** SubjectGrades */
         SubjectGrades: {
             subject: components["schemas"]["SubjectRead"];
+            section: components["schemas"]["SectionRead"];
             /**
              * Computed Terms
              * @description Lapsos con plan de evaluación: su nota se calcula con las evaluaciones y no se carga directamente (PUT /grades responde 422)
@@ -2586,6 +2829,11 @@ export interface components {
              */
             students_count?: number | null;
         };
+        /** SubjectTeacherRead */
+        SubjectTeacherRead: {
+            section: components["schemas"]["SectionRead"];
+            teacher: components["schemas"]["UserRead"];
+        };
         /** SubjectUpdate */
         SubjectUpdate: {
             /** Semester Id */
@@ -2595,7 +2843,22 @@ export interface components {
             /** Name */
             name?: string | null;
         };
-        /** TeacherSubject */
+        /** TeacherAssignment */
+        TeacherAssignment: {
+            /** Subject Id */
+            subject_id: number;
+            /** Section Id */
+            section_id: number;
+        };
+        /** TeacherAssignmentRead */
+        TeacherAssignmentRead: {
+            subject: components["schemas"]["SubjectRead"];
+            section: components["schemas"]["SectionRead"];
+        };
+        /**
+         * TeacherSubject
+         * @description Materia que imparte el profesor en una de sus secciones (`id` es el de la materia).
+         */
         TeacherSubject: {
             /** Id */
             id: number;
@@ -2611,6 +2874,7 @@ export interface components {
             teachers_count?: number | null;
             /** Students Count */
             students_count: number;
+            section: components["schemas"]["SectionRead"];
             /**
              * Grades Count
              * @description Notas cargadas en cada lapso (siempre todos los lapsos configurados)
@@ -2627,10 +2891,10 @@ export interface components {
         /** TeacherSubjectsUpdate */
         TeacherSubjectsUpdate: {
             /**
-             * Subject Ids
-             * @description Conjunto completo de materias del profesor (reemplaza el anterior)
+             * Assignments
+             * @description Conjunto completo de (materia, sección) que imparte el profesor (reemplaza el anterior). Cada materia tiene un solo profesor por sección: si otro ya la imparte en esa sección responde 409
              */
-            subject_ids: number[];
+            assignments: components["schemas"]["TeacherAssignment"][];
         };
         /** TelegramLinkInvite */
         TelegramLinkInvite: {
@@ -2663,6 +2927,7 @@ export interface components {
         /** TermEvaluationGrades */
         TermEvaluationGrades: {
             subject: components["schemas"]["SubjectRead"];
+            section: components["schemas"]["SectionRead"];
             plan: components["schemas"]["TermPlan"];
             /** Evaluations */
             evaluations: components["schemas"]["EvaluationRead"][];
@@ -2681,6 +2946,12 @@ export interface components {
              * @description null si aún no se ha cargado
              */
             value: number | null;
+            /**
+             * Absent
+             * @description Inasistente: no se presentó. Cuenta con la nota mínima de la escala (`value`)
+             * @default false
+             */
+            absent: boolean;
         };
         /** TermPlan */
         TermPlan: {
@@ -3979,6 +4250,263 @@ export interface operations {
             };
         };
     };
+    list_sections_api_v1_semesters__semester_id__sections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                semester_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_section_api_v1_semesters__semester_id__sections_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                semester_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SectionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_section_api_v1_sections__section_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                section_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_section_api_v1_sections__section_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                section_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SectionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    section_students_api_v1_sections__section_id__students_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                section_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_students_api_v1_sections__section_id__students_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                section_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SectionStudentsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionStudentsResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_student_api_v1_sections__section_id__students__student_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                section_id: number;
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    student_sections_api_v1_students__student_id__sections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentSectionRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_subjects_api_v1_subjects_get: {
         parameters: {
             query?: {
@@ -4195,7 +4723,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SubjectRead"][];
+                    "application/json": components["schemas"]["TeacherAssignmentRead"][];
                 };
             };
             /** @description Validation Error */
@@ -4230,7 +4758,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SubjectRead"][];
+                    "application/json": components["schemas"]["TeacherAssignmentRead"][];
                 };
             };
             /** @description Validation Error */
@@ -4261,7 +4789,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserRead"][];
+                    "application/json": components["schemas"]["SubjectTeacherRead"][];
                 };
             };
             /** @description Validation Error */
@@ -4457,12 +4985,13 @@ export interface operations {
             };
         };
     };
-    subject_grades_api_v1_teacher_subjects__subject_id__grades_get: {
+    subject_grades_api_v1_teacher_subjects__subject_id__sections__section_id__grades_get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 subject_id: number;
+                section_id: number;
             };
             cookie?: never;
         };
@@ -4488,12 +5017,13 @@ export interface operations {
             };
         };
     };
-    save_subject_grades_api_v1_teacher_subjects__subject_id__grades_put: {
+    save_subject_grades_api_v1_teacher_subjects__subject_id__sections__section_id__grades_put: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 subject_id: number;
+                section_id: number;
             };
             cookie?: never;
         };
@@ -4523,12 +5053,13 @@ export interface operations {
             };
         };
     };
-    export_subject_grades_api_v1_teacher_subjects__subject_id__grades_export_get: {
+    export_subject_grades_api_v1_teacher_subjects__subject_id__sections__section_id__grades_export_get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 subject_id: number;
+                section_id: number;
             };
             cookie?: never;
         };
@@ -4554,7 +5085,7 @@ export interface operations {
             };
         };
     };
-    subject_grade_history_api_v1_teacher_subjects__subject_id__grade_history_get: {
+    subject_grade_history_api_v1_teacher_subjects__subject_id__sections__section_id__grade_history_get: {
         parameters: {
             query?: {
                 /** @description Solo los de este estudiante */
@@ -4565,6 +5096,7 @@ export interface operations {
             header?: never;
             path: {
                 subject_id: number;
+                section_id: number;
             };
             cookie?: never;
         };
@@ -4590,18 +5122,19 @@ export interface operations {
             };
         };
     };
-    enqueue_grades_import_api_v1_teacher_subjects__subject_id__grades_import_post: {
+    enqueue_grades_import_api_v1_teacher_subjects__subject_id__sections__section_id__grades_import_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 subject_id: number;
+                section_id: number;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_enqueue_grades_import_api_v1_teacher_subjects__subject_id__grades_import_post"];
+                "multipart/form-data": components["schemas"]["Body_enqueue_grades_import_api_v1_teacher_subjects__subject_id__sections__section_id__grades_import_post"];
             };
         };
         responses: {
@@ -4629,6 +5162,7 @@ export interface operations {
         parameters: {
             query?: {
                 subject_id?: number | null;
+                section_id?: number | null;
                 limit?: number;
             };
             header?: never;
@@ -4688,12 +5222,13 @@ export interface operations {
             };
         };
     };
-    evaluation_plan_api_v1_teacher_subjects__subject_id__evaluations_get: {
+    evaluation_plan_api_v1_teacher_subjects__subject_id__sections__section_id__evaluations_get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 subject_id: number;
+                section_id: number;
             };
             cookie?: never;
         };
@@ -4719,12 +5254,13 @@ export interface operations {
             };
         };
     };
-    create_evaluation_api_v1_teacher_subjects__subject_id__evaluations_post: {
+    create_evaluation_api_v1_teacher_subjects__subject_id__sections__section_id__evaluations_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 subject_id: number;
+                section_id: number;
             };
             cookie?: never;
         };
@@ -4754,12 +5290,13 @@ export interface operations {
             };
         };
     };
-    delete_evaluation_api_v1_teacher_subjects__subject_id__evaluations__evaluation_id__delete: {
+    delete_evaluation_api_v1_teacher_subjects__subject_id__sections__section_id__evaluations__evaluation_id__delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 subject_id: number;
+                section_id: number;
                 evaluation_id: number;
             };
             cookie?: never;
@@ -4784,12 +5321,13 @@ export interface operations {
             };
         };
     };
-    update_evaluation_api_v1_teacher_subjects__subject_id__evaluations__evaluation_id__patch: {
+    update_evaluation_api_v1_teacher_subjects__subject_id__sections__section_id__evaluations__evaluation_id__patch: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 subject_id: number;
+                section_id: number;
                 evaluation_id: number;
             };
             cookie?: never;
@@ -4820,12 +5358,13 @@ export interface operations {
             };
         };
     };
-    term_evaluation_grades_api_v1_teacher_subjects__subject_id__terms__term__evaluation_grades_get: {
+    term_evaluation_grades_api_v1_teacher_subjects__subject_id__sections__section_id__terms__term__evaluation_grades_get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 subject_id: number;
+                section_id: number;
                 /** @description Lapso */
                 term: number;
             };
@@ -4853,12 +5392,13 @@ export interface operations {
             };
         };
     };
-    save_term_evaluation_grades_api_v1_teacher_subjects__subject_id__terms__term__evaluation_grades_put: {
+    save_term_evaluation_grades_api_v1_teacher_subjects__subject_id__sections__section_id__terms__term__evaluation_grades_put: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 subject_id: number;
+                section_id: number;
                 /** @description Lapso */
                 term: number;
             };
@@ -4890,12 +5430,13 @@ export interface operations {
             };
         };
     };
-    export_term_evaluation_grades_api_v1_teacher_subjects__subject_id__terms__term__evaluation_grades_export_get: {
+    export_term_evaluation_grades_api_v1_teacher_subjects__subject_id__sections__section_id__terms__term__evaluation_grades_export_get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 subject_id: number;
+                section_id: number;
                 /** @description Lapso */
                 term: number;
             };

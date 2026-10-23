@@ -30,14 +30,21 @@ import { ClosedPeriodNotice } from "@/components/ui/closed-period";
 import { DownloadButton } from "@/components/ui/download-button";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
-import { isTerm, termName } from "@/lib/grades";
+import { ABSENT_SHORT, isTerm, termName } from "@/lib/grades";
 
-export const Route = createFileRoute("/_app/teacher/evaluations/$subjectId")({
+const Id = v.pipe(v.string(), v.toNumber(), v.integer());
+
+// Cada sección tiene su propio plan de evaluación
+export const Route = createFileRoute("/_app/teacher/evaluations/$subjectId/$sectionId")({
   params: {
-    parse: ({ subjectId }) => ({
-      subjectId: v.parse(v.pipe(v.string(), v.toNumber(), v.integer()), subjectId),
+    parse: ({ subjectId, sectionId }) => ({
+      subjectId: v.parse(Id, subjectId),
+      sectionId: v.parse(Id, sectionId),
     }),
-    stringify: ({ subjectId }) => ({ subjectId: String(subjectId) }),
+    stringify: ({ subjectId, sectionId }) => ({
+      subjectId: String(subjectId),
+      sectionId: String(sectionId),
+    }),
   },
   validateSearch: v.object({
     // Lapso visible; uno fuera de las reglas de la materia se trata como el primero
@@ -55,8 +62,8 @@ export const Route = createFileRoute("/_app/teacher/evaluations/$subjectId")({
 });
 
 function EvaluationsPage() {
-  const { subjectId } = Route.useParams();
-  const query = useQuery(evaluationPlanQuery(subjectId));
+  const { subjectId, sectionId } = Route.useParams();
+  const query = useQuery(evaluationPlanQuery(subjectId, sectionId));
 
   if (query.error || !query.data) {
     return (
@@ -82,7 +89,8 @@ type FormState = { evaluation?: Evaluation } | null;
 function Evaluations({ plan }: { plan: EvaluationPlan }) {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { subject } = plan;
+  const { subject, section } = plan;
+  const params = { subjectId: subject.id, sectionId: section.id };
   // Reglas del periodo de la materia (congeladas si se cerró alguna vez)
   const settings = useSubjectRules(subject.semester);
   const term = isTerm(search.term, settings) ? search.term : 1;
@@ -90,7 +98,7 @@ function Evaluations({ plan }: { plan: EvaluationPlan }) {
   const termPlan = plan.terms.find((t) => t.term === term);
   const evaluations = plan.evaluations.filter((e) => e.term === term);
   const [form, setForm] = useState<FormState>(null);
-  const remove = useDeleteEvaluation(subject.id, settings);
+  const remove = useDeleteEvaluation(subject.id, section.id, settings);
 
   /** Porcentaje ya repartido en el lapso, sin contar la evaluación indicada */
   const used = (exclude?: Evaluation) =>
@@ -100,12 +108,12 @@ function Evaluations({ plan }: { plan: EvaluationPlan }) {
     <>
       <PageHeader
         title={`${subject.code} · Plan de evaluación`}
-        description={`${subject.name} · ${settings.period_label} ${subject.semester.name}${closed ? " (cerrado)" : ""}`}
+        description={`${subject.name} · Sección ${section.name} · ${settings.period_label} ${subject.semester.name}${closed ? " (cerrado)" : ""}`}
         actions={
           <>
             <Link
-              to="/teacher/subjects/$subjectId"
-              params={{ subjectId: subject.id }}
+              to="/teacher/subjects/$subjectId/$sectionId"
+              params={params}
               className="btn btn-outline btn-primary"
             >
               <Table className="size-4" />
@@ -113,19 +121,22 @@ function Evaluations({ plan }: { plan: EvaluationPlan }) {
             </Link>
             <DownloadButton
               label="Descargar materia"
-              download={() => downloadSubjectGrades(subject.id)}
+              download={() => downloadSubjectGrades(subject.id, section.id)}
             />
           </>
         }
       />
       <PageBody>
         <BackLink
-          to="/teacher/subjects/$subjectId"
-          params={{ subjectId: subject.id }}
+          to="/teacher/subjects/$subjectId/$sectionId"
+          params={params}
           label="Planilla de notas"
         />
         <h2 className="font-bold text-xl lg:hidden">
           {subject.code} · {subject.name}
+          <span className="block font-normal text-base text-base-content/70">
+            Sección {section.name}
+          </span>
         </h2>
         {closed && (
           <ClosedPeriodNotice
@@ -189,6 +200,7 @@ function Evaluations({ plan }: { plan: EvaluationPlan }) {
           <TermGrades
             key={term}
             subjectId={subject.id}
+            sectionId={section.id}
             term={term}
             settings={settings}
             closed={closed}
@@ -198,6 +210,7 @@ function Evaluations({ plan }: { plan: EvaluationPlan }) {
       {form && (
         <EvaluationFormModal
           subjectId={subject.id}
+          sectionId={section.id}
           term={term}
           evaluation={form.evaluation}
           available={100 - used(form.evaluation)}
@@ -211,16 +224,18 @@ function Evaluations({ plan }: { plan: EvaluationPlan }) {
 
 function TermGrades({
   subjectId,
+  sectionId,
   term,
   settings,
   closed,
 }: {
   subjectId: number;
+  sectionId: number;
   term: number;
   settings: AcademicSettings;
   closed: boolean;
 }) {
-  const query = useQuery(termEvaluationGradesQuery(subjectId, term));
+  const query = useQuery(termEvaluationGradesQuery(subjectId, sectionId, term));
   if (query.error) return <ErrorState error={query.error} onRetry={() => query.refetch()} />;
   if (!query.data) return <LoadingState rows={4} />;
   if (query.data.students.length === 0) {
@@ -237,6 +252,7 @@ function TermGrades({
       key={query.data.evaluations.map((e) => e.id).join(",")}
       data={query.data}
       subjectId={subjectId}
+      sectionId={sectionId}
       term={term}
       settings={settings}
       closed={closed}
@@ -247,18 +263,20 @@ function TermGrades({
 function GradesEditor({
   data,
   subjectId,
+  sectionId,
   term,
   settings,
   closed,
 }: {
   data: TermEvaluationGrades;
   subjectId: number;
+  sectionId: number;
   term: number;
   settings: AcademicSettings;
   closed: boolean;
 }) {
   const drafts = useEvaluationDrafts(data, settings);
-  const save = useSaveEvaluationGrades(subjectId, term, drafts);
+  const save = useSaveEvaluationGrades(subjectId, sectionId, term, drafts);
   useUnsavedChangesGuard(drafts.pending);
   const canSave = drafts.changes.length > 0 && drafts.invalid.length === 0 && !save.isPending;
 
@@ -269,7 +287,7 @@ function GradesEditor({
         <div className="flex flex-wrap gap-2">
           <DownloadButton
             label={`Descargar ${termName(settings, term).toLowerCase()}`}
-            download={() => downloadTermEvaluationGrades(subjectId, term)}
+            download={() => downloadTermEvaluationGrades(subjectId, sectionId, term)}
           />
           {!closed && (
             <button
@@ -290,10 +308,13 @@ function GradesEditor({
         drafts={drafts}
         settings={settings}
         disabled={closed || save.isPending}
+        readOnly={closed}
       />
       <p className="text-base-content/70 text-xs">
         {settings.summary}. La nota del {termName(settings, term).toLowerCase()} es la suma de cada
-        nota por su porcentaje.{!closed && " Deja una celda vacía para borrar la nota."}
+        nota por su porcentaje.
+        {!closed &&
+          ` Deja una celda vacía para borrar la nota. Escribe «${ABSENT_SHORT}» o usa su botón si no se presentó (cuenta con la nota mínima).`}
       </p>
     </section>
   );

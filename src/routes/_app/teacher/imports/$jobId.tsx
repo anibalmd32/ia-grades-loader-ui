@@ -50,15 +50,17 @@ function ImportJobPage() {
   );
 }
 
-function useSubjectLabel(subjectId: number) {
+function useSubjectLabel(job: ImportJobRead) {
   const subjects = useQuery(teacherSubjectsQuery);
-  const subject = subjects.data?.find((s) => s.id === subjectId);
-  return subject ? `${subject.code} · ${subject.name}` : null;
+  const subject = subjects.data?.find(
+    (s) => s.id === job.subject_id && s.section.id === job.section_id,
+  );
+  return subject ? `${subject.code} · ${subject.name} · Sección ${subject.section.name}` : null;
 }
 
 /** En cola o procesando: la página se actualiza sola */
 function JobProgress({ job }: { job: ImportJobRead }) {
-  const subject = useSubjectLabel(job.subject_id);
+  const subject = useSubjectLabel(job);
   const processing = job.status === "processing";
   return (
     <section className="card card-border bg-base-100" aria-live="polite">
@@ -103,7 +105,7 @@ function FailedJob({ job }: { job: ImportJobRead }) {
         </p>
         <Link
           to="/teacher/imports"
-          search={{ subject: job.subject_id }}
+          search={{ subject: job.subject_id, section: job.section_id }}
           className="btn btn-primary w-fit"
         >
           Volver a intentar

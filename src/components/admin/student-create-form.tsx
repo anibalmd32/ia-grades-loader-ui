@@ -7,10 +7,13 @@ import * as v from "valibot";
 import {
   adminKeys,
   allSubjectsQuery,
+  assignSectionStudents,
   createStudent,
   enrollStudentInSubjects,
   groupBySemester,
+  type SemesterRead,
   type SubjectRead,
+  semesterSectionsQuery,
   subjectLabel,
 } from "@/api/queries/admin";
 import { useAcademicSettings } from "@/api/queries/settings";
@@ -49,6 +52,8 @@ export function StudentCreateForm() {
   const settings = useAcademicSettings();
   const documentFields = useDocumentFields();
   const [subjectIds, setSubjectIds] = useState<Set<number>>(new Set());
+  // Sección elegida en cada periodo de las materias marcadas (hace falta para matricular)
+  const [sectionBySemester, setSectionBySemester] = useState<Record<number, number>>({});
   const [formError, setFormError] = useState<string | null>(null);
 
   const toggle = (id: number) =>
@@ -69,6 +74,14 @@ export function StudentCreateForm() {
     validators: { onSubmit: StudentSchema },
     onSubmit: async ({ value }) => {
       setFormError(null);
+      const semesters = chosenSemesters(subjects.data?.items ?? [], subjectIds);
+      const missing = semesters.find((s) => !sectionBySemester[s.id]);
+      if (missing) {
+        setFormError(
+          `Elige la sección del ${settings.period_label.toLowerCase()} ${missing.name} para matricularlo.`,
+        );
+        return;
+      }
       let created: Awaited<ReturnType<typeof createStudent>>;
       try {
         created = await createStudent({
@@ -85,6 +98,9 @@ export function StudentCreateForm() {
       const { user, generated_password } = created;
       if (subjectIds.size > 0) {
         try {
+          for (const semester of semesters) {
+            await assignSectionStudents(sectionBySemester[semester.id] as number, [user.id]);
+          }
           await enrollStudentInSubjects(user.id, [...subjectIds]);
         } catch (error) {
           toast.error(
@@ -150,6 +166,15 @@ export function StudentCreateForm() {
             periodLabel={settings.period_label}
           />
         )}
+        {chosenSemesters(subjects.data?.items ?? [], subjectIds).map((semester) => (
+          <SectionChoice
+            key={semester.id}
+            semester={semester}
+            periodLabel={settings.period_label}
+            value={sectionBySemester[semester.id]}
+            onChange={(id) => setSectionBySemester((prev) => ({ ...prev, [semester.id]: id }))}
+          />
+        ))}
 
         <GeneratedPasswordNotice />
         <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -162,6 +187,55 @@ export function StudentCreateForm() {
         </div>
       </div>
     </form>
+  );
+}
+
+/** Periodos de las materias marcadas, en el orden de la lista */
+function chosenSemesters(subjects: SubjectRead[], selected: Set<number>): SemesterRead[] {
+  return groupBySemester(subjects.filter((s) => selected.has(s.id))).map((g) => g.semester);
+}
+
+/** Sección del estudiante en un periodo de sus materias: sin ella no se le puede matricular */
+function SectionChoice({
+  semester,
+  periodLabel,
+  value,
+  onChange,
+}: {
+  semester: SemesterRead;
+  periodLabel: string;
+  value: number | undefined;
+  onChange: (sectionId: number) => void;
+}) {
+  const sections = useQuery(semesterSectionsQuery(semester.id));
+  const id = useId();
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="font-semibold text-sm">
+        Sección en {periodLabel.toLowerCase()} {semester.name}
+      </label>
+      {sections.data && sections.data.length === 0 ? (
+        <p className="text-sm text-warning">
+          Este {periodLabel.toLowerCase()} no tiene secciones: créalas antes de matricular.
+        </p>
+      ) : (
+        <select
+          id={id}
+          className="select w-full sm:max-w-xs"
+          value={value ?? ""}
+          onChange={(event) => onChange(Number(event.target.value))}
+        >
+          <option value="" disabled>
+            Selecciona una sección…
+          </option>
+          {sections.data?.map((section) => (
+            <option key={section.id} value={section.id}>
+              Sección {section.name}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
   );
 }
 

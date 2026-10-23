@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { SemesterRead, SubjectRead, UserRead } from "@/api/queries/admin";
+import type { SectionRead, SemesterRead, SubjectRead, UserRead } from "@/api/queries/admin";
 import { API_URL } from "@/lib/config";
 import { makeUser, renderApp, signedInAs } from "./app";
 import { server } from "./server";
@@ -13,6 +13,8 @@ const s2026: SemesterRead = { id: 1, name: "2026-I", is_closed: false };
 const s2025: SemesterRead = { id: 2, name: "2025-II", is_closed: false };
 const mat: SubjectRead = { id: 10, code: "MAT-101", name: "Matemática I", semester: s2026 };
 const fis: SubjectRead = { id: 11, code: "FIS-101", name: "Física I", semester: s2026 };
+const secA: SectionRead = { id: 20, name: "A", semester_id: 1, students_count: 2 };
+const secB: SectionRead = { id: 21, name: "B", semester_id: 1, students_count: 0 };
 
 const teacher = makeUser({
   id: 5,
@@ -38,6 +40,13 @@ beforeEach(() => {
     http.get(`${API_URL}/subjects`, () => HttpResponse.json(page([mat, fis]))),
     http.get(`${API_URL}/teachers`, () => HttpResponse.json(page([teacher]))),
     http.get(`${API_URL}/students`, () => HttpResponse.json(page([student]))),
+    // Secciones: el 2026-I tiene A y B; el 2025-II ninguna
+    http.get(`${API_URL}/semesters/:id/sections`, ({ params }) =>
+      HttpResponse.json(params.id === "1" ? [secA, secB] : []),
+    ),
+    http.get(`${API_URL}/students/:id/sections`, () =>
+      HttpResponse.json([{ ...secA, semester: s2026 }]),
+    ),
   );
 });
 
@@ -157,36 +166,79 @@ describe("cuentas", () => {
     expect(await screen.findByTestId("generated-password")).toHaveTextContent("Nueva-123");
   });
 
-  it("asigna materias a un profesor (reemplaza el conjunto)", async () => {
+  it("asigna materias a un profesor por sección (reemplaza el conjunto)", async () => {
     let put: unknown;
     server.use(
       http.get(`${API_URL}/teachers/5`, () => HttpResponse.json(teacher)),
-      http.get(`${API_URL}/teachers/5/subjects`, () => HttpResponse.json([mat])),
+      http.get(`${API_URL}/teachers/5/subjects`, () =>
+        HttpResponse.json([{ subject: mat, section: secA }]),
+      ),
       http.put(`${API_URL}/teachers/5/subjects`, async ({ request }) => {
         put = await request.json();
-        return HttpResponse.json([mat, fis]);
+        return HttpResponse.json([
+          { subject: mat, section: secA },
+          { subject: fis, section: secB },
+        ]);
       }),
     );
     const user = userEvent.setup();
     renderApp("/admin/teachers/5");
 
-    const fisCheckbox = await screen.findByRole("checkbox", { name: "FIS-101 Física I" });
-    expect(screen.getByRole("checkbox", { name: "MAT-101 Matemática I" })).toBeChecked();
-    await user.click(fisCheckbox);
+    const fisB = await screen.findByRole("checkbox", { name: "FIS-101 Física I · Sección B" });
+    expect(
+      screen.getByRole("checkbox", { name: "MAT-101 Matemática I · Sección A" }),
+    ).toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: "MAT-101 Matemática I · Sección B" }),
+    ).not.toBeChecked();
+    await user.click(fisB);
     await user.click(screen.getByRole("button", { name: "Guardar asignación" }));
 
-    await waitFor(() => expect(put).toEqual({ subject_ids: [10, 11] }));
+    await waitFor(() =>
+      expect(put).toEqual({
+        assignments: [
+          { subject_id: 10, section_id: 20 },
+          { subject_id: 11, section_id: 21 },
+        ],
+      }),
+    );
+  });
+
+  it("explica que la sección ya tiene profesor (409)", async () => {
+    const detail =
+      "Cada materia tiene un solo profesor por sección y ya están asignadas: MAT-101 sección B: Laura Profe";
+    server.use(
+      http.get(`${API_URL}/teachers/5`, () => HttpResponse.json(teacher)),
+      http.get(`${API_URL}/teachers/5/subjects`, () => HttpResponse.json([])),
+      http.put(`${API_URL}/teachers/5/subjects`, () =>
+        HttpResponse.json({ detail }, { status: 409 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderApp("/admin/teachers/5");
+
+    await user.click(
+      await screen.findByRole("checkbox", { name: "MAT-101 Matemática I · Sección B" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Guardar asignación" }));
+
+    expect(await screen.findByText(detail)).toBeInTheDocument();
   });
 });
 
 describe("estudiantes", () => {
   it("crea un estudiante con cédula y lo matricula en las materias marcadas", async () => {
     let created: unknown;
+    let sectioned: unknown;
     let enrolled: unknown;
     server.use(
       http.post(`${API_URL}/students`, async ({ request }) => {
         created = await request.json();
         return HttpResponse.json({ user: student, generated_password: "Est-1" }, { status: 201 });
+      }),
+      http.post(`${API_URL}/sections/20/students`, async ({ request }) => {
+        sectioned = await request.json();
+        return HttpResponse.json({ added: 1, moved: 0, already_in_section: 0 });
       }),
       http.post(`${API_URL}/students/7/subjects`, async ({ request }) => {
         enrolled = await request.json();
@@ -200,6 +252,14 @@ describe("estudiantes", () => {
     await user.type(screen.getByLabelText("Apellido"), "Pérez");
     await user.type(screen.getByLabelText("Número de cédula"), "28456123");
     await user.click(await screen.findByRole("checkbox", { name: "MAT-101 Matemática I" }));
+    // Sin sección no se matricula: la pide antes de crear
+    await user.click(screen.getByRole("button", { name: "Crear estudiante" }));
+    expect(
+      await screen.findByText("Elige la sección del semestre 2026-I para matricularlo."),
+    ).toBeInTheDocument();
+    const section = screen.getByLabelText("Sección en semestre 2026-I");
+    await within(section).findByRole("option", { name: "Sección A" });
+    await user.selectOptions(section, "20");
     await user.click(screen.getByRole("button", { name: "Crear estudiante" }));
 
     expect(await screen.findByTestId("generated-password")).toHaveTextContent("Est-1");
@@ -210,6 +270,7 @@ describe("estudiantes", () => {
       nationality: "V",
       cedula: 28456123,
     });
+    expect(sectioned).toEqual({ student_ids: [7] });
     expect(enrolled).toEqual({ subject_ids: [10] });
   });
 
@@ -222,6 +283,12 @@ describe("estudiantes", () => {
       http.get(`${API_URL}/subjects`, () => HttpResponse.json(page([mat, fis, qui, old]))),
       http.post(`${API_URL}/students`, () =>
         HttpResponse.json({ user: student, generated_password: "Est-1" }, { status: 201 }),
+      ),
+      http.get(`${API_URL}/semesters/2/sections`, () =>
+        HttpResponse.json([{ id: 40, name: "A", semester_id: 2, students_count: 0 }]),
+      ),
+      http.post(`${API_URL}/sections/40/students`, () =>
+        HttpResponse.json({ added: 1, moved: 0, already_in_section: 0 }),
       ),
       http.post(`${API_URL}/students/7/subjects`, async ({ request }) => {
         enrolled = await request.json();
@@ -264,6 +331,9 @@ describe("estudiantes", () => {
     await user.type(screen.getByLabelText("Nombre"), "María");
     await user.type(screen.getByLabelText("Apellido"), "Pérez");
     await user.type(screen.getByLabelText("Número de cédula"), "28456123");
+    const section = screen.getByLabelText("Sección en semestre 2025-II");
+    await within(section).findByRole("option", { name: "Sección A" });
+    await user.selectOptions(section, "40");
     await user.click(screen.getByRole("button", { name: "Crear estudiante" }));
     await waitFor(() => expect(enrolled).toEqual({ subject_ids: [20] }));
   });
@@ -291,6 +361,34 @@ describe("estudiantes", () => {
     expect(
       await screen.findByText("El estudiante ya tiene notas en esta materia"),
     ).toBeInTheDocument();
+  });
+
+  it("asigna la sección del estudiante y solo matricula donde la tiene", async () => {
+    let assigned: unknown;
+    const qui: SubjectRead = { id: 12, code: "QUI-101", name: "Química", semester: s2025 };
+    server.use(
+      http.get(`${API_URL}/students/7`, () => HttpResponse.json(student)),
+      http.get(`${API_URL}/students/7/subjects`, () => HttpResponse.json([])),
+      http.get(`${API_URL}/subjects`, () => HttpResponse.json(page([mat, qui]))),
+      http.post(`${API_URL}/sections/21/students`, async ({ request }) => {
+        assigned = await request.json();
+        return HttpResponse.json({ added: 0, moved: 1, already_in_section: 0 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp("/admin/students/7");
+
+    const select = await screen.findByLabelText("Sección en semestre 2026-I");
+    await waitFor(() => expect(select).toHaveValue("20"));
+    await user.selectOptions(select, "21");
+    await waitFor(() => expect(assigned).toEqual({ student_ids: [7] }));
+
+    // Sin sección en 2025-II sus materias no se ofrecen para matricular
+    const subjects = screen.getByLabelText("Materia a matricular");
+    expect(within(subjects).getByRole("option", { name: /QUI-101.*sin sección/ })).toBeDisabled();
+    expect(
+      within(subjects).getByRole("option", { name: "MAT-101 Matemática I · 2026-I" }),
+    ).toBeEnabled();
   });
 });
 
@@ -379,9 +477,8 @@ describe("semestres y materias", () => {
     expect(await screen.findByText("El semestre tiene materias")).toBeInTheDocument();
   });
 
-  it("crea una materia y le asigna el profesor elegido", async () => {
+  it("crea una materia", async () => {
     let subjectBody: unknown;
-    let teacherPut: unknown;
     server.use(
       http.post(`${API_URL}/subjects`, async ({ request }) => {
         subjectBody = await request.json();
@@ -390,23 +487,101 @@ describe("semestres y materias", () => {
           { status: 201 },
         );
       }),
-      http.get(`${API_URL}/teachers/5/subjects`, () => HttpResponse.json([mat])),
-      http.put(`${API_URL}/teachers/5/subjects`, async ({ request }) => {
-        teacherPut = await request.json();
-        return HttpResponse.json([]);
-      }),
     );
     const user = userEvent.setup();
     const { router } = renderApp("/admin/academic/new?semester=1");
 
     await user.type(await screen.findByLabelText("Código"), "QUI-101");
     await user.type(screen.getByLabelText("Nombre"), "Química I");
-    await user.selectOptions(await screen.findByLabelText("Profesor (opcional)"), "5");
     await user.click(screen.getByRole("button", { name: "Crear materia" }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/academic"));
     expect(subjectBody).toEqual({ semester_id: 1, code: "QUI-101", name: "Química I" });
-    expect(teacherPut).toEqual({ subject_ids: [10, 12] });
+  });
+
+  it("gestiona las secciones del semestre seleccionado", async () => {
+    let created: unknown;
+    let renamed: unknown;
+    server.use(
+      http.post(`${API_URL}/semesters/1/sections`, async ({ request }) => {
+        created = await request.json();
+        return HttpResponse.json(
+          { id: 22, name: "C", semester_id: 1, students_count: 0 },
+          { status: 201 },
+        );
+      }),
+      http.patch(`${API_URL}/sections/21`, async ({ request }) => {
+        renamed = await request.json();
+        return HttpResponse.json({ ...secB, name: "D" });
+      }),
+      http.delete(`${API_URL}/sections/20`, () =>
+        HttpResponse.json(
+          { detail: "No se puede eliminar una sección con estudiantes asignados" },
+          { status: 409 },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderApp("/admin/academic");
+
+    const list = await screen.findByRole("list", { name: "Secciones de 2026-I" });
+    expect(within(list).getByText("Sección A")).toBeInTheDocument();
+    expect(within(list).getByText("2 estudiantes")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Nueva sección"), "C");
+    await user.click(screen.getByRole("button", { name: "Crear sección" }));
+    await waitFor(() => expect(created).toEqual({ name: "C" }));
+
+    await user.click(screen.getByRole("button", { name: "Renombrar sección B" }));
+    const dialog = await screen.findByRole("dialog");
+    const input = within(dialog).getByLabelText("Nombre");
+    await user.clear(input);
+    await user.type(input, "D");
+    await user.click(within(dialog).getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(renamed).toEqual({ name: "D" }));
+
+    await user.click(screen.getByRole("button", { name: "Eliminar sección A" }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Eliminar" }),
+    );
+    expect(
+      await screen.findByText("No se puede eliminar una sección con estudiantes asignados"),
+    ).toBeInTheDocument();
+  });
+
+  it("asigna el profesor de cada sección en el detalle de la materia", async () => {
+    let put: unknown;
+    server.use(
+      http.get(`${API_URL}/subjects/10`, () => HttpResponse.json(mat)),
+      http.get(`${API_URL}/subjects/10/teachers`, () =>
+        HttpResponse.json([{ section: secA, teacher }]),
+      ),
+      http.get(`${API_URL}/subjects/10/students`, () => HttpResponse.json([])),
+      http.get(`${API_URL}/teachers/5/subjects`, () =>
+        HttpResponse.json([{ subject: mat, section: secA }]),
+      ),
+      http.put(`${API_URL}/teachers/5/subjects`, async ({ request }) => {
+        put = await request.json();
+        return HttpResponse.json([]);
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp("/admin/academic/subjects/10");
+
+    expect(
+      await screen.findByRole("button", { name: "Quitar a José Méndez de la sección A" }),
+    ).toBeInTheDocument();
+    await user.selectOptions(await screen.findByLabelText("Profesor de la sección B"), "5");
+    await user.click(screen.getByRole("button", { name: "Asignar" }));
+
+    await waitFor(() =>
+      expect(put).toEqual({
+        assignments: [
+          { subject_id: 10, section_id: 20 },
+          { subject_id: 10, section_id: 21 },
+        ],
+      }),
+    );
   });
 
   it("matricula varios estudiantes en una materia", async () => {
@@ -419,7 +594,9 @@ describe("semestres y materias", () => {
     let bulk: unknown;
     server.use(
       http.get(`${API_URL}/subjects/10`, () => HttpResponse.json(mat)),
-      http.get(`${API_URL}/subjects/10/teachers`, () => HttpResponse.json([teacher])),
+      http.get(`${API_URL}/subjects/10/teachers`, () =>
+        HttpResponse.json([{ section: secA, teacher }]),
+      ),
       http.get(`${API_URL}/subjects/10/students`, () => HttpResponse.json([])),
       http.get(`${API_URL}/students`, () => HttpResponse.json(page([student, other]))),
       http.post(`${API_URL}/subjects/10/students`, async ({ request }) => {
@@ -430,7 +607,9 @@ describe("semestres y materias", () => {
     const user = userEvent.setup();
     renderApp("/admin/academic/subjects/10");
 
-    expect(await screen.findByText("José Méndez")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Quitar a José Méndez de la sección A" }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Matricular estudiantes" }));
     const dialog = await screen.findByRole("dialog");
     await user.click(await within(dialog).findByRole("checkbox", { name: /María Pérez/ }));

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { type AcademicSettings, useSubjectRules } from "@/api/queries/settings";
 import type { StudentSubjectGrades } from "@/api/queries/student";
+import { AbsentBadge } from "@/components/ui/grade-badge";
 import { formatGrade, isPassing, termName } from "@/lib/grades";
 import { StandingBadge, standingSentence } from "./projection";
 
@@ -10,22 +11,40 @@ export function gradeColor(value: number | null | undefined, settings: AcademicS
   return isPassing(value, settings) ? "" : "text-error";
 }
 
-/** Recuadro de una nota: "Lapso 1 · 15.75" */
+/** "Prof. Ana Pérez · Sección A": el único profesor de la materia en la sección del estudiante */
+export function teacherText(item: Pick<StudentSubjectGrades, "teacher" | "section">): string {
+  return [
+    item.teacher ? `Prof. ${item.teacher}` : "Sin profesor asignado",
+    item.section ? `Sección ${item.section}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/** Recuadro de una nota: "Lapso 1 · 15.75" (o "I" si fue inasistente) */
 export function GradeBox({
   label,
   value,
+  absent = false,
   settings,
 }: {
   label: string;
   value: number | null;
+  absent?: boolean;
   settings: AcademicSettings;
 }) {
   return (
     <div className="flex flex-col items-center gap-0.5 rounded-field bg-base-200 px-2 py-2">
       <span className="text-base-content/70 text-xs">{label}</span>
-      <span className={`font-bold text-lg tabular-nums ${gradeColor(value, settings)}`}>
-        {formatGrade(value, settings)}
-      </span>
+      {absent ? (
+        <span className="py-0.5">
+          <AbsentBadge short rules={settings} />
+        </span>
+      ) : (
+        <span className={`font-bold text-lg tabular-nums ${gradeColor(value, settings)}`}>
+          {formatGrade(value, settings)}
+        </span>
+      )}
     </div>
   );
 }
@@ -48,11 +67,7 @@ export function SubjectGradesCard({ item }: { item: StudentSubjectGrades }) {
           <div className="min-w-0">
             <p className="font-bold text-primary text-xs">{subject.code}</p>
             <h2 className="truncate font-bold text-lg">{subject.name}</h2>
-            {item.teachers.length > 0 && (
-              <p className="truncate text-base-content/60 text-xs">
-                Prof. {item.teachers.join(", ")}
-              </p>
-            )}
+            <p className="truncate text-base-content/60 text-xs">{teacherText(item)}</p>
           </div>
           <StandingBadge projection={projection} settings={settings} />
         </div>
@@ -63,6 +78,7 @@ export function SubjectGradesCard({ item }: { item: StudentSubjectGrades }) {
               key={g.term}
               label={termName(settings, g.term)}
               value={g.value}
+              absent={g.absent}
               settings={settings}
             />
           ))}

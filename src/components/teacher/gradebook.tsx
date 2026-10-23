@@ -7,6 +7,7 @@ import { type AcademicSettings, useSubjectRules } from "@/api/queries/settings";
 import {
   type GradeEntry,
   gradeOf,
+  isAbsent,
   type StudentGrades,
   type SubjectGrades,
   saveGrades,
@@ -15,9 +16,46 @@ import {
 } from "@/api/queries/teacher";
 import { confirm } from "@/components/ui/confirm";
 import { toast } from "@/components/ui/toast";
-import { formatGrade, gradeRule, gradeText, parseGrade, termName, termNumbers } from "@/lib/grades";
+import {
+  ABSENT_LABEL,
+  ABSENT_SHORT,
+  formatGrade,
+  gradeRule,
+  gradeText,
+  parseGrade,
+  termName,
+  termNumbers,
+} from "@/lib/grades";
 
 const cellKey = (studentId: number, term: Term) => `${studentId}:${term}`;
+
+type GradeScale = Pick<AcademicSettings, "min_grade" | "max_grade" | "grade_decimals">;
+
+export type ParsedCell =
+  | { valid: true; value: number | null; absent: boolean }
+  | { valid: false; absent: false };
+
+/** ¿El texto de la celda marca inasistencia? ("I", sin distinguir mayúsculas) */
+export const isAbsentText = (text: string) => text.trim().toUpperCase() === ABSENT_SHORT;
+
+/**
+ * Lo que escribe el profesor en una celda: "I" = inasistente (cuenta con la nota mínima, la
+ * pone la API); vacío = sin nota; si no, una nota de la escala.
+ */
+export function parseCell(text: string, settings: GradeScale): ParsedCell {
+  if (isAbsentText(text)) return { valid: true, value: null, absent: true };
+  const parsed = parseGrade(text, settings);
+  return parsed.valid ? { ...parsed, absent: false } : { valid: false, absent: false };
+}
+
+/** Texto de una celda guardada: "I" si es inasistente, si no la nota */
+export function cellText(
+  value: number | null | undefined,
+  absent: boolean,
+  settings: Pick<AcademicSettings, "grade_decimals">,
+): string {
+  return absent ? ABSENT_SHORT : gradeText(value, settings);
+}
 
 export type Standing = "passed" | "failed" | "in_progress";
 
@@ -32,14 +70,17 @@ type InvalidCell = { student: StudentGrades; term: Term };
 /**
  * Celdas editadas de la planilla. Solo guarda lo que el profesor escribió; el resto se lee
  * del servidor. Expone los cambios válidos (para el PUT) y las celdas inválidas, según las
- * reglas del periodo de la materia (las congeladas si se cerró alguna vez).
+ * reglas del periodo de la materia (las congeladas si se cerró alguna vez). "I" marca al
+ * estudiante como inasistente en el lapso.
  */
 export function useGradeDrafts(data: SubjectGrades) {
   const settings = useSubjectRules(data.subject.semester);
   const [drafts, setDrafts] = useState<Map<string, string>>(new Map());
 
+  const saved = (row: StudentGrades, term: Term) =>
+    cellText(gradeOf(row, term), isAbsent(row, term), settings);
   const text = (row: StudentGrades, term: Term) =>
-    drafts.get(cellKey(row.student.id, term)) ?? gradeText(gradeOf(row, term), settings);
+    drafts.get(cellKey(row.student.id, term)) ?? saved(row, term);
 
   const changes: GradeEntry[] = [];
   const invalid: InvalidCell[] = [];
@@ -49,12 +90,20 @@ export function useGradeDrafts(data: SubjectGrades) {
       const key = cellKey(row.student.id, term);
       const draft = drafts.get(key);
       if (draft === undefined) continue;
-      const parsed = parseGrade(draft, settings);
+      const parsed = parseCell(draft, settings);
       if (!parsed.valid) {
         invalid.push({ student: row, term });
         edited.add(key);
-      } else if (parsed.value !== gradeOf(row, term)) {
-        changes.push({ student_id: row.student.id, term, value: parsed.value });
+      } else if (parsed.absent !== isAbsent(row, term)) {
+        changes.push({
+          student_id: row.student.id,
+          term,
+          value: parsed.absent ? null : parsed.value,
+          absent: parsed.absent,
+        });
+        edited.add(key);
+      } else if (!parsed.absent && parsed.value !== gradeOf(row, term)) {
+        changes.push({ student_id: row.student.id, term, value: parsed.value, absent: false });
         edited.add(key);
       }
     }
@@ -71,6 +120,16 @@ export function useGradeDrafts(data: SubjectGrades) {
       invalid.some((c) => c.student === row && c.term === term),
     set: (row: StudentGrades, term: Term, value: string) =>
       setDrafts((prev) => new Map(prev).set(cellKey(row.student.id, term), value)),
+    /** Marca o desmarca la inasistencia (al desmarcar vuelve a la nota guardada o a vacía) */
+    toggleAbsent: (row: StudentGrades, term: Term) => {
+      const current = drafts.get(cellKey(row.student.id, term)) ?? saved(row, term);
+      const next = !isAbsentText(current)
+        ? ABSENT_SHORT
+        : isAbsent(row, term)
+          ? ""
+          : gradeText(gradeOf(row, term), settings);
+      setDrafts((prev) => new Map(prev).set(cellKey(row.student.id, term), next));
+    },
     reset: () => setDrafts(new Map()),
   };
 }
@@ -78,12 +137,12 @@ export function useGradeDrafts(data: SubjectGrades) {
 export type GradeDrafts = ReturnType<typeof useGradeDrafts>;
 
 /** Guarda en lote los cambios válidos; tras guardar la planilla se refresca con la respuesta */
-export function useSaveGrades(subjectId: number, drafts: GradeDrafts) {
+export function useSaveGrades(subjectId: number, sectionId: number, drafts: GradeDrafts) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (changes: GradeEntry[]) => saveGrades(subjectId, changes),
+    mutationFn: (changes: GradeEntry[]) => saveGrades(subjectId, sectionId, changes),
     onSuccess: (data, changes) => {
-      queryClient.setQueryData(teacherKeys.grades(subjectId), data);
+      queryClient.setQueryData(teacherKeys.grades(subjectId, sectionId), data);
       void queryClient.invalidateQueries({ queryKey: gradeHistoryKeys.all });
       drafts.reset();
       toast.success(
@@ -133,14 +192,46 @@ export function InvalidCellAlert({
     <div role="alert" className="alert alert-error alert-soft">
       <CircleAlert className="size-5 shrink-0" />
       <span>
-        {first.student.student.full_name} · {termName(settings, first.term)}: {gradeRule(settings)}.
+        {first.student.student.full_name} · {termName(settings, first.term)}: {gradeRule(settings)}{" "}
+        (o «{ABSENT_SHORT}» si es inasistente).
         {more > 0 && ` Hay ${more} ${more === 1 ? "celda más" : "celdas más"} por corregir.`}
       </span>
     </div>
   );
 }
 
-/** Celda editable de una nota: acepta coma o punto; vacía = sin nota */
+/**
+ * Botón "I" junto a una celda: marca o desmarca al estudiante como inasistente (también se
+ * puede escribir "I" en la celda). En un lapso con plan de evaluación lo marca inasistente en
+ * todas sus evaluaciones.
+ */
+export function AbsentToggle({
+  pressed,
+  label,
+  onClick,
+  disabled = false,
+}: {
+  pressed: boolean;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className={`btn btn-xs btn-square shrink-0 ${pressed ? "btn-warning" : "btn-ghost"}`}
+      aria-pressed={pressed}
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {ABSENT_SHORT}
+    </button>
+  );
+}
+
+/** Celda editable de una nota: acepta coma o punto; vacía = sin nota; "I" = inasistente */
 export function GradeCell({
   value,
   label,
@@ -158,11 +249,14 @@ export function GradeCell({
   className?: string;
   disabled?: boolean;
 }) {
+  const absent = isAbsentText(value);
   const state = invalid
     ? "input-error bg-error/10 text-error"
     : edited
       ? "input-primary bg-primary/10 font-bold"
-      : "";
+      : absent
+        ? "bg-warning/15 font-bold text-warning-content"
+        : "";
   return (
     <input
       type="text"
@@ -170,6 +264,7 @@ export function GradeCell({
       autoComplete="off"
       placeholder="—"
       aria-label={label}
+      title={absent ? ABSENT_LABEL : undefined}
       aria-invalid={invalid || undefined}
       className={`input input-sm text-center tabular-nums ${state} ${className || "w-full"}`}
       value={value}

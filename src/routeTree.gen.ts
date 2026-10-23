@@ -37,12 +37,12 @@ import { Route as AppAdminTeachersUserIdRouteImport } from './routes/_app/admin/
 import { Route as AppAdminTeachersNewRouteImport } from './routes/_app/admin/teachers/new'
 import { Route as AppStudentGradesIndexRouteImport } from './routes/_app/student/grades/index'
 import { Route as AppStudentGradesSubjectIdRouteImport } from './routes/_app/student/grades/$subjectId'
-import { Route as AppTeacherEvaluationsSubjectIdRouteImport } from './routes/_app/teacher/evaluations/$subjectId'
 import { Route as AppTeacherImportsIndexRouteImport } from './routes/_app/teacher/imports/index'
 import { Route as AppTeacherImportsJobIdRouteImport } from './routes/_app/teacher/imports/$jobId'
 import { Route as AppTeacherSubjectsIndexRouteImport } from './routes/_app/teacher/subjects/index'
-import { Route as AppTeacherSubjectsSubjectIdRouteImport } from './routes/_app/teacher/subjects/$subjectId'
 import { Route as AppAdminAcademicSubjectsSubjectIdRouteImport } from './routes/_app/admin/academic/subjects.$subjectId'
+import { Route as AppTeacherEvaluationsSubjectIdSectionIdRouteImport } from './routes/_app/teacher/evaluations/$subjectId.$sectionId'
+import { Route as AppTeacherSubjectsSubjectIdSectionIdRouteImport } from './routes/_app/teacher/subjects/$subjectId.$sectionId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -186,12 +186,6 @@ const AppStudentGradesSubjectIdRoute =
     path: '/grades/$subjectId',
     getParentRoute: () => AppStudentRoute,
   } as any)
-const AppTeacherEvaluationsSubjectIdRoute =
-  AppTeacherEvaluationsSubjectIdRouteImport.update({
-    id: '/evaluations/$subjectId',
-    path: '/evaluations/$subjectId',
-    getParentRoute: () => AppTeacherRoute,
-  } as any)
 const AppTeacherImportsIndexRoute = AppTeacherImportsIndexRouteImport.update({
   id: '/imports/',
   path: '/imports/',
@@ -207,17 +201,23 @@ const AppTeacherSubjectsIndexRoute = AppTeacherSubjectsIndexRouteImport.update({
   path: '/subjects/',
   getParentRoute: () => AppTeacherRoute,
 } as any)
-const AppTeacherSubjectsSubjectIdRoute =
-  AppTeacherSubjectsSubjectIdRouteImport.update({
-    id: '/subjects/$subjectId',
-    path: '/subjects/$subjectId',
-    getParentRoute: () => AppTeacherRoute,
-  } as any)
 const AppAdminAcademicSubjectsSubjectIdRoute =
   AppAdminAcademicSubjectsSubjectIdRouteImport.update({
     id: '/academic/subjects/$subjectId',
     path: '/academic/subjects/$subjectId',
     getParentRoute: () => AppAdminRoute,
+  } as any)
+const AppTeacherEvaluationsSubjectIdSectionIdRoute =
+  AppTeacherEvaluationsSubjectIdSectionIdRouteImport.update({
+    id: '/evaluations/$subjectId/$sectionId',
+    path: '/evaluations/$subjectId/$sectionId',
+    getParentRoute: () => AppTeacherRoute,
+  } as any)
+const AppTeacherSubjectsSubjectIdSectionIdRoute =
+  AppTeacherSubjectsSubjectIdSectionIdRouteImport.update({
+    id: '/subjects/$subjectId/$sectionId',
+    path: '/subjects/$subjectId/$sectionId',
+    getParentRoute: () => AppTeacherRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -243,9 +243,7 @@ export interface FileRoutesByFullPath {
   '/admin/teachers/$userId': typeof AppAdminTeachersUserIdRoute
   '/admin/teachers/new': typeof AppAdminTeachersNewRoute
   '/student/grades/$subjectId': typeof AppStudentGradesSubjectIdRoute
-  '/teacher/evaluations/$subjectId': typeof AppTeacherEvaluationsSubjectIdRoute
   '/teacher/imports/$jobId': typeof AppTeacherImportsJobIdRoute
-  '/teacher/subjects/$subjectId': typeof AppTeacherSubjectsSubjectIdRoute
   '/admin/academic/': typeof AppAdminAcademicIndexRoute
   '/admin/coordinators/': typeof AppAdminCoordinatorsIndexRoute
   '/admin/students/': typeof AppAdminStudentsIndexRoute
@@ -254,6 +252,8 @@ export interface FileRoutesByFullPath {
   '/teacher/imports/': typeof AppTeacherImportsIndexRoute
   '/teacher/subjects/': typeof AppTeacherSubjectsIndexRoute
   '/admin/academic/subjects/$subjectId': typeof AppAdminAcademicSubjectsSubjectIdRoute
+  '/teacher/evaluations/$subjectId/$sectionId': typeof AppTeacherEvaluationsSubjectIdSectionIdRoute
+  '/teacher/subjects/$subjectId/$sectionId': typeof AppTeacherSubjectsSubjectIdSectionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -277,9 +277,7 @@ export interface FileRoutesByTo {
   '/admin/teachers/$userId': typeof AppAdminTeachersUserIdRoute
   '/admin/teachers/new': typeof AppAdminTeachersNewRoute
   '/student/grades/$subjectId': typeof AppStudentGradesSubjectIdRoute
-  '/teacher/evaluations/$subjectId': typeof AppTeacherEvaluationsSubjectIdRoute
   '/teacher/imports/$jobId': typeof AppTeacherImportsJobIdRoute
-  '/teacher/subjects/$subjectId': typeof AppTeacherSubjectsSubjectIdRoute
   '/admin/academic': typeof AppAdminAcademicIndexRoute
   '/admin/coordinators': typeof AppAdminCoordinatorsIndexRoute
   '/admin/students': typeof AppAdminStudentsIndexRoute
@@ -288,6 +286,8 @@ export interface FileRoutesByTo {
   '/teacher/imports': typeof AppTeacherImportsIndexRoute
   '/teacher/subjects': typeof AppTeacherSubjectsIndexRoute
   '/admin/academic/subjects/$subjectId': typeof AppAdminAcademicSubjectsSubjectIdRoute
+  '/teacher/evaluations/$subjectId/$sectionId': typeof AppTeacherEvaluationsSubjectIdSectionIdRoute
+  '/teacher/subjects/$subjectId/$sectionId': typeof AppTeacherSubjectsSubjectIdSectionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -314,9 +314,7 @@ export interface FileRoutesById {
   '/_app/admin/teachers/$userId': typeof AppAdminTeachersUserIdRoute
   '/_app/admin/teachers/new': typeof AppAdminTeachersNewRoute
   '/_app/student/grades/$subjectId': typeof AppStudentGradesSubjectIdRoute
-  '/_app/teacher/evaluations/$subjectId': typeof AppTeacherEvaluationsSubjectIdRoute
   '/_app/teacher/imports/$jobId': typeof AppTeacherImportsJobIdRoute
-  '/_app/teacher/subjects/$subjectId': typeof AppTeacherSubjectsSubjectIdRoute
   '/_app/admin/academic/': typeof AppAdminAcademicIndexRoute
   '/_app/admin/coordinators/': typeof AppAdminCoordinatorsIndexRoute
   '/_app/admin/students/': typeof AppAdminStudentsIndexRoute
@@ -325,6 +323,8 @@ export interface FileRoutesById {
   '/_app/teacher/imports/': typeof AppTeacherImportsIndexRoute
   '/_app/teacher/subjects/': typeof AppTeacherSubjectsIndexRoute
   '/_app/admin/academic/subjects/$subjectId': typeof AppAdminAcademicSubjectsSubjectIdRoute
+  '/_app/teacher/evaluations/$subjectId/$sectionId': typeof AppTeacherEvaluationsSubjectIdSectionIdRoute
+  '/_app/teacher/subjects/$subjectId/$sectionId': typeof AppTeacherSubjectsSubjectIdSectionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -351,9 +351,7 @@ export interface FileRouteTypes {
     | '/admin/teachers/$userId'
     | '/admin/teachers/new'
     | '/student/grades/$subjectId'
-    | '/teacher/evaluations/$subjectId'
     | '/teacher/imports/$jobId'
-    | '/teacher/subjects/$subjectId'
     | '/admin/academic/'
     | '/admin/coordinators/'
     | '/admin/students/'
@@ -362,6 +360,8 @@ export interface FileRouteTypes {
     | '/teacher/imports/'
     | '/teacher/subjects/'
     | '/admin/academic/subjects/$subjectId'
+    | '/teacher/evaluations/$subjectId/$sectionId'
+    | '/teacher/subjects/$subjectId/$sectionId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -385,9 +385,7 @@ export interface FileRouteTypes {
     | '/admin/teachers/$userId'
     | '/admin/teachers/new'
     | '/student/grades/$subjectId'
-    | '/teacher/evaluations/$subjectId'
     | '/teacher/imports/$jobId'
-    | '/teacher/subjects/$subjectId'
     | '/admin/academic'
     | '/admin/coordinators'
     | '/admin/students'
@@ -396,6 +394,8 @@ export interface FileRouteTypes {
     | '/teacher/imports'
     | '/teacher/subjects'
     | '/admin/academic/subjects/$subjectId'
+    | '/teacher/evaluations/$subjectId/$sectionId'
+    | '/teacher/subjects/$subjectId/$sectionId'
   id:
     | '__root__'
     | '/'
@@ -421,9 +421,7 @@ export interface FileRouteTypes {
     | '/_app/admin/teachers/$userId'
     | '/_app/admin/teachers/new'
     | '/_app/student/grades/$subjectId'
-    | '/_app/teacher/evaluations/$subjectId'
     | '/_app/teacher/imports/$jobId'
-    | '/_app/teacher/subjects/$subjectId'
     | '/_app/admin/academic/'
     | '/_app/admin/coordinators/'
     | '/_app/admin/students/'
@@ -432,6 +430,8 @@ export interface FileRouteTypes {
     | '/_app/teacher/imports/'
     | '/_app/teacher/subjects/'
     | '/_app/admin/academic/subjects/$subjectId'
+    | '/_app/teacher/evaluations/$subjectId/$sectionId'
+    | '/_app/teacher/subjects/$subjectId/$sectionId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -640,13 +640,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStudentGradesSubjectIdRouteImport
       parentRoute: typeof AppStudentRoute
     }
-    '/_app/teacher/evaluations/$subjectId': {
-      id: '/_app/teacher/evaluations/$subjectId'
-      path: '/evaluations/$subjectId'
-      fullPath: '/teacher/evaluations/$subjectId'
-      preLoaderRoute: typeof AppTeacherEvaluationsSubjectIdRouteImport
-      parentRoute: typeof AppTeacherRoute
-    }
     '/_app/teacher/imports/': {
       id: '/_app/teacher/imports/'
       path: '/imports'
@@ -668,19 +661,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTeacherSubjectsIndexRouteImport
       parentRoute: typeof AppTeacherRoute
     }
-    '/_app/teacher/subjects/$subjectId': {
-      id: '/_app/teacher/subjects/$subjectId'
-      path: '/subjects/$subjectId'
-      fullPath: '/teacher/subjects/$subjectId'
-      preLoaderRoute: typeof AppTeacherSubjectsSubjectIdRouteImport
-      parentRoute: typeof AppTeacherRoute
-    }
     '/_app/admin/academic/subjects/$subjectId': {
       id: '/_app/admin/academic/subjects/$subjectId'
       path: '/academic/subjects/$subjectId'
       fullPath: '/admin/academic/subjects/$subjectId'
       preLoaderRoute: typeof AppAdminAcademicSubjectsSubjectIdRouteImport
       parentRoute: typeof AppAdminRoute
+    }
+    '/_app/teacher/evaluations/$subjectId/$sectionId': {
+      id: '/_app/teacher/evaluations/$subjectId/$sectionId'
+      path: '/evaluations/$subjectId/$sectionId'
+      fullPath: '/teacher/evaluations/$subjectId/$sectionId'
+      preLoaderRoute: typeof AppTeacherEvaluationsSubjectIdSectionIdRouteImport
+      parentRoute: typeof AppTeacherRoute
+    }
+    '/_app/teacher/subjects/$subjectId/$sectionId': {
+      id: '/_app/teacher/subjects/$subjectId/$sectionId'
+      path: '/subjects/$subjectId/$sectionId'
+      fullPath: '/teacher/subjects/$subjectId/$sectionId'
+      preLoaderRoute: typeof AppTeacherSubjectsSubjectIdSectionIdRouteImport
+      parentRoute: typeof AppTeacherRoute
     }
   }
 }
@@ -756,19 +756,21 @@ const AppStudentRouteWithChildren = AppStudentRoute._addFileChildren(
 )
 
 interface AppTeacherRouteChildren {
-  AppTeacherEvaluationsSubjectIdRoute: typeof AppTeacherEvaluationsSubjectIdRoute
   AppTeacherImportsJobIdRoute: typeof AppTeacherImportsJobIdRoute
-  AppTeacherSubjectsSubjectIdRoute: typeof AppTeacherSubjectsSubjectIdRoute
   AppTeacherImportsIndexRoute: typeof AppTeacherImportsIndexRoute
   AppTeacherSubjectsIndexRoute: typeof AppTeacherSubjectsIndexRoute
+  AppTeacherEvaluationsSubjectIdSectionIdRoute: typeof AppTeacherEvaluationsSubjectIdSectionIdRoute
+  AppTeacherSubjectsSubjectIdSectionIdRoute: typeof AppTeacherSubjectsSubjectIdSectionIdRoute
 }
 
 const AppTeacherRouteChildren: AppTeacherRouteChildren = {
-  AppTeacherEvaluationsSubjectIdRoute: AppTeacherEvaluationsSubjectIdRoute,
   AppTeacherImportsJobIdRoute: AppTeacherImportsJobIdRoute,
-  AppTeacherSubjectsSubjectIdRoute: AppTeacherSubjectsSubjectIdRoute,
   AppTeacherImportsIndexRoute: AppTeacherImportsIndexRoute,
   AppTeacherSubjectsIndexRoute: AppTeacherSubjectsIndexRoute,
+  AppTeacherEvaluationsSubjectIdSectionIdRoute:
+    AppTeacherEvaluationsSubjectIdSectionIdRoute,
+  AppTeacherSubjectsSubjectIdSectionIdRoute:
+    AppTeacherSubjectsSubjectIdSectionIdRoute,
 }
 
 const AppTeacherRouteWithChildren = AppTeacherRoute._addFileChildren(

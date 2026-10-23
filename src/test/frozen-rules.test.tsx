@@ -45,7 +45,8 @@ const closed: SemesterRead = { id: 2, name: "2025-II", is_closed: true, rules: f
 const reopened: SemesterRead = { id: 3, name: "2025-I", is_closed: false, rules: frozen };
 
 const maria = { id: 7, ...personName("María Pérez"), cedula_display: "V-28456123" };
-const three = (values: (number | null)[]) => values.map((value, i) => ({ term: i + 1, value }));
+const three = (values: (number | null)[]) =>
+  values.map((value, i) => ({ term: i + 1, value, absent: false }));
 
 beforeEach(() => {
   localStorage.clear();
@@ -58,6 +59,7 @@ describe("profesor", () => {
     code,
     name,
     semester,
+    section: { id: id + 1, name: "A", semester_id: semester.id },
   });
   const mat: TeacherSubject = {
     ...subject(10, "MAT-101", "Matemática I", open),
@@ -76,6 +78,7 @@ describe("profesor", () => {
   };
   const gradesOf = (s: TeacherSubject, values: (number | null)[]): SubjectGrades => ({
     subject: s,
+    section: s.section,
     students: [
       {
         student: maria,
@@ -91,10 +94,10 @@ describe("profesor", () => {
     signedInAs(makeUser({ id: 5, role: "teacher", full_name: "José Méndez" }));
     server.use(
       http.get(`${API_URL}/teacher/subjects`, () => HttpResponse.json([mat, his, geo])),
-      http.get(`${API_URL}/teacher/subjects/20/grades`, () =>
+      http.get(`${API_URL}/teacher/subjects/20/sections/21/grades`, () =>
         HttpResponse.json(gradesOf(his, [15.75, 12, 18])),
       ),
-      http.get(`${API_URL}/teacher/subjects/30/grades`, () =>
+      http.get(`${API_URL}/teacher/subjects/30/sections/31/grades`, () =>
         HttpResponse.json(gradesOf(geo, [15.5, null, null])),
       ),
       http.get(`${API_URL}/teacher/import-jobs`, () => HttpResponse.json([])),
@@ -116,7 +119,7 @@ describe("profesor", () => {
   });
 
   it("la planilla de un periodo cerrado usa sus reglas congeladas", async () => {
-    renderApp("/teacher/subjects/20");
+    renderApp("/teacher/subjects/20/21");
 
     const table = await screen.findByRole("table");
     await waitFor(() =>
@@ -132,13 +135,13 @@ describe("profesor", () => {
 
   it("un periodo reabierto se edita y valida con las reglas de su cierre", async () => {
     const user = userEvent.setup();
-    renderApp("/teacher/subjects/30");
+    renderApp("/teacher/subjects/30/31");
 
     const cell = (await screen.findAllByLabelText("María Pérez · Lapso 2")).at(-1) as HTMLElement;
     expect(cell).toBeEnabled();
     await user.type(cell, "85");
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "María Pérez · Lapso 2: la nota debe estar entre 1 y 20, con hasta 2 decimales.",
+      "María Pérez · Lapso 2: la nota debe estar entre 1 y 20, con hasta 2 decimales (o «I» si es inasistente).",
     );
     await user.clear(cell);
     await user.type(cell, "14,5");
@@ -152,7 +155,7 @@ describe("profesor", () => {
 
     const subjectSelect = await screen.findByRole("combobox", { name: "Materia" });
     await within(subjectSelect).findByRole("option", { name: /GEO-100/ });
-    await user.selectOptions(subjectSelect, "30");
+    await user.selectOptions(subjectSelect, "30:31");
     const termSelect = screen.getByRole("combobox", { name: "Lapso" });
     expect(
       within(termSelect)
@@ -160,7 +163,7 @@ describe("profesor", () => {
         .map((o) => o.textContent),
     ).toEqual(["Lo indica el archivo", "Lapso 1", "Lapso 2", "Lapso 3"]);
 
-    await user.selectOptions(subjectSelect, "10");
+    await user.selectOptions(subjectSelect, "10:11");
     const cuts = screen.getByRole("combobox", { name: "Corte" });
     expect(within(cuts).getAllByRole("option")).toHaveLength(5);
   });
@@ -171,8 +174,9 @@ describe("estudiante", () => {
     subjects: [
       {
         subject: { id: 10, code: "MAT-101", name: "Matemática I", semester: open },
-        teachers: [],
-        grades: [...three([85, null, null]), { term: 4, value: null }],
+        section: "A",
+        teacher: null,
+        grades: [...three([85, null, null]), { term: 4, value: null, absent: false }],
         average: 85,
         projection: {
           standing: "in_progress",
@@ -183,7 +187,8 @@ describe("estudiante", () => {
       },
       {
         subject: { id: 20, code: "HIS-100", name: "Historia", semester: closed },
-        teachers: [],
+        section: "A",
+        teacher: null,
         grades: three([15.75, 12, 18]),
         average: 15.25,
         projection: {

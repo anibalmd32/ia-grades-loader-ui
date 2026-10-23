@@ -89,7 +89,7 @@ function TeacherSubjectsPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {visible.map((subject) => (
-              <SubjectCard key={subject.id} subject={subject} />
+              <SubjectCard key={`${subject.id}:${subject.section.id}`} subject={subject} />
             ))}
           </div>
         )}
