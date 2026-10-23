@@ -15,6 +15,15 @@ const mat: SubjectRead = { id: 10, code: "MAT-101", name: "Matemática I", semes
 const fis: SubjectRead = { id: 11, code: "FIS-101", name: "Física I", semester: s2026 };
 const secA: SectionRead = { id: 20, name: "A", semester_id: 1, students_count: 2 };
 const secB: SectionRead = { id: 21, name: "B", semester_id: 1, students_count: 0 };
+// Profesor de cada sección: MAT-101 lo tiene en la A; FIS-101 en ninguna
+const sectionTeachersMat = [
+  { section_id: 20, section_name: "A", teacher_id: 5, teacher_name: "José Méndez" },
+  { section_id: 21, section_name: "B", teacher_id: 5, teacher_name: "José Méndez" },
+];
+const sectionTeachersFis = [
+  { section_id: 20, section_name: "A", teacher_id: null, teacher_name: null },
+  { section_id: 21, section_name: "B", teacher_id: 5, teacher_name: "José Méndez" },
+];
 
 const teacher = makeUser({
   id: 5,
@@ -410,43 +419,38 @@ describe("recuentos de la API en los listados", () => {
     expect(screen.getAllByText(/Sin materias/).length).toBeGreaterThan(0);
   });
 
-  it("muestra profesores, estudiantes y materias por semestre", async () => {
+  it("muestra el profesor de cada sección y el resumen del periodo", async () => {
     server.use(
-      http.get(`${API_URL}/semesters`, () =>
-        HttpResponse.json([
-          { ...s2026, subjects_count: 2 },
-          { ...s2025, subjects_count: 0 },
-        ]),
-      ),
       http.get(`${API_URL}/subjects`, () =>
         HttpResponse.json(
           page([
-            { ...mat, teachers_count: 1, students_count: 42 },
-            { ...fis, teachers_count: 0, students_count: 38 },
+            { ...mat, teachers_count: 1, students_count: 42, section_teachers: sectionTeachersMat },
+            { ...fis, teachers_count: 0, students_count: 38, section_teachers: sectionTeachersFis },
           ]),
         ),
       ),
     );
     renderApp("/admin/academic");
 
-    expect(await screen.findByText("2 materias")).toBeInTheDocument();
-    expect((await screen.findAllByText("Sin asignar")).length).toBeGreaterThan(0);
+    expect(await screen.findByText("2 materias · 2 secciones · 2 estudiantes")).toBeInTheDocument();
+    expect(screen.getAllByText("José Méndez").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Sin profesor").length).toBeGreaterThan(0);
     expect(screen.getAllByText("42").length).toBeGreaterThan(0);
   });
 });
 
 describe("periodo escolar", () => {
-  it("muestra las materias del primer semestre y crea un semestre", async () => {
+  it("muestra las materias del primer periodo, cambia de periodo y crea uno", async () => {
     let semesterQuery = "";
     let createdName: unknown;
     server.use(
       http.get(`${API_URL}/subjects`, ({ request }) => {
         semesterQuery = new URL(request.url).searchParams.get("semester_id") ?? "";
-        return HttpResponse.json(page([mat, fis]));
+        return HttpResponse.json(page(semesterQuery === "1" ? [mat, fis] : []));
       }),
       http.post(`${API_URL}/semesters`, async ({ request }) => {
         createdName = await request.json();
-        return HttpResponse.json({ id: 3, name: "2027-I" }, { status: 201 });
+        return HttpResponse.json({ id: 3, name: "2027-I", is_closed: false }, { status: 201 });
       }),
     );
     const user = userEvent.setup();
@@ -455,12 +459,20 @@ describe("periodo escolar", () => {
     expect((await screen.findAllByText("Matemática I")).length).toBeGreaterThan(0);
     expect(semesterQuery).toBe("1");
 
-    await user.type(screen.getByLabelText("Nuevo semestre"), "2027-I");
-    await user.click(screen.getByRole("button", { name: "Crear semestre" }));
+    await user.selectOptions(screen.getByLabelText("Semestre"), "2");
+    expect(await screen.findByText("Este semestre no tiene materias")).toBeInTheDocument();
+    expect(semesterQuery).toBe("2");
+
+    const [newPeriod] = screen.getAllByRole("button", { name: "Nuevo semestre" });
+    if (!newPeriod) throw new Error("sin botón");
+    await user.click(newPeriod);
+    const dialog = await screen.findByRole("dialog", { name: "Nuevo semestre" });
+    await user.type(within(dialog).getByLabelText("Nombre"), "2027-I");
+    await user.click(within(dialog).getByRole("button", { name: "Crear semestre" }));
     await waitFor(() => expect(createdName).toEqual({ name: "2027-I" }));
   });
 
-  it("no elimina un semestre con materias y lo explica", async () => {
+  it("no elimina un periodo con materias y lo explica", async () => {
     server.use(
       http.delete(`${API_URL}/semesters/1`, () =>
         HttpResponse.json({ detail: "El semestre tiene materias" }, { status: 409 }),
@@ -469,7 +481,8 @@ describe("periodo escolar", () => {
     const user = userEvent.setup();
     renderApp("/admin/academic");
 
-    await user.click(await screen.findByRole("button", { name: "Eliminar 2026-I" }));
+    await user.click(await screen.findByRole("button", { name: "Más acciones de 2026-I" }));
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Eliminar" }),
     );
@@ -499,10 +512,18 @@ describe("periodo escolar", () => {
     expect(subjectBody).toEqual({ semester_id: 1, code: "QUI-101", name: "Química I" });
   });
 
-  it("gestiona las secciones del semestre seleccionado", async () => {
+  it("en la pestaña Secciones avisa de las materias sin profesor y crea, renombra y elimina", async () => {
     let created: unknown;
     let renamed: unknown;
     server.use(
+      http.get(`${API_URL}/subjects`, () =>
+        HttpResponse.json(
+          page([
+            { ...mat, section_teachers: sectionTeachersMat },
+            { ...fis, section_teachers: sectionTeachersFis },
+          ]),
+        ),
+      ),
       http.post(`${API_URL}/semesters/1/sections`, async ({ request }) => {
         created = await request.json();
         return HttpResponse.json(
@@ -524,29 +545,79 @@ describe("periodo escolar", () => {
     const user = userEvent.setup();
     renderApp("/admin/academic");
 
+    await user.click(await screen.findByRole("tab", { name: "Secciones" }));
     const list = await screen.findByRole("list", { name: "Secciones de 2026-I" });
-    expect(within(list).getByText("Sección A")).toBeInTheDocument();
-    expect(within(list).getByText("2 estudiantes")).toBeInTheDocument();
+    const cards = within(list).getAllByRole("listitem");
+    const cardA = cards.find((c) => within(c).queryByText("Sección A"));
+    if (!cardA) throw new Error("sin tarjeta A");
+    expect(within(cardA).getByText("2 estudiantes")).toBeInTheDocument();
+    expect(within(cardA).getByText("1/2 materias con profesor")).toBeInTheDocument();
+    expect(within(cardA).getByText("Sin profesor: FIS-101")).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Nueva sección"), "C");
-    await user.click(screen.getByRole("button", { name: "Crear sección" }));
+    await user.click(within(list).getByRole("button", { name: "Nueva sección" }));
+    const dialog = await screen.findByRole("dialog", { name: "Nueva sección · 2026-I" });
+    await user.type(within(dialog).getByLabelText("Nombre de la sección"), "C");
+    await user.click(within(dialog).getByRole("button", { name: "Crear sección" }));
     await waitFor(() => expect(created).toEqual({ name: "C" }));
 
-    await user.click(screen.getByRole("button", { name: "Renombrar sección B" }));
-    const dialog = await screen.findByRole("dialog");
-    const input = within(dialog).getByLabelText("Nombre");
+    await user.click(screen.getByRole("button", { name: "Más acciones de la sección B" }));
+    const cardB = cards.find((c) => within(c).queryByText("Sección B"));
+    if (!cardB) throw new Error("sin tarjeta B");
+    await user.click(within(cardB).getByRole("button", { name: "Renombrar" }));
+    const rename = await screen.findByRole("dialog", { name: "Renombrar sección" });
+    const input = within(rename).getByLabelText("Nombre");
     await user.clear(input);
     await user.type(input, "D");
-    await user.click(within(dialog).getByRole("button", { name: "Guardar" }));
+    await user.click(within(rename).getByRole("button", { name: "Guardar" }));
     await waitFor(() => expect(renamed).toEqual({ name: "D" }));
 
-    await user.click(screen.getByRole("button", { name: "Eliminar sección A" }));
+    await user.click(within(cardA).getByRole("button", { name: "Eliminar" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Eliminar" }),
     );
     expect(
       await screen.findByText("No se puede eliminar una sección con estudiantes asignados"),
     ).toBeInTheDocument();
+  });
+
+  it("muestra, quita y añade estudiantes de una sección", async () => {
+    let removed: string | undefined;
+    let added: unknown;
+    server.use(
+      http.get(`${API_URL}/sections/20/students`, () => HttpResponse.json([student])),
+      http.delete(`${API_URL}/sections/20/students/:id`, ({ params }) => {
+        removed = String(params.id);
+        return new HttpResponse(null, { status: 204 });
+      }),
+      http.get(`${API_URL}/sections/21/students`, () => HttpResponse.json([])),
+      http.post(`${API_URL}/sections/21/students`, async ({ request }) => {
+        added = await request.json();
+        return HttpResponse.json({ added: 0, moved: 1, already_in_section: 0 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp("/admin/academic?tab=secciones");
+
+    const list = await screen.findByRole("list", { name: "Secciones de 2026-I" });
+    const [buttonA, buttonB] = within(list).getAllByRole("button", { name: "Ver estudiantes" });
+    if (!buttonA || !buttonB) throw new Error("faltan botones");
+
+    await user.click(buttonA);
+    let dialog = await screen.findByRole("dialog", { name: "Sección A · estudiantes" });
+    expect(await within(dialog).findByText("María Pérez")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Quitar a María Pérez" }));
+    await waitFor(() => expect(removed).toBe("7"));
+    await user.click(within(dialog).getByRole("button", { name: "Cerrar" }));
+
+    await user.click(buttonB);
+    dialog = await screen.findByRole("dialog", { name: "Sección B · estudiantes" });
+    expect(
+      await within(dialog).findByText("Aún no hay estudiantes en esta sección."),
+    ).toBeInTheDocument();
+    await user.type(within(dialog).getByPlaceholderText("Buscar por nombre o documento"), "María");
+    await user.click(await within(dialog).findByRole("button", { name: "Añadir a María Pérez" }));
+    await waitFor(() => expect(added).toEqual({ student_ids: [7] }));
+    expect(await screen.findByText("Estudiante cambiado a esta sección.")).toBeInTheDocument();
   });
 
   it("asigna el profesor de cada sección en el detalle de la materia", async () => {

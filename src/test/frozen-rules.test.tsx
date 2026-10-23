@@ -240,15 +240,17 @@ describe("estudiante", () => {
 });
 
 describe("coordinación", () => {
-  it("el panel de periodos muestra las reglas congeladas de los cerrados", async () => {
+  it("el estado del periodo cerrado muestra sus reglas congeladas", async () => {
     signedInAs(makeUser({ role: "coordinator", full_name: "Carmen Rojas" }));
     server.use(
       http.get(`${API_URL}/semesters`, () => HttpResponse.json([open, closed])),
       http.get(`${API_URL}/subjects`, () =>
         HttpResponse.json({ items: [], total: 0, limit: 20, offset: 0 }),
       ),
+      http.get(`${API_URL}/semesters/:id/sections`, () => HttpResponse.json([])),
     );
-    renderApp("/admin/academic");
+    // Las reglas se ven al desplegar la etiqueta «Cerrado» del periodo elegido
+    renderApp(`/admin/academic?semester=${closed.id}`);
 
     expect(
       await screen.findByText(

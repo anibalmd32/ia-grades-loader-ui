@@ -2337,6 +2337,20 @@ export interface components {
              */
             already_in_section: number;
         };
+        /**
+         * SectionTeacher
+         * @description Profesor de la materia en una sección de su periodo (null si aún no tiene).
+         */
+        SectionTeacher: {
+            /** Section Id */
+            section_id: number;
+            /** Section Name */
+            section_name: string;
+            /** Teacher Id */
+            teacher_id: number | null;
+            /** Teacher Name */
+            teacher_name: string | null;
+        };
         /** SectionUpdate */
         SectionUpdate: {
             /**
@@ -2828,6 +2842,11 @@ export interface components {
              * @description Estudiantes matriculados. Solo en el listado y el detalle; null dentro de otras respuestas.
              */
             students_count?: number | null;
+            /**
+             * Section Teachers
+             * @description Cada sección del periodo con el profesor de la materia en ella (null si no tiene). Solo en el listado y el detalle; null dentro de otras respuestas.
+             */
+            section_teachers?: components["schemas"]["SectionTeacher"][] | null;
         };
         /** SubjectTeacherRead */
         SubjectTeacherRead: {
@@ -2874,6 +2893,11 @@ export interface components {
             teachers_count?: number | null;
             /** Students Count */
             students_count: number;
+            /**
+             * Section Teachers
+             * @description Cada sección del periodo con el profesor de la materia en ella (null si no tiene). Solo en el listado y el detalle; null dentro de otras respuestas.
+             */
+            section_teachers?: components["schemas"]["SectionTeacher"][] | null;
             section: components["schemas"]["SectionRead"];
             /**
              * Grades Count

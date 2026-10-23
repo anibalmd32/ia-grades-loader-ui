@@ -42,6 +42,11 @@ describe("coordinación", () => {
       http.get(`${API_URL}/subjects`, () => HttpResponse.json(page([mat, his]))),
       http.get(`${API_URL}/teachers`, () => HttpResponse.json(page([]))),
       http.get(`${API_URL}/students`, () => HttpResponse.json(page([student]))),
+      http.get(`${API_URL}/semesters/:id/sections`, ({ params }) =>
+        HttpResponse.json([
+          { id: 30, name: "A", semester_id: Number(params.id), students_count: 3 },
+        ]),
+      ),
     );
   });
 
@@ -56,12 +61,11 @@ describe("coordinación", () => {
     const user = userEvent.setup();
     renderApp("/admin/academic");
 
-    const list = (await screen.findByRole("button", { name: "Renombrar 2025-II" })).closest("ul");
-    if (!list) throw new Error("sin lista");
-    expect(within(list).getAllByText("Cerrado")).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "Reabrir 2025-II" })).toBeInTheDocument();
+    const selector = await screen.findByLabelText("Semestre");
+    expect(within(selector).getByRole("option", { name: "2025-II (cerrado)" })).toBeInTheDocument();
+    expect(screen.getByText("● Abierto")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Cerrar 2026-I" }));
+    await user.click(screen.getByRole("button", { name: "Cerrar semestre" }));
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toHaveTextContent("¿Cerrar el semestre 2026-I?");
     expect(dialog).toHaveTextContent(/notas.*matrículas.*materias/);
@@ -72,7 +76,7 @@ describe("coordinación", () => {
     expect(await screen.findByText("Semestre 2026-I cerrado.")).toBeInTheDocument();
   });
 
-  it("reabre un periodo cerrado", async () => {
+  it("en un periodo cerrado desactiva las altas y deja reabrirlo", async () => {
     let reopened = false;
     server.use(
       http.post(`${API_URL}/semesters/2/reopen`, () => {
@@ -81,9 +85,18 @@ describe("coordinación", () => {
       }),
     );
     const user = userEvent.setup();
-    renderApp("/admin/academic");
+    renderApp("/admin/academic?semester=2");
 
-    await user.click(await screen.findByRole("button", { name: "Reabrir 2025-II" }));
+    expect(
+      await screen.findByText(/El semestre 2025-II está cerrado: sus notas, matrículas, secciones/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nueva materia" })).toBeDisabled();
+    await user.click(screen.getByRole("tab", { name: "Secciones" }));
+    const sections = await screen.findByRole("list", { name: "Secciones de 2025-II" });
+    expect(within(sections).queryByRole("button", { name: "Nueva sección" })).toBeNull();
+    expect(within(sections).getByRole("button", { name: "Eliminar" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Reabrir semestre" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Reabrir" }),
     );
